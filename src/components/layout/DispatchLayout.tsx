@@ -1,0 +1,236 @@
+import React, { useRef } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  Users, 
+  Flame, 
+  Building2, 
+  Wallet, 
+  Map, 
+  LogOut,
+  Menu,
+  X,
+  Package,
+  FileText,
+  Settings,
+  QrCode,
+  ShoppingCart
+} from 'lucide-react';
+import { useDispatchAuthStore } from '../../stores/useDispatchAuthStore';
+import { useDispatchGazStore } from '../../stores/useDispatchGazStore';
+import { AfroNegoceLogo } from '../Logo';
+
+export function DispatchLayout() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useDispatchAuthStore();
+  const { updateTruckLocation, setGpsStatus } = useDispatchGazStore();
+  const watchId = useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (!user) {
+      navigate('/dispatch/login');
+      return;
+    }
+
+    // GPS Tracking for drivers
+    if (user.role === 'driver') {
+      if (!("geolocation" in navigator)) {
+        setGpsStatus('error', "La géolocalisation n'est pas supportée.");
+      } else {
+        setGpsStatus('tracking');
+        watchId.current = navigator.geolocation.watchPosition(
+          (position) => {
+            const { latitude, longitude, speed } = position.coords;
+            updateTruckLocation({
+              driverId: user.id,
+              lat: latitude,
+              lng: longitude,
+              speed: speed ? Math.round(speed * 3.6) : 0,
+              lastUpdate: new Date().toISOString()
+            });
+            setGpsStatus('tracking');
+          },
+          (error) => {
+            console.error("GPS Error:", error);
+            setGpsStatus('error', "Erreur GPS: " + error.message);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      }
+    }
+
+    if (user.role === 'driver' && location.pathname.includes('/dashboard')) {
+      navigate('/dispatch/gaz/driver/sale');
+    }
+    if (user.role === 'admin' && location.pathname.includes('/driver/')) {
+      navigate('/dispatch/gaz/dashboard');
+    }
+
+    return () => {
+      if (watchId.current !== null) {
+        navigator.geolocation.clearWatch(watchId.current);
+      }
+    };
+  }, [user, location.pathname, navigate, updateTruckLocation, setGpsStatus]);
+
+  if (!user) {
+    return null;
+  }
+
+  const adminNavItems = [
+    { name: 'Dashboard', href: '/dispatch/gaz/dashboard', icon: LayoutDashboard },
+    { name: 'Live Dispatch', href: '/dispatch/gaz/live', icon: Map },
+    { name: 'Stock Chauffeurs', href: '/dispatch/gaz/stock', icon: Package },
+    { name: 'Driver/Sales Agent', href: '/dispatch/gaz/drivers', icon: Users },
+    { name: 'Ressources Humaines', href: '/dispatch/gaz/hr', icon: FileText },
+    { name: 'GPL Settings', href: '/dispatch/gaz/settings', icon: Flame },
+    { name: 'Clients', href: '/dispatch/gaz/clients', icon: Building2 },
+    { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet },
+    { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart },
+    { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText },
+    { name: 'Paramètres', href: '/parametres', icon: Settings },
+  ];
+
+  const comptaNavItems = [
+    { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText },
+    { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet },
+    { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart },
+    { name: 'Stock Chauffeurs', href: '/dispatch/gaz/stock', icon: Package },
+    { name: 'Ressources Humaines', href: '/dispatch/gaz/hr', icon: FileText },
+    { name: 'Dashboard', href: '/dispatch/gaz/dashboard', icon: LayoutDashboard },
+  ];
+
+  const driverNavItems = [
+    { name: 'Pointage Quotidien', href: '/dispatch/gaz/driver/pointage', icon: QrCode },
+    { name: 'Nouvelle Vente', href: '/dispatch/gaz/driver/sale', icon: Flame },
+    { name: 'Mes Ventes', href: '/dispatch/gaz/driver/history', icon: Wallet },
+  ];
+
+  const navItems = user.role === 'admin' 
+    ? adminNavItems 
+    : user.role === 'comptable' 
+      ? comptaNavItems 
+      : driverNavItems;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/dispatch/login');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Sidebar Desktop */}
+      <aside className="w-64 bg-[#0B1120] text-slate-300 flex-col hidden md:flex border-r border-slate-800">
+        <div className="h-16 flex items-center px-6 border-b border-slate-800">
+          <Link to="/dispatch/select" className="flex items-center gap-3 text-white font-bold text-xl">
+            <AfroNegoceLogo className="w-8 h-8" />
+            <span>Afro Dispatch</span>
+          </Link>
+        </div>
+
+        <div className="p-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+              {user.prenom.charAt(0)}{user.nom.charAt(0)}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">{user.prenom} {user.nom}</p>
+              <p className="text-xs text-slate-400 capitalize">{user.role}</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.href;
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  isActive 
+                    ? 'bg-blue-600/10 text-blue-500' 
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-slate-800">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            Déconnexion
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:hidden">
+          <div className="flex items-center gap-2">
+            <AfroNegoceLogo className="w-8 h-8" />
+            <span className="font-bold text-slate-900">Afro Dispatch</span>
+          </div>
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-600">
+            <Menu className="w-6 h-6" />
+          </button>
+        </header>
+
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#0B1120] text-slate-300">
+              <div className="absolute top-0 right-0 -mr-12 pt-4">
+                <button
+                  className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <X className="h-6 w-6 text-white" />
+                </button>
+              </div>
+              <div className="h-16 flex items-center px-6 border-b border-slate-800">
+                <span className="text-white font-bold text-xl">Afro Dispatch</span>
+              </div>
+              <nav className="flex-1 px-3 py-4 space-y-1">
+                {navItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                        isActive 
+                          ? 'bg-blue-600/10 text-blue-500' 
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Page Content */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+}
