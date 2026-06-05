@@ -7,94 +7,99 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-let isDbInitialized = false;
-let isInitializing = false;
+let dbInitPromise: Promise<void> | null = null;
 
 async function ensureDb() {
-  if (isDbInitialized || isInitializing) return;
-  isInitializing = true;
-  try {
-    console.log('Connecting to PostgreSQL from API...');
-    await initDb();
-    console.log('PostgreSQL connected and initialized');
-    
-    // Seed first admin if not exists
-    const adminCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['admin@fleetops.com']);
-    if (adminCheck.rows.length === 0) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('admin', salt);
-      await pool.query(
-        'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [nanoid(), 'Admin', 'System', 'admin@fleetops.com', hashedPassword, 'super_admin', 'AS']
-      );
-      console.log('Seeded default admin user: admin@fleetops.com / admin');
-    }
-
-    // Seed dispatch users
-    const dispatchAdminCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['admin@afronegoce.ma']);
-    if (dispatchAdminCheck.rows.length === 0) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedAdmin = await bcrypt.hash('admin', salt);
-      const hashedDriver = await bcrypt.hash('driver', salt);
-      const hashedVendeur = await bcrypt.hash('vendeur', salt);
-      
-      await pool.query(
-        'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [nanoid(), 'Admin', 'Dispatch', 'admin@afronegoce.ma', hashedAdmin, 'admin', 'AD']
-      );
-      await pool.query(
-        'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [nanoid(), 'Chauffeur', 'Test', 'driver@afronegoce.ma', hashedDriver, 'driver', 'CT']
-      );
-      await pool.query(
-        'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [nanoid(), 'Vendeur', 'Comptoir', 'vendeur@afronegoce.ma', hashedVendeur, 'vendeur_comptoir', 'VC']
-      );
-      console.log('Seeded dispatch users');
-    }
-
-    // Seed compta user
-    const dispatchComptableCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['comptable@afronegoce.ma']);
-    if (dispatchComptableCheck.rows.length === 0) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedComptable = await bcrypt.hash('comptable', salt);
-      await pool.query(
-        'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [nanoid(), 'Comptable', 'Fiduciaire', 'comptable@afronegoce.ma', hashedComptable, 'comptable', 'CF']
-      );
-      console.log('Seeded compta user: comptable@afronegoce.ma / comptable');
-    }
-
-    // Seed Brands
-    const brands = [
-      {
-        id: 'b1',
-        name: 'Butagaz',
-        categories: ['3Kg', '12Kg', '34Kg'],
-        mascot_url: 'https://static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_0.png',
-        logo_url: 'https://static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_0.png'
-      },
-      {
-        id: 'b2',
-        name: 'Air Liquide',
-        categories: ['Industriel', 'Médical', 'Spécial'],
-        mascot_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Air_Liquide_logo.svg/2560px-Air_Liquide_logo.svg.png',
-        logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Air_Liquide_logo.svg/2560px-Air_Liquide_logo.svg.png'
-      }
-    ];
-
-    for (const brand of brands) {
-      await pool.query(
-        'INSERT INTO gaz_brands (id, name, categories, mascot_url, logo_url) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET categories = EXCLUDED.categories, name = EXCLUDED.name, mascot_url = COALESCE(gaz_brands.mascot_url, EXCLUDED.mascot_url), logo_url = COALESCE(gaz_brands.logo_url, EXCLUDED.logo_url)',
-        [brand.id, brand.name, brand.categories, brand.mascot_url, brand.logo_url]
-      );
-    }
-    console.log('Seeded/Updated gaz brands');
-    isDbInitialized = true;
-  } catch (err) {
-    isInitializing = false;
-    console.error('Failed to initialize database:', err);
+  if (dbInitPromise) {
+    return dbInitPromise;
   }
+
+  dbInitPromise = (async () => {
+    try {
+      console.log('Connecting to PostgreSQL from API...');
+      await initDb();
+      console.log('PostgreSQL connected and initialized');
+      
+      // Seed first admin if not exists
+      const adminCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['admin@fleetops.com']);
+      if (adminCheck.rows.length === 0) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('admin', salt);
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Admin', 'System', 'admin@fleetops.com', hashedPassword, 'super_admin', 'AS']
+        );
+        console.log('Seeded default admin user: admin@fleetops.com / admin');
+      }
+
+      // Seed dispatch users
+      const dispatchAdminCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['admin@afronegoce.ma']);
+      if (dispatchAdminCheck.rows.length === 0) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedAdmin = await bcrypt.hash('admin', salt);
+        const hashedDriver = await bcrypt.hash('driver', salt);
+        const hashedVendeur = await bcrypt.hash('vendeur', salt);
+        
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Admin', 'Dispatch', 'admin@afronegoce.ma', hashedAdmin, 'admin', 'AD']
+        );
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Chauffeur', 'Test', 'driver@afronegoce.ma', hashedDriver, 'driver', 'CT']
+        );
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Vendeur', 'Comptoir', 'vendeur@afronegoce.ma', hashedVendeur, 'vendeur_comptoir', 'VC']
+        );
+        console.log('Seeded dispatch users');
+      }
+
+      // Seed compta user
+      const dispatchComptableCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['comptable@afronegoce.ma']);
+      if (dispatchComptableCheck.rows.length === 0) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedComptable = await bcrypt.hash('comptable', salt);
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Comptable', 'Fiduciaire', 'comptable@afronegoce.ma', hashedComptable, 'comptable', 'CF']
+        );
+        console.log('Seeded compta user: comptable@afronegoce.ma / comptable');
+      }
+
+      // Seed Brands
+      const brands = [
+        {
+          id: 'b1',
+          name: 'Butagaz',
+          categories: ['3Kg', '12Kg', '34Kg'],
+          mascot_url: 'https://static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_0.png',
+          logo_url: 'https://static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_0.png'
+        },
+        {
+          id: 'b2',
+          name: 'Air Liquide',
+          categories: ['Industriel', 'Médical', 'Spécial'],
+          mascot_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Air_Liquide_logo.svg/2560px-Air_Liquide_logo.svg.png',
+          logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Air_Liquide_logo.svg/2560px-Air_Liquide_logo.svg.png'
+        }
+      ];
+
+      for (const brand of brands) {
+        await pool.query(
+          'INSERT INTO gaz_brands (id, name, categories, mascot_url, logo_url) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET categories = EXCLUDED.categories, name = EXCLUDED.name, mascot_url = COALESCE(gaz_brands.mascot_url, EXCLUDED.mascot_url), logo_url = COALESCE(gaz_brands.logo_url, EXCLUDED.logo_url)',
+          [brand.id, brand.name, brand.categories, brand.mascot_url, brand.logo_url]
+        );
+      }
+      console.log('Seeded/Updated gaz brands');
+    } catch (err) {
+      dbInitPromise = null; // Clear promise on error so we can retry on next request
+      console.error('Failed to initialize database during cold start:', err);
+      throw err;
+    }
+  })();
+
+  return dbInitPromise;
 }
 
 // Global middleware to conditionally initialize DB for Vercel Serverless cold starts
