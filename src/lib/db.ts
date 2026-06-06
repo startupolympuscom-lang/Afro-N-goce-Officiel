@@ -1,22 +1,25 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is required');
-}
-
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || 'postgresql://dummy:dummy@localhost/dummy', // dummy to prevent crash on instantiating
   ssl: {
     rejectUnauthorized: false
   }
 });
 
 export async function query(text: string, params?: any[]) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is required but not configured.');
+  }
   return pool.query(text, params);
 }
 
 export async function initDb() {
+  if (!process.env.DATABASE_URL) {
+    console.error('initDb: DATABASE_URL is missing, skipping DB initialization.');
+    throw new Error('DATABASE_URL environment variable is required');
+  }
   console.log('initDb: Connecting client...');
   const client = await pool.connect();
   console.log('initDb: Client connected');

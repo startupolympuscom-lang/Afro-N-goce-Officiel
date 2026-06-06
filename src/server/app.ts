@@ -4,7 +4,16 @@ import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 
 const app = express();
-app.use(express.json({ limit: '100mb' }));
+
+// Custom body parsing middleware to handle Vercel's pre-parsed body
+app.use((req, res, next) => {
+  // In Vercel, req.body might already be parsed for JSON payloads.
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+    return next();
+  }
+  express.json({ limit: '100mb' })(req, res, next);
+});
+
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 let dbInitPromise: Promise<void> | null = null;
@@ -87,7 +96,7 @@ async function ensureDb() {
 
       for (const brand of brands) {
         await pool.query(
-          'INSERT INTO gaz_brands (id, name, categories, mascot_url, logo_url) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET categories = EXCLUDED.categories, name = EXCLUDED.name, mascot_url = COALESCE(gaz_brands.mascot_url, EXCLUDED.mascot_url), logo_url = COALESCE(gaz_brands.logo_url, EXCLUDED.logo_url)',
+          'INSERT INTO gaz_brands (id, name, categories, mascot_url, logo_url) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING',
           [brand.id, brand.name, brand.categories, brand.mascot_url, brand.logo_url]
         );
       }
@@ -104,8 +113,13 @@ async function ensureDb() {
 
 // Global middleware to conditionally initialize DB for Vercel Serverless cold starts
 app.use('/api', async (req, res, next) => {
-  await ensureDb();
-  next();
+  try {
+    await ensureDb();
+    next();
+  } catch (error) {
+    console.error('Error in ensureDb middleware:', error);
+    res.status(500).json({ error: 'Database initialization failed' });
+  }
 });
 
 // Auth Routes
