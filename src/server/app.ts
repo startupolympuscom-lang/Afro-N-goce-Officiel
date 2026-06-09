@@ -7,14 +7,20 @@ const app = express();
 
 // Custom body parsing middleware to handle Vercel's pre-parsed body
 app.use((req, res, next) => {
-  // In Vercel, req.body might already be parsed for JSON payloads.
-  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+  // In Vercel, req.body is often already populated by their own body parser.
+  // If it is, we skip express.json() to avoid hanging on a consumed stream.
+  if (req.body !== undefined) {
     return next();
   }
   express.json({ limit: '100mb' })(req, res, next);
 });
 
-app.use(express.urlencoded({ limit: '100mb', extended: true }));
+app.use((req, res, next) => {
+  if (req.body !== undefined && typeof req.body === 'object') {
+     return next();
+  }
+  express.urlencoded({ limit: '100mb', extended: true })(req, res, next);
+});
 
 let dbInitPromise: Promise<void> | null = null;
 
