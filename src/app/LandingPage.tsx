@@ -316,15 +316,18 @@ export default function LandingPage() {
           <Marquee>
             <div className="flex items-center gap-24">
               {partnerLogos.length > 0 ? (
-                partnerLogos.map((logo) => (
-                  <img 
-                    key={logo.id} 
-                    src={logo.url} 
-                    alt={logo.name} 
-                    className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all duration-500" 
-                    referrerPolicy="no-referrer" 
-                  />
-                ))
+                <>
+                  {partnerLogos.map((logo) => (
+                    <img 
+                      key={logo.id} 
+                      src={logo.url} 
+                      alt={logo.name} 
+                      className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all duration-500" 
+                      referrerPolicy="no-referrer" 
+                    />
+                  ))}
+                  <img src="https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_0.png" onError={(e) => { e.currentTarget.src = 'https://logo.clearbit.com/somap.fr'; }} alt="SOMAP" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                </>
               ) : (
                 <>
                   <img src={defaultButagaz} alt="Butagaz" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
@@ -332,6 +335,7 @@ export default function LandingPage() {
                   <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Campingaz_logo.svg/2560px-Campingaz_logo.svg.png" alt="Campingaz" className="h-6 md:h-8 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
                   <img src="https://logo.clearbit.com/gurtner.fr" alt="Gurtner" className="h-6 md:h-8 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
                   <img src="https://logo.clearbit.com/nurgaz.com.tr" alt="Nurgaz" className="h-6 md:h-8 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                  <img src="https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_0.png" onError={(e) => { e.currentTarget.src = 'https://logo.clearbit.com/somap.fr'; }} alt="SOMAP" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
                 </>
               )}
               
@@ -339,6 +343,10 @@ export default function LandingPage() {
                 <>
                   <img src={defaultButagaz} alt="Butagaz" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
                   <img src={defaultAirLiquide} alt="Air Liquide" className="h-6 md:h-8 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Campingaz_logo.svg/2560px-Campingaz_logo.svg.png" alt="Campingaz" className="h-6 md:h-8 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                  <img src="https://logo.clearbit.com/gurtner.fr" alt="Gurtner" className="h-6 md:h-8 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                  <img src="https://logo.clearbit.com/nurgaz.com.tr" alt="Nurgaz" className="h-6 md:h-8 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                  <img src="https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_0.png" onError={(e) => { e.currentTarget.src = 'https://logo.clearbit.com/somap.fr'; }} alt="SOMAP" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
                 </>
               )}
             </div>
