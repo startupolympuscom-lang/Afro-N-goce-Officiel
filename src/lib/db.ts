@@ -1,24 +1,38 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+const connectionString = 
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL || 
+  process.env.POSTGRES_URL || 
+  'postgresql://dummy:dummy@localhost/dummy';
+
+const hasDbConfig = !!(
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL
+);
+
+const isLocalhost = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://dummy:dummy@localhost/dummy', // dummy to prevent crash on instantiating
-  ssl: {
+  connectionString,
+  ssl: isLocalhost ? false : {
     rejectUnauthorized: false
   }
 });
 
 export async function query(text: string, params?: any[]) {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL environment variable is required but not configured.');
+  if (!hasDbConfig) {
+    throw new Error('DATABASE_URL, POSTGRES_URL_NON_POOLING or POSTGRES_URL environment variable is required but not configured.');
   }
   return pool.query(text, params);
 }
 
 export async function initDb() {
-  if (!process.env.DATABASE_URL) {
-    console.error('initDb: DATABASE_URL is missing, skipping DB initialization.');
-    throw new Error('DATABASE_URL environment variable is required');
+  if (!hasDbConfig) {
+    console.error('initDb: Database environment variables are missing, skipping DB initialization.');
+    throw new Error('DATABASE_URL, POSTGRES_URL_NON_POOLING or POSTGRES_URL environment variable is required');
   }
   console.log('initDb: Connecting client...');
   const client = await pool.connect();
