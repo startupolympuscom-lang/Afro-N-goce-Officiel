@@ -26,7 +26,7 @@ export default function DispatchCaissePage() {
   } = useDispatchGazStore();
   
   const [isAddingExpense, setIsAddingExpense] = useState(false);
-  const [expenseData, setExpenseData] = useState({ amount: '', reason: '', driverId: '' });
+  const [expenseData, setExpenseData] = useState({ amount: '', reasonMode: 'Avance sur salaire', reasonCustom: '', driverId: '' });
   const [isAddingTransfer, setIsAddingTransfer] = useState(false);
   const [transferData, setTransferData] = useState({ amount: '', toAccount: 'securitaire' as 'securitaire' | 'noir', reason: '' });
   const [ticketToPrint, setTicketToPrint] = useState<any>(null);
@@ -221,16 +221,20 @@ export default function DispatchCaissePage() {
 
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();
-    if (expenseData.amount && expenseData.reason && expenseData.driverId) {
+    const finalReason = expenseData.reasonMode === 'Autre' 
+      ? expenseData.reasonCustom 
+      : expenseData.reasonMode;
+
+    if (expenseData.amount && finalReason && expenseData.driverId) {
       addExpense({
         id: Date.now().toString(),
         date: new Date().toISOString(),
         driverId: expenseData.driverId,
         amount: parseFloat(expenseData.amount),
-        reason: expenseData.reason
+        reason: finalReason
       });
       setIsAddingExpense(false);
-      setExpenseData({ amount: '', reason: '', driverId: '' });
+      setExpenseData({ amount: '', reasonMode: 'Avance sur salaire', reasonCustom: '', driverId: '' });
       toast.success("Sortie de caisse enregistrée.");
     }
   };
@@ -436,7 +440,27 @@ export default function DispatchCaissePage() {
             </div>
             <div>
               <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Motif</label>
-              <input type="text" required value={expenseData.reason} onChange={e => setExpenseData({...expenseData, reason: e.target.value})} placeholder="ex: Avance sur salaire" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium" />
+              <select 
+                required 
+                value={expenseData.reasonMode} 
+                onChange={e => setExpenseData({...expenseData, reasonMode: e.target.value})} 
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium mb-3"
+              >
+                <option value="Avance sur salaire">Avance sur salaire</option>
+                <option value="Carburant">Carburant</option>
+                <option value="Entretien / Réparation">Entretien / Réparation</option>
+                <option value="Autre">Autre (Préciser)</option>
+              </select>
+              {expenseData.reasonMode === 'Autre' && (
+                <input 
+                  type="text" 
+                  required 
+                  value={expenseData.reasonCustom} 
+                  onChange={e => setExpenseData({...expenseData, reasonCustom: e.target.value})} 
+                  placeholder="Précisez le motif..." 
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium animate-in fade-in slide-in-from-top-2" 
+                />
+              )}
             </div>
             <div className="md:col-span-3 flex justify-end gap-3 pt-4 border-t border-slate-100">
               <button type="button" onClick={() => setIsAddingExpense(false)} className="px-6 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-all">Annuler</button>

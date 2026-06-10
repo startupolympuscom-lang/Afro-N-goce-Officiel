@@ -8,7 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export default function DispatchHRPage() {
-  const { drivers, sales, commissions, brands, paySlips, addPaySlip, deletePaySlip } = useDispatchGazStore();
+  const { drivers, sales, commissions, brands, paySlips, addPaySlip, deletePaySlip, expenses } = useDispatchGazStore();
   const [activeTab, setActiveTab] = useState<'generator' | 'history'>('generator');
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [month, setMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
@@ -27,10 +27,21 @@ export default function DispatchHRPage() {
   useEffect(() => {
     if (savedPaySlip) {
       setAcompteInput(savedPaySlip.acompte || 0);
+    } else if (selectedDriverId && month) {
+      // Calculate total advances for this driver in this month from expenses
+      const advancesSum = expenses
+        .filter(
+          (e) =>
+            e.driverId === selectedDriverId &&
+            e.date.startsWith(month) &&
+            e.reason.toLowerCase().includes('avance sur salaire')
+        )
+        .reduce((sum, e) => sum + e.amount, 0);
+      setAcompteInput(advancesSum);
     } else {
       setAcompteInput(0);
     }
-  }, [savedPaySlip]);
+  }, [savedPaySlip, selectedDriverId, month, expenses]);
 
   const calculatePayroll = (driverId: string, targetMonth: string) => {
     const driverSales = sales.filter(s => 
@@ -100,6 +111,156 @@ export default function DispatchHRPage() {
 
     addPaySlip(newPaySlip);
     toast.success('Fiche de paie enregistrée avec succès.');
+  };
+
+  const handleExportWord = () => {
+    if (!payrollData || !selectedDriver) {
+      toast.error('Aucune donnée à exporter.');
+      return;
+    }
+    
+    // Calculations
+    const totalCommission = payrollData.totalCommission;
+    const SMIG = 3422.72;
+    const baseCNSS = totalCommission > SMIG ? SMIG : totalCommission;
+    const cnss = baseCNSS * 0.0448;
+    const amo = baseCNSS * 0.0226;
+    const totalRetenues = cnss + amo;
+    const salaireNet = totalCommission - totalRetenues;
+    const acompte = acompteInput || 0;
+    const netAPayer = salaireNet - acompte;
+
+    const basePayer = Math.min(3000.00, totalCommission);
+    const transportPayer = totalCommission > SMIG ? Math.min(580.00, totalCommission - SMIG) : 0.00;
+    const commissionPayer = totalCommission > SMIG ? 422.72 : Math.max(0, totalCommission - 3000.00);
+    const primePayer = totalCommission > SMIG ? Math.max(0, totalCommission - SMIG - 580.00) : 0.00;
+
+    const yearNum = parseInt(month.split('-')[0]);
+    const monthNum = parseInt(month.split('-')[1]);
+    const lastDay = new Date(yearNum, monthNum, 0).getDate();
+
+    const exportHTML = `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #000;">
+        <table width="100%" style="margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px;">
+          <tr>
+            <td>
+              <h1 style="font-size: 18px; margin: 0;">GOCE SARL</h1>
+              <p style="font-size: 12px; margin: 0; color: #666;">NZARANE SAADA</p>
+            </td>
+            <td style="text-align: right;">
+              <h1 style="font-size: 18px; margin: 0;">BULLETIN DE PAIE</h1>
+              <p style="font-size: 12px; margin: 0; color: #666;">N° CNSS Employeur: 9764251</p>
+              <p style="font-size: 12px; margin: 0; color: #666;">Période: 01/${monthNum.toString().padStart(2, '0')}/${yearNum} au ${lastDay.toString().padStart(2, '0')}/${monthNum.toString().padStart(2, '0')}/${yearNum}</p>
+            </td>
+          </tr>
+        </table>
+
+        <table width="100%" style="margin-bottom: 30px; border: 1px solid #eee; padding: 10px;">
+          <tr>
+            <td width="50%">
+              <p style="margin: 2px 0; font-size: 12px;"><strong>SALARIE(E):</strong> ${selectedDriver.prenom} ${selectedDriver.nom}</p>
+              <p style="margin: 2px 0; font-size: 12px;"><strong>QUALIFICATION:</strong> VENDEUR</p>
+              <p style="margin: 2px 0; font-size: 12px;"><strong>MATRICULE:</strong> ${selectedDriver.id.substring(0, 5).toUpperCase()}</p>
+            </td>
+            <td width="50%" style="text-align: right;">
+              <p style="margin: 2px 0; font-size: 12px;"><strong>N° CIN:</strong> ${selectedDriver.cin || 'D637148'}</p>
+              <p style="margin: 2px 0; font-size: 12px;"><strong>N° CNSS:</strong> ${selectedDriver.cnss || '104963262'}</p>
+              <p style="margin: 2px 0; font-size: 12px;"><strong>NET DUR A PAYER:</strong> ${netAPayer.toFixed(2)} MAD</p>
+            </td>
+          </tr>
+        </table>
+
+        <table width="100%" border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 11px; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #f8f9fa;">
+              <th align="left" colspan="2">Libellé de la rubrique</th>
+              <th align="center">Base / Nombre</th>
+              <th align="center">Taux</th>
+              <th align="right">A Payer / Déduire</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="2"><strong>SALAIRE DE BASE</strong></td>
+              <td align="center">26.00</td>
+              <td align="center">${(basePayer / 26).toFixed(2)}</td>
+              <td align="right"><strong>+${basePayer.toFixed(2)}</strong></td>
+            </tr>
+            ${transportPayer > 0 ? `
+            <tr>
+              <td colspan="2"><strong>INDIMNITE DE TRANSPORT</strong></td>
+              <td align="center">1.00</td>
+              <td align="center">${transportPayer.toFixed(2)}</td>
+              <td align="right"><strong>+${transportPayer.toFixed(2)}</strong></td>
+            </tr>` : ''}
+            ${commissionPayer > 0 ? `
+            <tr>
+              <td colspan="2"><strong>COMMISSION</strong></td>
+              <td align="center">1.00</td>
+              <td align="center">${commissionPayer.toFixed(2)}</td>
+              <td align="right"><strong>+${commissionPayer.toFixed(2)}</strong></td>
+            </tr>` : ''}
+            ${primePayer > 0 ? `
+            <tr>
+              <td colspan="2"><strong>PRIME DE LA TOURNEE</strong></td>
+              <td align="center">1.00</td>
+              <td align="center">${primePayer.toFixed(2)}</td>
+              <td align="right"><strong>+${primePayer.toFixed(2)}</strong></td>
+            </tr>` : ''}
+            
+            <tr style="background-color: #f1f5f9;">
+              <td colspan="4"><strong>SALAIRE BRUT</strong></td>
+              <td align="right"><strong>${totalCommission.toFixed(2)}</strong></td>
+            </tr>
+            <tr>
+              <td colspan="2">RETENUE CNSS (PATRONALE / OUT)</td>
+              <td align="center">${baseCNSS.toFixed(2)}</td>
+              <td align="center">4.48%</td>
+              <td align="right">-${cnss.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td colspan="2">RETENUE AMO</td>
+              <td align="center">${baseCNSS.toFixed(2)}</td>
+              <td align="center">2.26%</td>
+              <td align="right">-${amo.toFixed(2)}</td>
+            </tr>
+            
+            <tr style="background-color: #f1f5f9;">
+              <td colspan="4"><strong>SALAIRE NET DE CHARGES</strong></td>
+              <td align="right"><strong>${salaireNet.toFixed(2)}</strong></td>
+            </tr>
+            
+            ${acompte > 0 ? `
+            <tr>
+              <td colspan="4">AVANCE / ACOMPTE</td>
+              <td align="right">-${acompte.toFixed(2)}</td>
+            </tr>` : ''}
+            
+            <tr style="background-color: #e2e8f0; font-size: 13px;">
+              <td colspan="4"><strong>SALAIRE NET A PERCEVOIR (MAD)</strong></td>
+              <td align="right"><strong>${netAPayer.toFixed(2)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <p style="font-size: 10px; color: #666; margin-top: 30px;">Mode de paiement: VIREMENT AGENCEDUCOMPTE<br>Signé électroniquement</p>
+      </div>
+    `;
+
+    const fileContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>Bulletin de Paie</title></head>
+      <body>${exportHTML}</body></html>
+    `;
+
+    const blob = new Blob(['\ufeff', fileContent], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Fiche_Paie_${selectedDriver.nom}_${month}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleExportPDF = () => {
@@ -627,7 +788,7 @@ export default function DispatchHRPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte (MAD)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte / Avances (MAD)</label>
                   <input 
                     type="number" 
                     min="0"
@@ -637,6 +798,9 @@ export default function DispatchHRPage() {
                     onChange={(e) => setAcompteInput(parseFloat(e.target.value) || 0)}
                     className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   />
+                  <p className="text-[10px] text-slate-500 mt-1 mt-1">
+                    Les sorties de caisse "Avance sur salaire" du mois sont calculées automatiquement.
+                  </p>
                 </div>
               </div>
             </div>
@@ -695,10 +859,16 @@ export default function DispatchHRPage() {
                         Valider la paie
                       </button>
                     )}
-                    <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">
-                      <Download className="w-4 h-4" />
-                      Exporter PDF
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button onClick={handleExportWord} className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-xl font-medium hover:bg-blue-200 transition-colors">
+                        <FileText className="w-4 h-4" />
+                        Exporter DOC
+                      </button>
+                      <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">
+                        <Download className="w-4 h-4" />
+                        Exporter PDF
+                      </button>
+                    </div>
                   </div>
                 </div>
 
