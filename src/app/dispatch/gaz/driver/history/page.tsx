@@ -15,19 +15,19 @@ export default function DispatchDriverHistoryPage() {
     .reduce((sum, s) => sum + s.totalPrice, 0);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6" dir="rtl">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Mes Ventes</h1>
+        <h1 className="text-2xl font-bold text-slate-900">مبيعاتي</h1>
       </div>
 
       <div className="bg-blue-600 text-white p-6 rounded-2xl shadow-lg shadow-blue-200">
-        <p className="text-blue-100 font-medium mb-1">Total encaissé aujourd'hui</p>
-        <p className="text-4xl font-bold">{totalToday.toLocaleString()} MAD</p>
+        <p className="text-blue-100 font-medium mb-1">إجمالي المقبوضات اليوم</p>
+        <p className="text-4xl font-bold">{totalToday.toLocaleString()} درهم</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50">
-          <h2 className="font-bold text-slate-900">Historique des transactions</h2>
+        <div className="p-4 border-b border-slate-200 bg-slate-50 text-right">
+          <h2 className="font-bold text-slate-900">سجل المعاملات</h2>
         </div>
         <div className="divide-y divide-slate-100">
           {mySales.map(sale => {
@@ -36,25 +36,25 @@ export default function DispatchDriverHistoryPage() {
             return (
               <div key={sale.id} className="p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex justify-between items-start mb-2">
+                  <span className="font-bold text-emerald-600">+{sale.totalPrice} درهم</span>
                   <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">{client?.name || 'عميل غير معروف'}</span>
                     <Building2 className="w-4 h-4 text-slate-400" />
-                    <span className="font-bold text-slate-900">{client?.name || 'Client inconnu'}</span>
                   </div>
-                  <span className="font-bold text-emerald-600">+{sale.totalPrice} MAD</span>
                 </div>
                 <div className="flex justify-between items-center text-sm text-slate-500">
-                  <div className="flex items-center gap-1">
-                    <Flame className="w-3 h-3" />
-                    {brand?.name} {sale.category} x{sale.quantity}
-                  </div>
                   <span>{new Date(sale.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(sale.date).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-1">
+                    {brand?.name} {sale.category} x{sale.quantity}
+                    <Flame className="w-3 h-3" />
+                  </div>
                 </div>
               </div>
             );
           })}
           {mySales.length === 0 && (
             <div className="p-8 text-center text-slate-500">
-              Vous n'avez pas encore enregistré de ventes.
+              لم تقم بتسجيل أي مبيعات بعد.
             </div>
           )}
         </div>

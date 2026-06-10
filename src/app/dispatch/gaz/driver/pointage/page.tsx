@@ -135,7 +135,7 @@ export default function DriverPointagePage() {
 
   if (alreadyCheckedIn) {
     return (
-      <div className="max-w-xl mx-auto pt-12 pb-24 px-4 text-center space-y-8">
+      <div className="max-w-xl mx-auto pt-12 pb-24 px-4 text-center space-y-8" dir="rtl">
         <motion.div 
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -145,17 +145,17 @@ export default function DriverPointagePage() {
         </motion.div>
         
         <div className="space-y-2">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Pointage Confirmé</h1>
-          <p className="text-slate-500 font-medium">Votre service a déjà été enregistré pour aujourd'hui.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">تم تأكيد الحضور</h1>
+          <p className="text-slate-500 font-medium">تم تسجيل خدمتك لهذا اليوم بالفعل.</p>
         </div>
 
-        <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 text-left">
+        <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 text-right">
           <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Accès autorisé</p>
-            <p className="text-sm font-black text-slate-900">Vous pouvez maintenant gérer vos stocks et ventes.</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">الوصول مسموح</p>
+            <p className="text-sm font-black text-slate-900">يمكنك الآن إدارة مخزونك ومبيعاتك.</p>
           </div>
         </div>
 
@@ -163,27 +163,27 @@ export default function DriverPointagePage() {
           onClick={() => window.location.href = '/dispatch/gaz/driver/sale'}
           className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all"
         >
-          Accéder aux Ventes
+          الوصول إلى المبيعات
         </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto pt-8 pb-32 px-4 space-y-8">
-      <div className="space-y-2 text-center md:text-left">
+    <div className="max-w-xl mx-auto pt-8 pb-32 px-4 space-y-8" dir="rtl">
+      <div className="space-y-2 text-center md:text-right">
         <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase flex items-center gap-2 justify-center md:justify-start">
           <QrCode className="w-8 h-8 text-blue-600" />
-          Pointage Quotidien
+          الحضور اليومي
         </h1>
-        <p className="text-slate-500 font-medium leading-tight">Effectuez votre pointage pour débloquer l'accès à vos outils de vente.</p>
+        <p className="text-slate-500 font-medium leading-tight">سجل حضورك لفتح الوصول إلى أدوات المبيعات الخاصة بك.</p>
       </div>
 
       <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-[0.2em]">
             <Users className="w-4 h-4" />
-            Qui vous accompagne ?
+            من يرافقك؟
           </div>
           
           <div className="grid grid-cols-1 gap-3">
@@ -201,9 +201,9 @@ export default function DriverPointagePage() {
                 }`}>
                   👤
                 </div>
-                <div className="text-left">
-                  <p className="font-bold">Je suis seul</p>
-                  <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">Sans assistant</p>
+                <div className="text-right">
+                  <p className="font-bold">أنا بمفردي</p>
+                  <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">بدون مساعد</p>
                 </div>
               </div>
               {isAlone && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
@@ -232,10 +232,10 @@ export default function DriverPointagePage() {
                     }`}>
                       {c.prenom[0]}{c.nom[0]}
                     </div>
-                    <div className="text-left">
+                    <div className="text-right">
                       <p className="font-bold">{c.prenom} {c.nom}</p>
                       <p className={`text-[10px] uppercase font-black tracking-widest ${isTaken ? 'text-red-400' : 'text-slate-400'}`}>
-                        {isTaken ? 'Déjà assigné(e)' : 'Assistant'}
+                        {isTaken ? 'تم تعيينه بالفعل' : 'مساعد'}
                       </p>
                     </div>
                   </div>
@@ -259,7 +259,7 @@ export default function DriverPointagePage() {
                   className="w-full py-5 bg-slate-950 text-white rounded-[32px] font-bold text-xl flex items-center justify-center gap-3 shadow-2xl shadow-slate-950/20 active:scale-[0.98] transition-all"
                 >
                   <Camera className="w-6 h-6" />
-                  Démarrer le Scanner
+                  بدء الماسح الضوئي
                 </button>
               ) : (
                 <div className="space-y-4">
@@ -267,7 +267,7 @@ export default function DriverPointagePage() {
                     <div id="qr-reader" className="w-full" />
                     <div className="absolute inset-0 border-8 border-white/10 pointer-events-none rounded-[40px]" />
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-widest">
-                      Scanner en cours
+                      المسح الضوئي جاري
                     </div>
                   </div>
                   
@@ -275,7 +275,7 @@ export default function DriverPointagePage() {
                     onClick={() => setIsScanning(false)}
                     className="w-full py-4 text-slate-500 font-bold text-sm hover:text-red-500 transition-colors"
                   >
-                    Annuler le scan
+                    إلغاء المسح
                   </button>
                 </div>
               )}
@@ -283,7 +283,7 @@ export default function DriverPointagePage() {
               {scanStatus === 'error' && (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-bold">
                   <AlertCircle className="w-5 h-5 shrink-0" />
-                  QR Code invalide pour aujourd'hui.
+                  رمز الإستجابة السريع غير صالح لهذا اليوم.
                 </div>
               )}
             </motion.div>
@@ -291,14 +291,14 @@ export default function DriverPointagePage() {
         </AnimatePresence>
       </div>
 
-      <div className="p-6 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4">
+      <div className="p-6 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4 text-right">
         <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm shrink-0 border border-blue-100/50">
           <ShieldCheck className="w-5 h-5" />
         </div>
         <div className="space-y-1">
-          <p className="text-xs font-black text-blue-600 uppercase tracking-[0.15em]">Sécurité & Traçabilité</p>
+          <p className="text-xs font-black text-blue-600 uppercase tracking-[0.15em]">الأمن والتتبع</p>
           <p className="text-sm text-blue-800/80 font-medium leading-tight">
-            Le QR code est généré quotidiennement par l'administrateur. Il garantit votre présence physique et celle de votre assistant.
+            يتم إنشاء رمز الإستجابة السريع يوميًا من قبل المسؤول. إنه يضمن وجودك الفعلي ووجود مساعدك.
           </p>
         </div>
       </div>

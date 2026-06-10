@@ -7,20 +7,14 @@ const app = express();
 
 // Custom body parsing middleware to handle Vercel's pre-parsed body
 app.use((req, res, next) => {
-  // In Vercel, req.body is often already populated by their own body parser.
-  // If it is, we skip express.json() to avoid hanging on a consumed stream.
-  if (req.body !== undefined) {
+  // In Vercel, req.body might already be parsed for JSON payloads.
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
     return next();
   }
   express.json({ limit: '100mb' })(req, res, next);
 });
 
-app.use((req, res, next) => {
-  if (req.body !== undefined && typeof req.body === 'object') {
-     return next();
-  }
-  express.urlencoded({ limit: '100mb', extended: true })(req, res, next);
-});
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 let dbInitPromise: Promise<void> | null = null;
 
@@ -67,7 +61,36 @@ async function ensureDb() {
           'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
           [nanoid(), 'Vendeur', 'Comptoir', 'vendeur@afronegoce.ma', hashedVendeur, 'vendeur_comptoir', 'VC']
         );
+        const hashedStock = await bcrypt.hash('stock', salt);
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Stock', 'Superviseur', 'stock@afronegoce.ma', hashedStock, 'stock_superviseur', 'SS']
+        );
         console.log('Seeded dispatch users');
+      }
+
+      // Seed vendeur user if missing
+      const vendeurCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['vendeur@afronegoce.ma']);
+      if (vendeurCheck.rows.length === 0) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedVendeur = await bcrypt.hash('vendeur', salt);
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Vendeur', 'Comptoir', 'vendeur@afronegoce.ma', hashedVendeur, 'vendeur_comptoir', 'VC']
+        );
+        console.log('Seeded vendeur comptoir user');
+      }
+
+      // Seed stock user if missing
+      const stockCheck = await pool.query('SELECT * FROM users WHERE email = $1', ['stock@afronegoce.ma']);
+      if (stockCheck.rows.length === 0) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedStock = await bcrypt.hash('stock', salt);
+        await pool.query(
+          'INSERT INTO users (id, nom, prenom, email, password, role, avatar_initials) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [nanoid(), 'Stock', 'Superviseur', 'stock@afronegoce.ma', hashedStock, 'stock_superviseur', 'SS']
+        );
+        console.log('Seeded stock superviseur user');
       }
 
       // Seed compta user

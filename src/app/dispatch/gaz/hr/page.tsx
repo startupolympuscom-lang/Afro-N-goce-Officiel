@@ -1,21 +1,36 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDispatchGazStore, GazPaySlip } from '../../../../stores/useDispatchGazStore';
 import { Users, FileText, Download, Calculator, Search, Filter, CheckCircle2, Trash2, QrCode, UserPlus, ChevronRight } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function DispatchHRPage() {
   const { drivers, sales, commissions, brands, paySlips, addPaySlip, deletePaySlip } = useDispatchGazStore();
   const [activeTab, setActiveTab] = useState<'generator' | 'history'>('generator');
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [month, setMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [acompteInput, setAcompteInput] = useState<number>(0);
   
   // History states
   const [historySearch, setHistorySearch] = useState('');
   const [historyMonth, setHistoryMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const selectedDriver = drivers.find(d => d.id === selectedDriverId);
+
+  const savedPaySlip = useMemo(() => {
+    return paySlips.find(p => p.driverId === selectedDriverId && p.month === month);
+  }, [selectedDriverId, month, paySlips]);
+
+  useEffect(() => {
+    if (savedPaySlip) {
+      setAcompteInput(savedPaySlip.acompte || 0);
+    } else {
+      setAcompteInput(0);
+    }
+  }, [savedPaySlip]);
 
   const calculatePayroll = (driverId: string, targetMonth: string) => {
     const driverSales = sales.filter(s => 
@@ -79,11 +94,340 @@ export default function DispatchHRPage() {
       month,
       totalCommission: payrollData.totalCommission,
       details: payrollData.details,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      acompte: acompteInput || 0
     };
 
     addPaySlip(newPaySlip);
     toast.success('Fiche de paie enregistrée avec succès.');
+  };
+
+  const handleExportPDF = () => {
+    if (!payrollData || !selectedDriver) {
+      toast.error('Aucune donnée à exporter.');
+      return;
+    }
+    
+    const doc = new jsPDF();
+    const yearNum = parseInt(month.split('-')[0]);
+    const monthNum = parseInt(month.split('-')[1]);
+    const formattedStart = `01/${monthNum.toString().padStart(2, '0')}/${yearNum}`;
+    const lastDay = new Date(yearNum, monthNum, 0).getDate();
+    const formattedEnd = `${lastDay.toString().padStart(2, '0')}/${monthNum.toString().padStart(2, '0')}/${yearNum}`;
+    
+    // 1. Company Logo/Header Left
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42); // slate 900
+    doc.text('GOCE SARL', 14, 18);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105); // slate 600
+    doc.text('NZARANE SAADA', 14, 24);
+    
+    // 2. Bulletin de Paie Header Right
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(15, 23, 42);
+    doc.text('BULLETIN DE PAIE', 196, 18, { align: 'right' });
+    
+    // Header Right Details
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text('N° CNSS', 130, 24);
+    doc.text('9764251', 196, 24, { align: 'right' });
+    doc.text('Période de paie du', 130, 29);
+    doc.text(formattedStart, 196, 29, { align: 'right' });
+    doc.text('Période de paie au', 130, 34);
+    doc.text(formattedEnd, 196, 34, { align: 'right' });
+    
+    // Calculations for the line items
+    const K = payrollData.totalCommission;
+    const SMIG = 3422.72;
+    const baseCNSS = K > SMIG ? SMIG : K;
+    const cnss = baseCNSS * 0.0448;
+    const amo = baseCNSS * 0.0226;
+    const totalRetenues = cnss + amo;
+    const salaireNet = K - totalRetenues;
+    const acompteVal = acompteInput || 0;
+    const netAPayer = salaireNet - acompteVal;
+    
+    // 3. Employee Info Block Box
+    doc.setDrawColor(203, 213, 225); // slate-300
+    doc.setLineWidth(0.4);
+    doc.rect(14, 38, 182, 24); // x, y, width, height
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    const driverFullName = `${selectedDriver.prenom.toUpperCase()} ${selectedDriver.nom.toUpperCase()}`;
+    doc.text(driverFullName, 18, 44);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Matricule   ${selectedDriver.id.substring(0, 5).toUpperCase()}`, 18, 49);
+    doc.text(`N° CIN: ${selectedDriver.cin || 'D637148'}`, 75, 49);
+    doc.text(`Salaire à payer:  ${netAPayer.toFixed(2)} MAD`, 140, 49);
+    
+    doc.text(selectedDriver.address || '4522 RUE 95 OUJAH AROUSS', 18, 54);
+    doc.text('MEKNES', 140, 58);
+    
+    // 4. Qualifications/Contract Table (Grid)
+    autoTable(doc, {
+      startY: 66,
+      head: [[
+        'Qualification', 'Code\nSect.', 'Code\nCat.', 'Date\nNaissance', 'Date\nEmbauche', 
+        'SF', 'Enf.', 'Déd.', 'N° CNSS', 'N° Mutuelle', 'N° CIMR', 'Autre', 'Autre1', 'Autre2'
+      ]],
+      body: [[
+        'VENDEUR', '001', '001', '', '01/06/2017', 
+        'D', '2', '2', selectedDriver.cnss || '104963262', '104963262', '', '', '', ''
+      ]],
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [241, 245, 249], 
+        textColor: [15, 23, 42], 
+        fontStyle: 'bold', 
+        fontSize: 7.5, 
+        halign: 'center',
+        valign: 'middle',
+        lineWidth: 0.1,
+        lineColor: [203, 213, 225]
+      },
+      bodyStyles: { 
+        fontSize: 7.5, 
+        halign: 'center', 
+        textColor: [71, 85, 105],
+        lineWidth: 0.1,
+        lineColor: [203, 213, 225]
+      },
+      styles: { cellPadding: 1 },
+    });
+    
+    // 5. Main Earnings & Deductions Table
+    const tableRows = [];
+    
+    // Base salary row
+    const basePayer = Math.min(3000.00, K);
+    const baseTaux = basePayer / 26.00;
+    tableRows.push([
+      'SALAIRE DE BASE',
+      '26.00',
+      baseTaux.toFixed(2),
+      basePayer.toFixed(2),
+      ''
+    ]);
+    
+    // Transport row
+    const transportPayer = K > SMIG ? Math.min(580.00, K - SMIG) : 0.00;
+    if (transportPayer > 0 || K > SMIG) {
+      tableRows.push([
+        'INDIMNITE DE TRANSPORT',
+        '1.00',
+        transportPayer.toFixed(2),
+        transportPayer.toFixed(2),
+        ''
+      ]);
+    }
+    
+    // Commission row (SMIG part)
+    const commissionPayer = K > SMIG ? 422.72 : Math.max(0, K - 3000.00);
+    if (commissionPayer > 0 || K > SMIG) {
+      tableRows.push([
+        'COMMISSION',
+        '1.00',
+        commissionPayer.toFixed(2),
+        commissionPayer.toFixed(2),
+        ''
+      ]);
+    }
+    
+    // Tournée Prime row
+    const primePayer = K > SMIG ? Math.max(0, K - SMIG - 580.00) : 0.00;
+    if (primePayer > 0 || K > SMIG) {
+      tableRows.push([
+        'PRIME DE LA TOURNEE',
+        '1.00',
+        primePayer.toFixed(2),
+        primePayer.toFixed(2),
+        ''
+      ]);
+    }
+    
+    // Salaire Brut
+    tableRows.push([
+      'SALAIRE BRUT',
+      '',
+      '',
+      K.toFixed(2),
+      ''
+    ]);
+    
+    // CNSS deduction
+    tableRows.push([
+      'RETENUE CNSS',
+      baseCNSS.toFixed(2),
+      '4.48',
+      '',
+      cnss.toFixed(2)
+    ]);
+    
+    // AMO deduction
+    tableRows.push([
+      'RETENUE AMO',
+      baseCNSS.toFixed(2),
+      '2.26',
+      '',
+      amo.toFixed(2)
+    ]);
+    
+    // Salaire Net
+    tableRows.push([
+      'SALAIRE NET',
+      '',
+      '',
+      salaireNet.toFixed(2),
+      ''
+    ]);
+    
+    // Acompte if any
+    if (acompteVal > 0) {
+      tableRows.push([
+        'ACOMPTE',
+        '',
+        '',
+        '',
+        acompteVal.toFixed(2)
+      ]);
+    }
+    
+    // Salaire A Payer
+    tableRows.push([
+      'SALAIRE A PAYER',
+      '',
+      '',
+      netAPayer.toFixed(2),
+      ''
+    ]);
+    
+    // Render the main table
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 3,
+      head: [['Libellé', 'Base / Nombre', 'Taux', 'A Payer', 'A Déduire']],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [241, 196, 15], 
+        textColor: [15, 23, 42], 
+        fontStyle: 'bold', 
+        fontSize: 8.5, 
+        halign: 'center' 
+      },
+      columnStyles: {
+        0: { halign: 'left', fontStyle: 'bold' },
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+      },
+      styles: { 
+        fontSize: 8.5, 
+        cellPadding: 1.5,
+        lineColor: [203, 213, 225],
+        lineWidth: 0.1
+      },
+      didParseCell: (data) => {
+        const rowText = data.row.cells[0]?.text?.[0] || '';
+        if (
+          rowText.includes('SALAIRE BRUT') || 
+          rowText.includes('SALAIRE NET') || 
+          rowText.includes('SALAIRE A PAYER')
+        ) {
+          data.cell.styles.fontStyle = 'bold';
+          if (rowText.includes('SALAIRE A PAYER')) {
+            data.cell.styles.fillColor = [248, 250, 252];
+          }
+        }
+      }
+    });
+    
+    const finalTableY = (doc as any).lastAutoTable.finalY || 180;
+    
+    // 6. Cumul Section Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text('CUMUL', 105, finalTableY + 6, { align: 'center' });
+    
+    // Cumul Table Grid
+    autoTable(doc, {
+      startY: finalTableY + 8,
+      head: [[
+        'Jours', 'Congé', 'Férié', 'H.Nor.', 'HSup', 'HFerié', 'Salaire Brut', 'Base Impos.', 'Salaire Net', 'IGR', 'CNSS', 'Retraite', 'Mutuelle'
+      ]],
+      body: [[
+        '104.0', '0.00', '0.00', '762.66', '0.00', '0.00', (K * 3).toFixed(2), (baseCNSS * 3).toFixed(2), (salaireNet * 3).toFixed(2), '0.00', (cnss * 3).toFixed(2), '0.00', '0.00'
+      ]],
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [241, 245, 249], 
+        textColor: [15, 23, 42], 
+        fontStyle: 'bold', 
+        fontSize: 7, 
+        halign: 'center'
+      },
+      bodyStyles: { 
+        fontSize: 7, 
+        halign: 'center', 
+        textColor: [71, 85, 105],
+        lineWidth: 0.1,
+        lineColor: [203, 213, 225]
+      },
+      styles: { cellPadding: 1 },
+    });
+    
+    const finalCumulY = (doc as any).lastAutoTable.finalY || 215;
+    
+    // Left Attributes mode of payment
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(100);
+    doc.text('Mode de paiement : VIREMENT CHEZ COMPTE AGENCE', 14, finalCumulY + 12);
+    doc.text('Licence accordée à : STE GOCE SARL', 14, finalCumulY + 17);
+    
+    // Center signature area
+    doc.setFont('helvetica', 'bold');
+    doc.text('SIGNATURE DU SALARIE', 85, finalCumulY + 12);
+    doc.setDrawColor(200);
+    doc.line(85, finalCumulY + 28, 125, finalCumulY + 28);
+    
+    // Right Net à Payer double-bordered box
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.6);
+    doc.rect(144, finalCumulY + 8, 52, 18);
+    doc.setLineWidth(0.2);
+    doc.rect(145, finalCumulY + 9, 50, 16);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    doc.text('NET A PAYER (MAD)', 170, finalCumulY + 14, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${netAPayer.toFixed(2)}`, 170, finalCumulY + 21, { align: 'center' });
+    
+    // Document footer note
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 14, 285);
+    
+    doc.save(`Fiche_Paie_${selectedDriver.nom.toUpperCase()}__${month}.pdf`);
+    toast.success('Document PDF généré avec succès.');
   };
 
   const historyData = useMemo(() => {
@@ -170,7 +514,7 @@ export default function DispatchHRPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Link 
           to="/dispatch/gaz/hr/pointage"
           className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group flex items-center justify-between"
@@ -186,7 +530,21 @@ export default function DispatchHRPage() {
           </div>
           <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
         </Link>
-
+        <Link 
+          to="/dispatch/gaz/hr/manual-pointage"
+          className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group flex items-center justify-between"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 uppercase tracking-tight">Pointage Manuelle</h3>
+              <p className="text-xs text-slate-500">Enregistrement administratif manuel</p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-orange-500 transition-colors" />
+        </Link>
         <Link 
           to="/dispatch/gaz/hr/convoyeurs"
           className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group flex items-center justify-between"
@@ -267,6 +625,19 @@ export default function DispatchHRPage() {
                     className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte (MAD)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="0.01"
+                    placeholder="Ex: 2000.00"
+                    value={acompteInput || ''}
+                    onChange={(e) => setAcompteInput(parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
               </div>
             </div>
 
@@ -324,7 +695,7 @@ export default function DispatchHRPage() {
                         Valider la paie
                       </button>
                     )}
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">
+                    <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">
                       <Download className="w-4 h-4" />
                       Exporter PDF
                     </button>
@@ -332,18 +703,213 @@ export default function DispatchHRPage() {
                 </div>
 
                 <div className="p-6 flex-1">
-                  <div className="grid grid-cols-3 gap-4 mb-8">
-                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                      <p className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1">Salaire Net (Commissions)</p>
-                      <p className="text-2xl font-black text-blue-700">{payrollData.totalCommission.toFixed(2)} MAD</p>
+                  {(() => {
+                    const totalCommission = payrollData.totalCommission;
+                    const SMIG = 3422.72;
+                    const baseCNSS = totalCommission > SMIG ? SMIG : totalCommission;
+                    const indemnites = totalCommission > SMIG ? totalCommission - SMIG : 0;
+                    const cnss = baseCNSS * 0.0448;
+                    const amo = baseCNSS * 0.0226;
+                    const totalRetenues = cnss + amo;
+                    const salaireNet = totalCommission - totalRetenues;
+                    const acompte = acompteInput || 0;
+                    const netAPayer = salaireNet - acompte;
+
+                    // Simulated bulletin line items
+                    const yearNum = parseInt(month.split('-')[0]);
+                    const monthNum = parseInt(month.split('-')[1]);
+                    const basePayer = Math.min(3000.00, totalCommission);
+                    const baseTaux = basePayer / 26.00;
+                    const transportPayer = totalCommission > SMIG ? Math.min(580.00, totalCommission - SMIG) : 0.00;
+                    const commissionPayer = totalCommission > SMIG ? 422.72 : Math.max(0, totalCommission - 3000.00);
+                    const primePayer = totalCommission > SMIG ? Math.max(0, totalCommission - SMIG - 580.00) : 0.00;
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-1 mb-8 gap-4">
+                          <div className="grid grid-cols-1 gap-4">
+                            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 shadow-sm">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div>
+                                  <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Salaire Net à Payer</p>
+                                  <p className="text-3xl font-black text-emerald-700">{netAPayer.toFixed(2)} MAD</p>
+                                </div>
+                                <div className="sm:text-right p-3 bg-white/60 rounded-lg">
+                                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Commissions (Brut)</p>
+                                  <p className="text-xl font-bold text-blue-600">{totalCommission.toFixed(2)} MAD</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                                <span>Base CNSS/AMO</span>
+                                <span className="bg-slate-200 text-slate-600 px-1 py-0.2 text-[9px] rounded font-mono font-bold">SMIG Plafond</span>
+                              </p>
+                              <p className="text-base font-bold text-slate-700">{baseCNSS.toFixed(2)} MAD</p>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                              <p className="text-xs font-bold text-slate-500 tracking-wider mb-1 flex items-center justify-between">
+                                <span className="uppercase text-slate-500 font-bold">Indemnités</span>
+                                <span className="text-[9px] text-slate-400 font-mono">Exo-charges</span>
+                              </p>
+                              <p className="text-base font-bold text-orange-600">{indemnites.toFixed(2)} MAD</p>
+                            </div>
+                            <div className="p-4 bg-red-50 rounded-xl border-red-100">
+                              <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                                <span>CNSS</span>
+                                <span className="bg-red-100 px-1 rounded">4.48%</span>
+                              </p>
+                              <p className="text-base font-bold text-red-700">-{cnss.toFixed(2)} MAD</p>
+                            </div>
+                            <div className="p-4 bg-red-50 rounded-xl border-red-100">
+                              <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                                <span>AMO</span>
+                                <span className="bg-red-100 px-1 rounded">2.26%</span>
+                              </p>
+                              <p className="text-base font-bold text-red-700">-{amo.toFixed(2)} MAD</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* High Fidelity Bulletin de Paie Visual Replica */}
+                        <div className="mb-8 border border-amber-200 bg-amber-50/5 rounded-2xl p-6 font-mono text-xs text-slate-800 shadow-sm max-w-2xl mx-auto border-dashed relative overflow-hidden bg-radial">
+                          {/* Top Border Accent */}
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
+                          
+                          <div className="flex justify-between items-start border-b border-slate-200 pb-4 mb-4">
+                            <div>
+                              <p className="font-bold text-sm text-slate-900">GOCE SARL</p>
+                              <p className="text-slate-500 text-[10px]">NZARANE SAADA</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-black text-sm text-slate-900 tracking-tight">BULLETIN DE PAIE</p>
+                              <p className="text-slate-500 text-[10px] uppercase font-bold">N° CNSS Employeur: 9764251</p>
+                              <p className="text-slate-500 text-[10px]">Période: 01/{monthNum.toString().padStart(2, '0')}/{yearNum} au {new Date(yearNum, monthNum, 0).getDate().toString().padStart(2, '0')}/{monthNum.toString().padStart(2, '0')}/{yearNum}</p>
+                            </div>
+                          </div>
+
+                          <div className="bg-white border border-slate-200 rounded-xl p-3 mb-4 grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <p className="text-slate-400">SALARIE(E):</p>
+                              <p className="font-bold text-slate-900 text-xs uppercase">{selectedDriver.prenom} {selectedDriver.nom}</p>
+                              <p className="mt-1"><span className="text-slate-400">QUALIFICATION:</span> VENDEUR</p>
+                              <p><span className="text-slate-400">MATRICULE:</span> {selectedDriver.id.substring(0, 5).toUpperCase()}</p>
+                            </div>
+                            <div className="text-right flex flex-col justify-between">
+                              <div>
+                                <p><span className="text-slate-400">N° CIN:</span> {selectedDriver.cin || 'D637148'}</p>
+                                <p><span className="text-slate-400">N° CNSS:</span> {selectedDriver.cnss || '104963262'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px]"><span className="text-slate-500 font-bold">NET DUR A PAYER:</span> <span className="font-black text-emerald-600 text-xs">{netAPayer.toFixed(2)} MAD</span></p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Line items simulator */}
+                          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white text-[10px]">
+                            <div className="grid grid-cols-5 bg-slate-50 border-b border-slate-200 p-2 font-bold text-slate-600 uppercase text-[9px] text-center">
+                              <div className="col-span-2 text-left">Libellé de la rubrique</div>
+                              <div>Base / Nombre</div>
+                              <div>Taux</div>
+                              <div className="text-right">A Payer / Déduire</div>
+                            </div>
+                            <div className="divide-y divide-slate-100 p-2 space-y-1">
+                              <div className="grid grid-cols-5 py-0.5">
+                                <div className="col-span-2 font-bold text-slate-900">SALAIRE DE BASE</div>
+                                <div className="text-center">26.00</div>
+                                <div className="text-center">{baseTaux.toFixed(2)}</div>
+                                <div className="text-right font-medium text-slate-700">+{basePayer.toFixed(2)}</div>
+                              </div>
+                              {(transportPayer > 0 || totalCommission > SMIG) && (
+                                <div className="grid grid-cols-5 py-0.5">
+                                  <div className="col-span-2 font-bold text-slate-900">INDIMNITE DE TRANSPORT</div>
+                                  <div className="text-center">1.00</div>
+                                  <div className="text-center">{transportPayer.toFixed(2)}</div>
+                                  <div className="text-right font-medium text-slate-700">+{transportPayer.toFixed(2)}</div>
+                                </div>
+                              )}
+                              {(commissionPayer > 0 || totalCommission > SMIG) && (
+                                <div className="grid grid-cols-5 py-0.5">
+                                  <div className="col-span-2 font-bold text-slate-900">COMMISSION</div>
+                                  <div className="text-center">1.00</div>
+                                  <div className="text-center">{commissionPayer.toFixed(2)}</div>
+                                  <div className="text-right font-medium text-slate-700">+{commissionPayer.toFixed(2)}</div>
+                                </div>
+                              )}
+                              {(primePayer > 0 || totalCommission > SMIG) && (
+                                <div className="grid grid-cols-5 py-0.5">
+                                  <div className="col-span-2 font-bold text-slate-900">PRIME DE LA TOURNEE</div>
+                                  <div className="text-center">1.00</div>
+                                  <div className="text-center">{primePayer.toFixed(2)}</div>
+                                  <div className="text-right font-medium text-slate-700">+{primePayer.toFixed(2)}</div>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-5 py-0.5 border-t border-slate-200 mt-1 font-bold text-slate-900 text-[11px]">
+                                <div className="col-span-2">SALAIRE BRUT</div>
+                                <div className="text-center"></div>
+                                <div className="text-center"></div>
+                                <div className="text-right font-bold text-slate-900">{totalCommission.toFixed(2)}</div>
+                              </div>
+                              <div className="grid grid-cols-5 py-0.5 text-red-600">
+                                <div className="col-span-2">RETENUE CNSS (PATRONALE / OUT)</div>
+                                <div className="text-center">{baseCNSS.toFixed(2)}</div>
+                                <div className="text-center">4.48%</div>
+                                <div className="text-right">-{cnss.toFixed(2)}</div>
+                              </div>
+                              <div className="grid grid-cols-5 py-0.5 text-red-600">
+                                <div className="col-span-2">RETENUE AMO</div>
+                                <div className="text-center">{baseCNSS.toFixed(2)}</div>
+                                <div className="text-center">2.26%</div>
+                                <div className="text-right">-{amo.toFixed(2)}</div>
+                              </div>
+                              <div className="grid grid-cols-5 py-0.5 border-t border-slate-200 font-bold text-slate-900 text-[11px]">
+                                <div className="col-span-2">SALAIRE NET DE CHARGES</div>
+                                <div className="text-center"></div>
+                                <div className="text-center"></div>
+                                <div className="text-right text-slate-900">{salaireNet.toFixed(2)}</div>
+                              </div>
+                              {acompte > 0 && (
+                                <div className="grid grid-cols-5 py-0.5 text-amber-700 font-medium">
+                                  <div className="col-span-2">AVANCE / ACOMPTE SUR COMMISSIONS</div>
+                                  <div className="text-center"></div>
+                                  <div className="text-center"></div>
+                                  <div className="text-right">-{acompte.toFixed(2)}</div>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-5 py-1 border-t-2 border-slate-300 font-black text-slate-900 text-xs bg-slate-50 uppercase">
+                                <div className="col-span-2">SALAIRE NET A PERCEVOIR (MAD)</div>
+                                <div className="text-center"></div>
+                                <div className="text-center"></div>
+                                <div className="text-right text-emerald-700 font-bold">{netAPayer.toFixed(2)}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-[9px] text-slate-400 mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                            <div>Mode de paiement: VIREMENT AGENCEDUCOMPTE</div>
+                            <div className="italic">Signé électroniquement</div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Volume Vendu</p>
+                        <p className="text-2xl font-black text-slate-700">{payrollData.totalVolume} uni.</p>
+                      </div>
                     </div>
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Volume Vendu</p>
-                      <p className="text-2xl font-black text-slate-700">{payrollData.totalVolume} unités</p>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Transactions</p>
-                      <p className="text-2xl font-black text-slate-700">{payrollData.salesCount}</p>
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Transactions</p>
+                        <p className="text-2xl font-black text-slate-700">{payrollData.salesCount}</p>
+                      </div>
                     </div>
                   </div>
 

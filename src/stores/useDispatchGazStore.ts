@@ -195,6 +195,7 @@ export interface GazPaySlip {
   totalCommission: number;
   details: any[];
   generatedAt: string;
+  acompte?: number;
 }
 
 export interface ComptaDocument {
@@ -299,6 +300,7 @@ interface DispatchGazState {
   addCommande: (commande: GazCommande) => void;
   deleteCommande: (id: string) => void;
   updateCommandeStatus: (id: string, status: 'payé' | 'non payé') => void;
+  resetData: () => void;
 }
 
 export const useDispatchGazStore = create<DispatchGazState>()(
@@ -724,6 +726,31 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       deleteCaisseAlimentation: (id) => set((state) => ({
         caisseAlimentations: (state.caisseAlimentations || []).filter(a => a.id !== id)
       })),
+      resetData: () => set((state) => {
+        const newGlobalStock = state.globalStock.map(gs => ({
+          ...gs,
+          full: 0,
+          empty: 0
+        }));
+
+        return {
+          sales: [],
+          expenses: [],
+          stockDispatches: [],
+          truckLocations: [],
+          alerts: [],
+          pointages: [],
+          comptoirStock: [],
+          commandes: [],
+          globalStock: newGlobalStock,
+          caisseSecuritaire: 0,
+          caisseNoir: 0,
+          caisseTransfers: [],
+          caisseAlimentations: [],
+          comptaDocuments: [],
+          paySlips: []
+        };
+      }),
     }),
     {
       name: 'dispatch-gaz-storage',

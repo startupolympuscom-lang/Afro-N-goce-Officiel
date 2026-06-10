@@ -667,6 +667,10 @@ export default function DispatchStockPage() {
                     <button 
                       onClick={() => {
                         const data = validationForm[dispatch.id] || { returnedFull: expectedFull, returnedEmpty: expectedEmpty };
+                        if (data.returnedFull < expectedFull || data.returnedEmpty < expectedEmpty) {
+                          toast.error("RDV à la caisse pour consultation");
+                          return;
+                        }
                         validateStockDispatch(dispatch.id, data.returnedFull, data.returnedEmpty);
                         toast.success("Retour validé et stock global mis à jour.");
                       }}

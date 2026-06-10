@@ -2,21 +2,21 @@ import pg from 'pg';
 const { Pool } = pg;
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgresql://dummy:dummy@localhost/dummy', // dummy to prevent crash on instantiating
+  connectionString: process.env.DATABASE_URL || 'postgresql://dummy:dummy@localhost/dummy', // dummy to prevent crash on instantiating
   ssl: {
     rejectUnauthorized: false
   }
 });
 
 export async function query(text: string, params?: any[]) {
-  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
-    throw new Error('DATABASE_URL or POSTGRES_URL environment variable is required but not configured.');
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is required but not configured.');
   }
   return pool.query(text, params);
 }
 
 export async function initDb() {
-  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+  if (!process.env.DATABASE_URL) {
     console.error('initDb: DATABASE_URL is missing, skipping DB initialization.');
     throw new Error('DATABASE_URL environment variable is required');
   }

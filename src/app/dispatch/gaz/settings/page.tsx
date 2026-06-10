@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function DispatchSettingsPage() {
   const { 
@@ -8,7 +9,8 @@ export default function DispatchSettingsPage() {
     zones, addZone, deleteZone,
     prices, setPrice,
     commissions, setCommission,
-    gplConfig, updateGPLConfig
+    gplConfig, updateGPLConfig,
+    resetData
   } = useDispatchGazStore();
 
   const handleConsignationChange = (brandId: string, category: string, value: string) => {
@@ -286,6 +288,32 @@ export default function DispatchSettingsPage() {
         ) : (
           <p className="text-slate-500 text-sm">Ajoutez au moins une marque pour définir les prix de consignation.</p>
         )}
+      </div>
+
+      {/* Danger Zone */}
+      <div className="bg-red-50 p-6 rounded-2xl border border-red-200 shadow-sm">
+        <h2 className="text-lg font-bold text-red-900 mb-4 flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5" />
+          Zone Dangereuse : Réinitialisation
+        </h2>
+        <p className="text-red-700 text-sm mb-4">
+          Cette action permet de rendre de compte a rebour a 0, comme si ni achat ni vente n'a été fait dans afro dispatch. 
+          Elle effacera : les ventes, dépenses, pointages, localisations des camions, dispatch de stock (y compris comptoir), 
+          stock global (remis à 0), commandes, caisses et fiches de paies. 
+          <br /><br />
+          Les listes de clients, chauffeurs, convoyeurs, zones, marques, prix et commissions seront conservées.
+        </p>
+        <button 
+          onClick={() => {
+            if(window.confirm('Êtes-vous sûr de vouloir remettre tous les compteurs à 0 ? Cette action est irréversible.')) {
+              resetData();
+              toast.success('Données réinitialisées avec succès. Les compteurs sont à 0.');
+            }
+          }}
+          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+        >
+          Remettre à zèro les données
+        </button>
       </div>
     </div>
   );

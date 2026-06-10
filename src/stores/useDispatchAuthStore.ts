@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { postgresStorage } from '../lib/postgresStorage';
 
-export type DispatchRole = 'admin' | 'driver' | 'vendeur_comptoir' | 'comptable';
+export type DispatchRole = 'admin' | 'driver' | 'vendeur_comptoir' | 'comptable' | 'stock_superviseur';
 
 export interface DispatchUser {
   id: string;

@@ -114,7 +114,9 @@ export default function DispatchLoginPage() {
             <div className="text-sm text-center text-slate-500">
               Comptes de test :<br/>
               Admin: admin@afronegoce.ma / admin<br/>
-              Chauffeur: driver@afronegoce.ma / driver
+              Chauffeur: driver@afronegoce.ma / driver<br/>
+              Vendeur Comptoir: vendeur@afronegoce.ma / vendeur<br/>
+              Stock Superviseur: stock@afronegoce.ma / stock
             </div>
           </div>
         </div>

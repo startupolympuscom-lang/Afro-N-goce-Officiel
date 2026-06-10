@@ -34,8 +34,12 @@ const DispatchComptaPage = React.lazy(() => import('./app/dispatch/gaz/compta/pa
 const DispatchLivePage = React.lazy(() => import('./app/dispatch/gaz/live/page'));
 const DispatchHRPage = React.lazy(() => import('./app/dispatch/gaz/hr/page'));
 const DispatchHRPointagePage = React.lazy(() => import('./app/dispatch/gaz/hr/pointage/page'));
+const DispatchHRManualPointagePage = React.lazy(() => import('./app/dispatch/gaz/hr/manual-pointage/page'));
 const DispatchHRConvoyeursPage = React.lazy(() => import('./app/dispatch/gaz/hr/convoyeurs/page'));
 const DispatchStockPage = React.lazy(() => import('./app/dispatch/gaz/stock/page'));
+const DispatchManualSalePage = React.lazy(() => import('./app/dispatch/gaz/stock/manual-sale/page'));
+const DispatchComptoirSalePage = React.lazy(() => import('./app/dispatch/gaz/comptoir/sale/page'));
+const DispatchRbacPage = React.lazy(() => import('./app/dispatch/gaz/rbac/page'));
 const DispatchDriverSalePage = React.lazy(() => import('./app/dispatch/gaz/driver/sale/page'));
 const DispatchDriverHistoryPage = React.lazy(() => import('./app/dispatch/gaz/driver/history/page'));
 const DispatchDriverPointagePage = React.lazy(() => import('./app/dispatch/gaz/driver/pointage/page'));
@@ -114,8 +118,12 @@ export default function App() {
             <Route path="live" element={<DispatchLivePage />} />
             <Route path="hr" element={<DispatchHRPage />} />
             <Route path="hr/pointage" element={<DispatchHRPointagePage />} />
+            <Route path="hr/manual-pointage" element={<DispatchHRManualPointagePage />} />
             <Route path="hr/convoyeurs" element={<DispatchHRConvoyeursPage />} />
             <Route path="stock" element={<DispatchStockPage />} />
+            <Route path="stock/manual-sale" element={<DispatchManualSalePage />} />
+            <Route path="comptoir/sale" element={<DispatchComptoirSalePage />} />
+            <Route path="rbac" element={<DispatchRbacPage />} />
             <Route path="driver/sale" element={<DispatchDriverSalePage />} />
             <Route path="driver/history" element={<DispatchDriverHistoryPage />} />
             <Route path="driver/pointage" element={<DispatchDriverPointagePage />} />
