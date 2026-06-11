@@ -84,8 +84,17 @@ export default function DriverPointagePage() {
               qrbox: { width: 250, height: 250 }
             },
             (decodedText) => {
+              const cleanedText = decodedText.trim();
               const today = new Date().toISOString().split('T')[0];
-              if (decodedText === `pointage-afro-dispatch-${today}`) {
+              const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+              const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+              
+              const isValidQr = 
+                cleanedText === `pointage-afro-dispatch-${today}` ||
+                cleanedText === `pointage-afro-dispatch-${yesterday}` || 
+                cleanedText === `pointage-afro-dispatch-${tomorrow}`;
+
+              if (isValidQr) {
                 
                 if (userRef.current && (isAloneRef.current || selectedConvoyeursIdsRef.current.length > 0)) {
                   const now = new Date();
