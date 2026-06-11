@@ -77,6 +77,16 @@ export const useRbacStore = create<RbacState>()(
     {
       name: 'dispatch-rbac-storage',
       storage: createJSONStorage(() => postgresStorage),
+      merge: (persistedState: any, currentState: RbacState) => {
+        return {
+          ...currentState,
+          ...persistedState,
+          permissions: {
+            ...currentState.permissions,
+            ...(persistedState?.permissions || {})
+          }
+        };
+      }
     }
   )
 );
