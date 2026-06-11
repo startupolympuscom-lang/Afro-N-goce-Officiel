@@ -157,6 +157,10 @@ export function DispatchLayout() {
     { name: 'مبيعاتي', href: '/dispatch/gaz/driver/history', icon: Wallet },
   ];
 
+  const caissierNavItems = [
+    { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet },
+  ];
+
   const navItems = user.role === 'admin' 
     ? adminNavItems 
     : user.role === 'comptable' 
@@ -165,7 +169,9 @@ export function DispatchLayout() {
         ? stockNavItems
         : user.role === 'vendeur_comptoir'
           ? comptoirNavItems
-          : driverNavItems;
+          : user.role === 'caissier'
+            ? caissierNavItems
+            : driverNavItems;
 
   const handleLogout = () => {
     logout();

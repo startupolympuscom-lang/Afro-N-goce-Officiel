@@ -43,6 +43,7 @@ export default function DispatchSelectPage() {
                 else if (user.role === 'comptable') navigate('/dispatch/gaz/compta');
                 else if (user.role === 'vendeur_comptoir') navigate('/dispatch/gaz/comptoir/sale');
                 else if (user.role === 'stock_superviseur') navigate('/dispatch/gaz/stock');
+                else if (user.role === 'caissier') navigate('/dispatch/gaz/caisse');
                 else navigate('/dispatch/gaz/driver/sale');
               }}
               className="w-full text-left bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all duration-300 h-full flex flex-col group"

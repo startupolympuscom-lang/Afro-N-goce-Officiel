@@ -46,6 +46,7 @@ export const useRbacStore = create<RbacState>()(
         vendeur_comptoir: { ...defaultPermissions },
         comptable: { ...defaultPermissions, modify: true },
         stock_superviseur: { ...defaultPermissions, modify: true, addEdit: true },
+        caissier: { ...defaultPermissions, modify: true, addEdit: true },
       },
       accounts: [
         {

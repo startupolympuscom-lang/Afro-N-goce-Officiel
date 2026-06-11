@@ -11,6 +11,7 @@ const rolesList: { id: DispatchRole; label: string }[] = [
   { id: 'vendeur_comptoir', label: 'Vendeur Comptoir' },
   { id: 'comptable', label: 'Comptable' },
   { id: 'driver', label: 'Chauffeur / Vendeur' },
+  { id: 'caissier', label: 'Caissier' },
 ];
 
 export default function DispatchRbacPage() {
