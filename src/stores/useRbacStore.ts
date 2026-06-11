@@ -11,6 +11,16 @@ export interface RolePermissions {
   all: boolean;
 }
 
+export interface DispatchAccount {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  password?: string;
+  role: DispatchRole;
+  createdAt: string;
+}
+
 const defaultPermissions: RolePermissions = {
   view: true,
   modify: false,
@@ -21,7 +31,10 @@ const defaultPermissions: RolePermissions = {
 
 interface RbacState {
   permissions: Record<DispatchRole, RolePermissions>;
+  accounts: DispatchAccount[];
   updatePermissions: (role: DispatchRole, newPermissions: Partial<RolePermissions>) => void;
+  addAccount: (account: DispatchAccount) => void;
+  deleteAccount: (id: string) => void;
 }
 
 export const useRbacStore = create<RbacState>()(
@@ -34,6 +47,16 @@ export const useRbacStore = create<RbacState>()(
         comptable: { ...defaultPermissions, modify: true },
         stock_superviseur: { ...defaultPermissions, modify: true, addEdit: true },
       },
+      accounts: [
+        {
+          id: 'admin_1',
+          nom: 'Admin',
+          prenom: 'System',
+          email: 'admin@goce.ma',
+          role: 'admin',
+          createdAt: new Date().toISOString()
+        }
+      ],
       updatePermissions: (role, newPermissions) =>
         set((state) => ({
           permissions: {
@@ -47,6 +70,8 @@ export const useRbacStore = create<RbacState>()(
             },
           },
         })),
+      addAccount: (account) => set((state) => ({ accounts: [...state.accounts, account] })),
+      deleteAccount: (id) => set((state) => ({ accounts: state.accounts.filter((a) => a.id !== id) })),
     }),
     {
       name: 'dispatch-rbac-storage',

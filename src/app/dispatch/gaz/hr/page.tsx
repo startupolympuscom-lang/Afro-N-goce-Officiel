@@ -9,7 +9,7 @@ import autoTable from 'jspdf-autotable';
 
 export default function DispatchHRPage() {
   const { drivers, sales, commissions, brands, paySlips, addPaySlip, deletePaySlip, expenses } = useDispatchGazStore();
-  const [activeTab, setActiveTab] = useState<'generator' | 'history'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'history' | 'cnss'>('generator');
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [month, setMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [acompteInput, setAcompteInput] = useState<number>(0);
@@ -17,6 +17,10 @@ export default function DispatchHRPage() {
   // History states
   const [historySearch, setHistorySearch] = useState('');
   const [historyMonth, setHistoryMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  // CNSS filter states
+  const [cnssFilterMonth, setCnssFilterMonth] = useState('');
+  const [cnssFilterDriverId, setCnssFilterDriverId] = useState('');
 
   const selectedDriver = drivers.find(d => d.id === selectedDriverId);
 
@@ -673,6 +677,31 @@ export default function DispatchHRPage() {
     return paySlips.some(p => p.driverId === selectedDriverId && p.month === month);
   }, [selectedDriverId, month, paySlips]);
 
+  const cnssData = useMemo(() => {
+    if (activeTab !== 'cnss') return [];
+    
+    return paySlips.map(slip => {
+      const driver = drivers.find(d => d.id === slip.driverId);
+      const totalCommission = slip.totalCommission;
+      const SMIG = 3422.72;
+      const baseCNSS = totalCommission > SMIG ? SMIG : totalCommission;
+      const cnss = baseCNSS * 0.0448;
+      const amo = baseCNSS * 0.0226;
+      return {
+        ...slip,
+        driver,
+        baseCNSS,
+        cnss,
+        amo,
+        totalRetenue: cnss + amo
+      };
+    }).filter(item => {
+      if (cnssFilterMonth && item.month !== cnssFilterMonth) return false;
+      if (cnssFilterDriverId && item.driverId !== cnssFilterDriverId) return false;
+      return true;
+    }).sort((a, b) => b.month.localeCompare(a.month));
+  }, [activeTab, paySlips, drivers, cnssFilterMonth, cnssFilterDriverId]);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -749,6 +778,16 @@ export default function DispatchHRPage() {
             }`}
           >
             Historique
+          </button>
+          <button
+            onClick={() => setActiveTab('cnss')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'cnss' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            CNSS
           </button>
         </div>
       </div>
@@ -1144,7 +1183,7 @@ export default function DispatchHRPage() {
             )}
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'history' ? (
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex flex-col md:flex-row gap-4 items-end">
@@ -1255,6 +1294,93 @@ export default function DispatchHRPage() {
                     </tr>
                   )}
                 </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Filtrer les déclarations CNSS</h2>
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Chauffeur</label>
+                <select 
+                  value={cnssFilterDriverId}
+                  onChange={e => setCnssFilterDriverId(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="">Tous les chauffeurs</option>
+                  {drivers.map(d => (
+                    <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mois</label>
+                <input 
+                  type="month"
+                  value={cnssFilterMonth}
+                  onChange={e => setCnssFilterMonth(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">
+                  <tr>
+                    <th className="p-4">Mois</th>
+                    <th className="p-4">Chauffeur</th>
+                    <th className="p-4">Salaire Brut (MAD)</th>
+                    <th className="p-4">Base CNSS (MAD)</th>
+                    <th className="p-4 text-right">CNSS 4.48% (MAD)</th>
+                    <th className="p-4 text-right">AMO 2.26% (MAD)</th>
+                    <th className="p-4 text-right">Total Retenues (MAD)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {cnssData.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="p-4 font-bold text-slate-900">{item.month}</td>
+                      <td className="p-4">
+                        <div className="font-medium text-slate-900">{item.driver?.prenom} {item.driver?.nom}</div>
+                        <div className="text-xs text-slate-500">Matricule: {item.driverId.substring(0, 5).toUpperCase()}</div>
+                      </td>
+                      <td className="p-4 text-slate-700">{item.totalCommission.toFixed(2)}</td>
+                      <td className="p-4 font-medium text-slate-700">{item.baseCNSS.toFixed(2)}</td>
+                      <td className="p-4 text-right text-red-600 font-medium">-{item.cnss.toFixed(2)}</td>
+                      <td className="p-4 text-right text-red-600 font-medium">-{item.amo.toFixed(2)}</td>
+                      <td className="p-4 text-right text-red-700 font-bold">-{item.totalRetenue.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {cnssData.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-12 text-center text-slate-500">
+                        Aucune déclaration trouvée pour les filtres sélectionnés.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                {cnssData.length > 0 && (
+                  <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
+                    <tr>
+                      <td colSpan={4} className="p-4 text-right text-slate-700">Total Général:</td>
+                      <td className="p-4 text-right text-red-600">
+                        -{cnssData.reduce((sum, item) => sum + item.cnss, 0).toFixed(2)}
+                      </td>
+                      <td className="p-4 text-right text-red-600">
+                        -{cnssData.reduce((sum, item) => sum + item.amo, 0).toFixed(2)}
+                      </td>
+                      <td className="p-4 text-right text-red-700">
+                        -{cnssData.reduce((sum, item) => sum + item.totalRetenue, 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>

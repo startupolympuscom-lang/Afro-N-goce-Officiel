@@ -110,15 +110,7 @@ export default function DispatchLoginPage() {
             </div>
           </form>
 
-          <div className="mt-6 border-t border-slate-100 pt-6">
-            <div className="text-sm text-center text-slate-500">
-              Comptes de test :<br/>
-              Admin: admin@afronegoce.ma / admin<br/>
-              Chauffeur: driver@afronegoce.ma / driver<br/>
-              Vendeur Comptoir: vendeur@afronegoce.ma / vendeur<br/>
-              Stock Superviseur: stock@afronegoce.ma / stock
-            </div>
-          </div>
+          <div className="mt-6 border-t border-slate-100 pt-6"></div>
         </div>
       </div>
     </div>

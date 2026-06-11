@@ -152,6 +152,34 @@ app.use('/api', async (req, res, next) => {
 });
 
 // Auth Routes
+app.post('/api/change-password', async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body;
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    const user = result.rows[0];
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(newPassword, salt);
+
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hash, userId]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
