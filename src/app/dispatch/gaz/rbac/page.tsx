@@ -15,7 +15,7 @@ const rolesList: { id: DispatchRole; label: string }[] = [
 
 export default function DispatchRbacPage() {
   const { permissions, updatePermissions, accounts, addAccount, deleteAccount } = useRbacStore();
-  const { sales, expenses, paySlips, pointages } = useDispatchGazStore();
+  const { sales, expenses, paySlips, pointages, addDriver, deleteDriver } = useDispatchGazStore();
   const [activeTab, setActiveTab] = useState<'matrix' | 'accounts'>('matrix');
 
   // New Account state
@@ -49,27 +49,56 @@ export default function DispatchRbacPage() {
     toast.success('Permissions mises à jour avec succès');
   };
 
-  const handeAddAccount = (e: React.FormEvent) => {
+  const handeAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAccount.nom || !newAccount.prenom || !newAccount.email || !newAccount.password) {
       toast.error('Veuillez remplir tous les champs');
       return;
     }
 
-    const newAcc: DispatchAccount = {
-      id: Date.now().toString(),
-      nom: newAccount.nom,
-      prenom: newAccount.prenom,
-      email: newAccount.email,
-      password: newAccount.password,
-      role: newAccount.role,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAccount)
+      });
 
-    addAccount(newAcc);
-    toast.success('Compte créé avec succès');
-    setNewAccount({ nom: '', prenom: '', email: '', password: '', role: 'driver' });
-    setShowAddForm(false);
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur lors de la création du compte');
+        return;
+      }
+
+      const createdUser = await response.json();
+
+      const newAcc: DispatchAccount = {
+        id: createdUser.id,
+        nom: newAccount.nom,
+        prenom: newAccount.prenom,
+        email: newAccount.email,
+        role: newAccount.role,
+        createdAt: new Date().toISOString()
+      };
+
+      addAccount(newAcc);
+      
+      if (newAccount.role === 'driver') {
+        addDriver({
+          id: createdUser.id,
+          nom: newAccount.nom,
+          prenom: newAccount.prenom,
+          email: newAccount.email,
+          phone: '',
+          status: 'actif'
+        });
+      }
+
+      toast.success('Compte créé avec succès');
+      setNewAccount({ nom: '', prenom: '', email: '', password: '', role: 'driver' });
+      setShowAddForm(false);
+    } catch (err) {
+      toast.error('Une erreur est survenue');
+    }
   };
 
   return (
@@ -326,10 +355,18 @@ export default function DispatchRbacPage() {
                         </button>
                         {acc.id !== 'admin_1' && (
                           <button 
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm('Voulez-vous révoquer l\'accès de cet utilisateur ?')) {
-                                deleteAccount(acc.id);
-                                toast.success('Le compte a été supprimé');
+                                try {
+                                  await fetch(`/api/users/${acc.id}`, { method: 'DELETE' });
+                                  deleteAccount(acc.id);
+                                  if (acc.role === 'driver') {
+                                    deleteDriver(acc.id);
+                                  }
+                                  toast.success('Le compte a été supprimé');
+                                } catch (err) {
+                                  toast.error('Erreur lors de la suppression');
+                                }
                               }
                             }}
                             className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors inline-block"
