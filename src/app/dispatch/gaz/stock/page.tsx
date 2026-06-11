@@ -183,12 +183,12 @@ export default function DispatchStockPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Package className="w-6 h-6 text-blue-600" />
           Gestion des Stocks GPL
         </h1>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
           <button 
             onClick={() => {
               setGlobalStockForm(globalStock);
@@ -517,79 +517,81 @@ export default function DispatchStockPage() {
             Stock en circulation (Aujourd'hui)
           </h2>
         </div>
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="p-4 font-medium text-slate-600 border-r border-slate-200">Chauffeur</th>
-              <th className="p-4 font-medium text-slate-600 border-r border-slate-200">Produit</th>
-              <th className="p-4 font-medium text-slate-600 text-center border-r border-slate-200">Session</th>
-              <th className="p-4 font-medium text-slate-600 text-center border-r border-slate-200">Progression</th>
-              <th className="p-4 font-medium text-slate-600 text-right">Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            {todaysDispatches.map(dispatch => {
-              const driver = drivers.find(d => d.id === dispatch.driverId);
-              const brand = brands.find(b => b.id === dispatch.brandId);
-              const totalSold = dispatch.sold + (dispatch.soldConsigned || 0);
-              const remaining = dispatch.quantity - totalSold;
-              const percentage = dispatch.quantity > 0 ? (totalSold / dispatch.quantity) * 100 : 0;
-              const isLow = remaining <= dispatch.quantity * 0.2;
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="p-4 font-medium text-slate-600 border-r border-slate-200">Chauffeur</th>
+                <th className="p-4 font-medium text-slate-600 border-r border-slate-200">Produit</th>
+                <th className="p-4 font-medium text-slate-600 text-center border-r border-slate-200">Session</th>
+                <th className="p-4 font-medium text-slate-600 text-center border-r border-slate-200">Progression</th>
+                <th className="p-4 font-medium text-slate-600 text-right">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {todaysDispatches.map(dispatch => {
+                const driver = drivers.find(d => d.id === dispatch.driverId);
+                const brand = brands.find(b => b.id === dispatch.brandId);
+                const totalSold = dispatch.sold + (dispatch.soldConsigned || 0);
+                const remaining = dispatch.quantity - totalSold;
+                const percentage = dispatch.quantity > 0 ? (totalSold / dispatch.quantity) * 100 : 0;
+                const isLow = remaining <= dispatch.quantity * 0.2;
 
-              return (
-                <tr key={dispatch.id} className={`border-b border-slate-100 hover:bg-slate-50 ${dispatch.isValidated ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-                  <td className="p-4 border-r border-slate-200">
-                    <div className="font-medium text-slate-900 flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-slate-400" />
-                      {driver?.prenom} {driver?.nom}
-                    </div>
-                  </td>
-                  <td className="p-4 border-r border-slate-200">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {brand?.name} - {dispatch.category}
-                    </span>
-                  </td>
-                  <td className="p-4 border-r border-slate-200">
-                    <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-                      <div>
-                        <div className="text-slate-500 font-bold uppercase">Initial</div>
-                        <div className="text-sm font-black text-slate-900">{dispatch.quantity}</div>
+                return (
+                  <tr key={dispatch.id} className={`border-b border-slate-100 hover:bg-slate-50 ${dispatch.isValidated ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+                    <td className="p-4 border-r border-slate-200">
+                      <div className="font-medium text-slate-900 flex items-center gap-2">
+                        <Truck className="w-4 h-4 text-slate-400" />
+                        {driver?.prenom} {driver?.nom}
                       </div>
-                      <div>
-                        <div className="text-green-600 font-bold uppercase">Vendus</div>
-                        <div className="text-sm font-black text-green-700">{dispatch.sold}</div>
+                    </td>
+                    <td className="p-4 border-r border-slate-200">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {brand?.name} - {dispatch.category}
+                      </span>
+                    </td>
+                    <td className="p-4 border-r border-slate-200">
+                      <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                        <div>
+                          <div className="text-slate-500 font-bold uppercase">Initial</div>
+                          <div className="text-sm font-black text-slate-900">{dispatch.quantity}</div>
+                        </div>
+                        <div>
+                          <div className="text-green-600 font-bold uppercase">Vendus</div>
+                          <div className="text-sm font-black text-green-700">{dispatch.sold}</div>
+                        </div>
+                        <div>
+                          <div className="text-orange-600 font-bold uppercase">Consignes</div>
+                          <div className="text-sm font-black text-orange-700">{dispatch.soldConsigned || 0}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-orange-600 font-bold uppercase">Consignes</div>
-                        <div className="text-sm font-black text-orange-700">{dispatch.soldConsigned || 0}</div>
+                    </td>
+                    <td className="p-4 border-r border-slate-200">
+                      <div className="w-full max-w-[120px] mx-auto bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${isLow ? 'bg-red-500' : 'bg-blue-500'}`} 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="p-4 border-r border-slate-200">
-                    <div className="w-full max-w-[120px] mx-auto bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full ${isLow ? 'bg-red-500' : 'bg-blue-500'}`} 
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-center text-[10px] text-slate-500 mt-1">{Math.round(percentage)}% chargé</div>
-                  </td>
-                  <td className="p-4 text-right">
-                    {dispatch.isValidated ? (
-                      <div className="flex items-center justify-end gap-1 text-green-600 font-black text-xs uppercase">
-                        <CheckCircle2 className="w-4 h-4" /> Validé
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-end gap-1 text-orange-600 font-black text-xs uppercase">
-                         En Cours
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      <div className="text-center text-[10px] text-slate-500 mt-1">{Math.round(percentage)}% chargé</div>
+                    </td>
+                    <td className="p-4 text-right">
+                      {dispatch.isValidated ? (
+                        <div className="flex items-center justify-end gap-1 text-green-600 font-black text-xs uppercase">
+                          <CheckCircle2 className="w-4 h-4" /> Validé
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1 text-orange-600 font-black text-xs uppercase">
+                           En Cours
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Validation Journalière Table */}
@@ -603,92 +605,94 @@ export default function DispatchStockPage() {
             {pendingValidations.length} Attentes
           </span>
         </div>
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider">Chauffeur / Produit</th>
-              <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-center">Logiciel (Attendu)</th>
-              <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-center">Réel (Retourné)</th>
-              <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-right font-black">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendingValidations.map(dispatch => {
-              const driver = drivers.find(d => d.id === dispatch.driverId);
-              const brand = brands.find(b => b.id === dispatch.brandId);
-              
-              // Expected logic:
-              // Returned Full = Initial - Sold(Exchange) - Sold(Consignment)
-              // Returned Empty = Sold(Exchange)
-              const expectedFull = dispatch.quantity - dispatch.sold - (dispatch.soldConsigned || 0);
-              const expectedEmpty = dispatch.sold;
-
-              return (
-                <tr key={dispatch.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                  <td className="p-4">
-                    <div className="font-bold text-slate-900">{driver?.prenom} {driver?.nom}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">{brand?.name} - {dispatch.category}</div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center gap-6">
-                      <div className="text-center">
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">Pleines</div>
-                        <div className="text-sm font-black text-slate-700">{expectedFull}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">Vides</div>
-                        <div className="text-sm font-black text-slate-700">{expectedEmpty}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center gap-4">
-                      <div>
-                        <input 
-                          type="number"
-                          placeholder="F"
-                          className="w-16 px-2 py-1 text-center border border-slate-300 rounded-lg text-sm font-black focus:ring-2 focus:ring-blue-500"
-                          value={validationForm[dispatch.id]?.returnedFull ?? expectedFull}
-                          onChange={e => setValidationForm({...validationForm, [dispatch.id]: { ...validationForm[dispatch.id], returnedFull: parseInt(e.target.value) || 0, returnedEmpty: validationForm[dispatch.id]?.returnedEmpty ?? expectedEmpty }})}
-                        />
-                      </div>
-                      <div>
-                        <input 
-                          type="number"
-                          placeholder="E"
-                          className="w-16 px-2 py-1 text-center border border-slate-300 rounded-lg text-sm font-black focus:ring-2 focus:ring-blue-500"
-                          value={validationForm[dispatch.id]?.returnedEmpty ?? expectedEmpty}
-                          onChange={e => setValidationForm({...validationForm, [dispatch.id]: { ...validationForm[dispatch.id], returnedEmpty: parseInt(e.target.value) || 0, returnedFull: validationForm[dispatch.id]?.returnedFull ?? expectedFull }})}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    <button 
-                      onClick={() => {
-                        const data = validationForm[dispatch.id] || { returnedFull: expectedFull, returnedEmpty: expectedEmpty };
-                        if (data.returnedFull < expectedFull || data.returnedEmpty < expectedEmpty) {
-                          toast.error("RDV à la caisse pour consultation");
-                          return;
-                        }
-                        validateStockDispatch(dispatch.id, data.returnedFull, data.returnedEmpty);
-                        toast.success("Retour validé et stock global mis à jour.");
-                      }}
-                      className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight hover:bg-green-700 transition-colors shadow-sm"
-                    >
-                      Valider Retours
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-            {pendingValidations.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-12 text-center text-slate-500 bg-slate-50 font-medium">Tous les retours ont été validés.</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[700px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider">Chauffeur / Produit</th>
+                <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-center">Logiciel (Attendu)</th>
+                <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-center">Réel (Retourné)</th>
+                <th className="p-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-right font-black">Action</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pendingValidations.map(dispatch => {
+                const driver = drivers.find(d => d.id === dispatch.driverId);
+                const brand = brands.find(b => b.id === dispatch.brandId);
+                
+                // Expected logic:
+                // Returned Full = Initial - Sold(Exchange) - Sold(Consignment)
+                // Returned Empty = Sold(Exchange)
+                const expectedFull = dispatch.quantity - dispatch.sold - (dispatch.soldConsigned || 0);
+                const expectedEmpty = dispatch.sold;
+
+                return (
+                  <tr key={dispatch.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                    <td className="p-4">
+                      <div className="font-bold text-slate-900">{driver?.prenom} {driver?.nom}</div>
+                      <div className="text-[11px] text-slate-500 font-medium">{brand?.name} - {dispatch.category}</div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-6">
+                        <div className="text-center">
+                          <div className="text-[9px] font-bold text-slate-400 uppercase">Pleines</div>
+                          <div className="text-sm font-black text-slate-700">{expectedFull}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[9px] font-bold text-slate-400 uppercase">Vides</div>
+                          <div className="text-sm font-black text-slate-700">{expectedEmpty}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-4">
+                        <div>
+                          <input 
+                            type="number"
+                            placeholder="F"
+                            className="w-16 px-2 py-1 text-center border border-slate-300 rounded-lg text-sm font-black focus:ring-2 focus:ring-blue-500"
+                            value={validationForm[dispatch.id]?.returnedFull ?? expectedFull}
+                            onChange={e => setValidationForm({...validationForm, [dispatch.id]: { ...validationForm[dispatch.id], returnedFull: parseInt(e.target.value) || 0, returnedEmpty: validationForm[dispatch.id]?.returnedEmpty ?? expectedEmpty }})}
+                          />
+                        </div>
+                        <div>
+                          <input 
+                            type="number"
+                            placeholder="E"
+                            className="w-16 px-2 py-1 text-center border border-slate-300 rounded-lg text-sm font-black focus:ring-2 focus:ring-blue-500"
+                            value={validationForm[dispatch.id]?.returnedEmpty ?? expectedEmpty}
+                            onChange={e => setValidationForm({...validationForm, [dispatch.id]: { ...validationForm[dispatch.id], returnedEmpty: parseInt(e.target.value) || 0, returnedFull: validationForm[dispatch.id]?.returnedFull ?? expectedFull }})}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button 
+                        onClick={() => {
+                          const data = validationForm[dispatch.id] || { returnedFull: expectedFull, returnedEmpty: expectedEmpty };
+                          if (data.returnedFull < expectedFull || data.returnedEmpty < expectedEmpty) {
+                            toast.error("RDV à la caisse pour consultation");
+                            return;
+                          }
+                          validateStockDispatch(dispatch.id, data.returnedFull, data.returnedEmpty);
+                          toast.success("Retour validé et stock global mis à jour.");
+                        }}
+                        className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap"
+                      >
+                        Valider Retours
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {pendingValidations.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-12 text-center text-slate-500 bg-slate-50 font-medium">Tous les retours ont été validés.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
