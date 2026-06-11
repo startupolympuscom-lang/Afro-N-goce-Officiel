@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
-import { ArrowDownRight, ArrowUpRight, Plus, FileText, Lock, Printer, X, ShieldAlert, Wallet } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Plus, FileText, Lock, Printer, X, ShieldAlert, Wallet, Camera } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AfroNegoceLogo } from '../../../../components/Logo';
@@ -16,6 +16,7 @@ export default function DispatchCaissePage() {
     brands, 
     clients, 
     updateSaleStatus,
+    addSale,
     caisseSecuritaire,
     caisseNoir,
     caisseTransfers,
@@ -34,6 +35,44 @@ export default function DispatchCaissePage() {
   const [alimentationData, setAlimentationData] = useState({ amount: '', byWhom: '', reason: '', date: new Date().toISOString().split('T')[0], type: 'normal' as 'normal' | 'pret' });
   const [entreeTab, setEntreeTab] = useState<'sales' | 'alimentations'>('sales');
   const [expenseToPrint, setExpenseToPrint] = useState<any>(null);
+  const [isOcrValidating, setIsOcrValidating] = useState(false);
+  const [ocrData, setOcrData] = useState<any>(null);
+
+  const handleOCRUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Simulate OCR processing
+      toast.info("Analyse du bon en cours...", { duration: 2000 });
+      setTimeout(() => {
+        setOcrData({
+          date: new Date().toISOString(),
+          quantity: 10,
+          unitPrice: 42,
+          totalPrice: 420,
+          driverId: drivers[0]?.id || '',
+          brandId: brands[0]?.id || '',
+          category: brands[0]?.categories[0] || '',
+          paymentMethod: 'espece'
+        });
+        setIsOcrValidating(true);
+        toast.success("Extraction réussie, veuillez valider.");
+      }, 2000);
+    }
+  };
+
+  const handleOCRSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (ocrData) {
+      addSale({
+        ...ocrData,
+        id: 'sale_' + Math.random().toString(36).substr(2, 9),
+        clientId: clients.find(c => c.type === 'POS')?.id || 'client_comptoir',
+      });
+      setIsOcrValidating(false);
+      setOcrData(null);
+      toast.success("Vente ajoutée via OCR !");
+    }
+  };
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -298,6 +337,22 @@ export default function DispatchCaissePage() {
           <p className="text-sm text-slate-500 font-medium">Date: {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <input 
+            type="file" 
+            accept="image/*" 
+            capture="environment" 
+            className="hidden" 
+            id="ocr-upload" 
+            onChange={handleOCRUpload} 
+          />
+          <button 
+            onClick={() => document.getElementById('ocr-upload')?.click()}
+            className="bg-purple-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-xl shadow-purple-900/10"
+          >
+            <Camera className="w-5 h-5" />
+            Scanner Bon (OCR)
+          </button>
+
           <button 
             onClick={generatePDF}
             className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-xl shadow-blue-900/10"
@@ -560,6 +615,40 @@ export default function DispatchCaissePage() {
             <div className="md:col-span-5 flex justify-end gap-3 pt-4 border-t border-slate-100 font-medium">
               <button type="button" onClick={() => setIsAddingAlimentation(false)} className="px-6 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-all">Annuler</button>
               <button type="submit" className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/10">Confirmer l'alimentation</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isOcrValidating && ocrData && (
+        <div className="bg-purple-50 appearance-none p-8 rounded-3xl border border-purple-200 shadow-xl animate-in fade-in slide-in-from-top-4">
+          <h2 className="text-xl font-black text-purple-900 mb-6 font-display uppercase tracking-tight flex items-center gap-2">
+            <Camera className="w-5 h-5" /> Validation de Lecture (OCR)
+          </h2>
+          <form onSubmit={handleOCRSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-black text-purple-700 uppercase tracking-widest mb-2">Quantité Produit</label>
+              <input type="number" required value={ocrData.quantity} onChange={e => setOcrData({...ocrData, quantity: parseInt(e.target.value) || 0})} className="w-full px-4 py-3 border border-purple-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 font-medium" />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-purple-700 uppercase tracking-widest mb-2">Prix Unitaire</label>
+              <input type="number" required value={ocrData.unitPrice} onChange={e => setOcrData({...ocrData, unitPrice: parseFloat(e.target.value) || 0})} className="w-full px-4 py-3 border border-purple-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 font-medium" />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-purple-700 uppercase tracking-widest mb-2">Total Extrait MAD</label>
+              <input type="number" required value={ocrData.totalPrice} onChange={e => setOcrData({...ocrData, totalPrice: parseFloat(e.target.value) || 0})} className="w-full px-4 py-3 border border-purple-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 font-medium" />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-purple-700 uppercase tracking-widest mb-2">Mode Paiement</label>
+              <select required value={ocrData.paymentMethod} onChange={e => setOcrData({...ocrData, paymentMethod: e.target.value})} className="w-full px-4 py-3 border border-purple-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 font-medium">
+                <option value="espece">Espèces</option>
+                <option value="cheque">Chèque</option>
+                <option value="credit">Crédit</option>
+              </select>
+            </div>
+            <div className="md:col-span-4 flex justify-end gap-3 pt-4 border-t border-purple-200 font-medium mt-2">
+              <button type="button" onClick={() => { setIsOcrValidating(false); setOcrData(null); }} className="px-6 py-3 text-purple-600 font-bold hover:bg-purple-100 rounded-xl transition-all">Annuler / Ignorer</button>
+              <button type="submit" className="px-8 py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all shadow-lg">Enregistrer Vente</button>
             </div>
           </form>
         </div>

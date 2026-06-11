@@ -200,7 +200,7 @@ export interface GazPaySlip {
 
 export interface ComptaDocument {
   id: string;
-  type: 'facture' | 'bon_commande' | 'bon_livraison';
+  type: 'facture' | 'bon_commande' | 'bon_livraison' | 'declaration_tva' | 'declaration_cnss';
   reference: string;
   date: string;
   amount: number;

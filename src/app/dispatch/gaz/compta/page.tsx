@@ -47,8 +47,17 @@ export default function DispatchComptaPage() {
   const [docSearch, setDocSearch] = useState('');
   const [docTypeFilter, setDocTypeFilter] = useState<string>('all');
   
+  // Form Visibility State
+  const [visibleWidgets, setVisibleWidgets] = useState({
+    ledger: false,
+    sales: false,
+    expenses: false,
+    supply: false,
+    hr: false
+  });
+
   // Document Upload Form State
-  const [formType, setFormType] = useState<'facture' | 'bon_commande' | 'bon_livraison'>('facture');
+  const [formType, setFormType] = useState<ComptaDocument['type']>('facture');
   const [formRef, setFormRef] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
   const [formAmount, setFormAmount] = useState('');
@@ -293,7 +302,58 @@ export default function DispatchComptaPage() {
         </div>
       </div>
 
+      {/* Widget Toggles */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
+        <span className="text-sm font-semibold text-slate-700">Afficher les tableaux de bord :</span>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={visibleWidgets.ledger} 
+            onChange={(e) => setVisibleWidgets(w => ({...w, ledger: e.target.checked}))} 
+            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+          />
+          <span className="text-sm text-slate-600 font-medium">Grand Livre</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={visibleWidgets.sales} 
+            onChange={(e) => setVisibleWidgets(w => ({...w, sales: e.target.checked}))} 
+            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+          />
+          <span className="text-sm text-slate-600 font-medium">Recettes & Ventes</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={visibleWidgets.expenses} 
+            onChange={(e) => setVisibleWidgets(w => ({...w, expenses: e.target.checked}))} 
+            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+          />
+          <span className="text-sm text-slate-600 font-medium">Dépenses Parc</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={visibleWidgets.supply} 
+            onChange={(e) => setVisibleWidgets(w => ({...w, supply: e.target.checked}))} 
+            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+          />
+          <span className="text-sm text-slate-600 font-medium">Achats VIVO</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={visibleWidgets.hr} 
+            onChange={(e) => setVisibleWidgets(w => ({...w, hr: e.target.checked}))} 
+            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+          />
+          <span className="text-sm text-slate-600 font-medium">Salaires</span>
+        </label>
+      </div>
+
       {/* Financial Core Ledger Breakdown Badges */}
+      {visibleWidgets.ledger && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-emerald-100 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="absolute right-0 top-0 translate-x-5 -translate-y-5 w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center opacity-50">
@@ -341,11 +401,13 @@ export default function DispatchComptaPage() {
           </p>
         </div>
       </div>
+      )}
 
       {/* Bespoke Grid breakdown for different streams */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Stream 1: Fleetops Expenditures Analysis */}
+        {visibleWidgets.expenses && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -415,8 +477,10 @@ export default function DispatchComptaPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Stream 2: Driver Sales & Comptoir Stock */}
+        {visibleWidgets.sales && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -493,12 +557,14 @@ export default function DispatchComptaPage() {
             </div>
           </div>
         </div>
+        )}
 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Stream 3: HR Salaries & Commission payouts */}
+        {visibleWidgets.hr && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -549,8 +615,10 @@ export default function DispatchComptaPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Stream 4: Commande gaz (Purchase supply cost) */}
+        {visibleWidgets.supply && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -612,6 +680,7 @@ export default function DispatchComptaPage() {
             </div>
           </div>
         </div>
+        )}
 
       </div>
 
@@ -649,8 +718,8 @@ export default function DispatchComptaPage() {
               
               <div>
                 <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Type de document *</label>
-                <div className="grid grid-cols-3 gap-1.5 bg-slate-200/60 p-1.5 rounded-xl">
-                  {(['facture', 'bon_commande', 'bon_livraison'] as const).map((t) => (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 bg-slate-200/60 p-1.5 rounded-xl">
+                  {(['facture', 'bon_commande', 'bon_livraison', 'declaration_tva', 'declaration_cnss'] as const).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -661,7 +730,7 @@ export default function DispatchComptaPage() {
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/40'
                       }`}
                     >
-                      {t === 'facture' ? 'Facture' : t === 'bon_commande' ? 'B. Commande' : 'B. Livraison'}
+                      {t === 'facture' ? 'Facture' : t === 'bon_commande' ? 'B. Commande' : t === 'bon_livraison' ? 'B. Livraison' : t === 'declaration_tva' ? 'D. TVA' : 'D. CNSS'}
                     </button>
                   ))}
                 </div>
