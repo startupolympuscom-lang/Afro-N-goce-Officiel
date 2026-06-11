@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useDispatchAuthStore } from '../../stores/useDispatchAuthStore';
 import { useDispatchGazStore } from '../../stores/useDispatchGazStore';
+import { useRbacStore } from '../../stores/useRbacStore';
 import { AfroNegoceLogo } from '../Logo';
 import { toast } from 'sonner';
 
@@ -111,57 +112,42 @@ export function DispatchLayout() {
     };
   }, [user, location.pathname, navigate, updateTruckLocation, setGpsStatus]);
 
+  const { permissions } = useRbacStore();
+
   if (!user) {
     return null;
   }
 
-  const adminNavItems = [
-    { name: 'Dashboard', href: '/dispatch/gaz/dashboard', icon: LayoutDashboard },
-    { name: 'Live Dispatch', href: '/dispatch/gaz/live', icon: Map },
-    { name: 'Stock Chauffeurs', href: '/dispatch/gaz/stock', icon: Package },
-    { name: 'Vente Manuelle', href: '/dispatch/gaz/stock/manual-sale', icon: Flame },
-    { name: 'Driver/Sales Agent', href: '/dispatch/gaz/drivers', icon: Users },
-    { name: 'Ressources Humaines', href: '/dispatch/gaz/hr', icon: FileText },
-    { name: 'GPL Settings', href: '/dispatch/gaz/settings', icon: Flame },
-    { name: 'Clients', href: '/dispatch/gaz/clients', icon: Building2 },
-    { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet },
-    { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart },
-    { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText },
-    { name: 'Contrôle d\'Accès (RBAC)', href: '/dispatch/gaz/rbac', icon: Shield },
-    { name: 'Paramètres', href: '/parametres', icon: Settings },
+  const rolePermissions = (permissions[user.role] || {}) as any;
+
+  const allNavItems = [
+    { name: 'Dashboard', href: '/dispatch/gaz/dashboard', icon: LayoutDashboard, pageId: 'dashboard' },
+    { name: 'Live Dispatch', href: '/dispatch/gaz/live', icon: Map, pageId: 'live' },
+    { name: 'Stock Chauffeurs', href: '/dispatch/gaz/stock', icon: Package, pageId: 'stock' },
+    { name: 'Vente Manuelle', href: '/dispatch/gaz/stock/manual-sale', icon: Flame, pageId: 'manual_sale' },
+    { name: 'Driver/Sales Agent', href: '/dispatch/gaz/drivers', icon: Users, pageId: 'drivers' },
+    { name: 'Ressources Humaines', href: '/dispatch/gaz/hr', icon: FileText, pageId: 'hr' },
+    { name: 'GPL Settings', href: '/dispatch/gaz/settings', icon: Flame, pageId: 'settings' },
+    { name: 'Clients', href: '/dispatch/gaz/clients', icon: Building2, pageId: 'clients' },
+    { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet, pageId: 'caisse' },
+    { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart, pageId: 'commande' },
+    { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText, pageId: 'compta' },
+    { name: 'Contrôle d\'Accès (RBAC)', href: '/dispatch/gaz/rbac', icon: Shield, pageId: 'rbac' },
+    { name: 'Vente Comptoir', href: '/dispatch/gaz/comptoir/sale', icon: Flame, pageId: 'comptoir_sale' },
+    { name: 'الحضور اليومي', href: '/dispatch/gaz/driver/pointage', icon: QrCode, pageId: 'driver_pointage' },
+    { name: 'بيع جديد', href: '/dispatch/gaz/driver/sale', icon: Flame, pageId: 'driver_sale' },
+    { name: 'مبيعاتي', href: '/dispatch/gaz/driver/history', icon: Wallet, pageId: 'driver_history' },
   ];
 
-  const comptaNavItems = [
-    { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText },
-    { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet },
-    { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart },
-    { name: 'Stock Chauffeurs', href: '/dispatch/gaz/stock', icon: Package },
-    { name: 'Ressources Humaines', href: '/dispatch/gaz/hr', icon: FileText },
-    { name: 'Dashboard', href: '/dispatch/gaz/dashboard', icon: LayoutDashboard },
-  ];
+  const adminNavItems = allNavItems;
 
-  const stockNavItems = [
-    { name: 'Stock Chauffeurs', href: '/dispatch/gaz/stock', icon: Package },
-    { name: 'Vente Manuelle', href: '/dispatch/gaz/stock/manual-sale', icon: Flame },
-    { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart },
-  ];
+  const comptaNavItems = allNavItems.filter(i => ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard'].includes(i.pageId));
+  const stockNavItems = allNavItems.filter(i => ['stock', 'manual_sale', 'commande'].includes(i.pageId));
+  const comptoirNavItems = allNavItems.filter(i => ['comptoir_sale', 'driver_history'].includes(i.pageId));
+  const driverNavItems = allNavItems.filter(i => ['driver_pointage', 'driver_sale', 'driver_history'].includes(i.pageId));
+  const caissierNavItems = allNavItems.filter(i => ['caisse'].includes(i.pageId));
 
-  const comptoirNavItems = [
-    { name: 'Vente Comptoir', href: '/dispatch/gaz/comptoir/sale', icon: Flame },
-    { name: 'Mes Ventes', href: '/dispatch/gaz/driver/history', icon: Wallet },
-  ];
-
-  const driverNavItems = [
-    { name: 'الحضور اليومي', href: '/dispatch/gaz/driver/pointage', icon: QrCode },
-    { name: 'بيع جديد', href: '/dispatch/gaz/driver/sale', icon: Flame },
-    { name: 'مبيعاتي', href: '/dispatch/gaz/driver/history', icon: Wallet },
-  ];
-
-  const caissierNavItems = [
-    { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet },
-  ];
-
-  const navItems = user.role === 'admin' 
+  let baseNavItems = user.role === 'admin' 
     ? adminNavItems 
     : user.role === 'comptable' 
       ? comptaNavItems 
@@ -172,6 +158,16 @@ export function DispatchLayout() {
           : user.role === 'caissier'
             ? caissierNavItems
             : driverNavItems;
+
+  // Now filter the baseNavItems using RBAC rules
+  const navItems = baseNavItems.filter(item => {
+    // If admin, always show all baseNavItems
+    if (user.role === 'admin') return true;
+    
+    // Otherwise check view permission
+    const pagePerm = rolePermissions[item.pageId as keyof typeof rolePermissions];
+    return pagePerm?.view === true;
+  });
 
   const handleLogout = () => {
     logout();

@@ -4,7 +4,7 @@ import { useDispatchGazStore } from '../../../../../stores/useDispatchGazStore';
 import { useDispatchAuthStore } from '../../../../../stores/useDispatchAuthStore';
 import { QrCode, Users, CheckCircle2, AlertCircle, Loader2, Camera, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { nanoid } from 'nanoid';
 
 export default function DriverPointagePage() {
@@ -66,7 +66,7 @@ export default function DriverPointagePage() {
   }, [selectedConvoyeursIds, isAlone, user]);
 
   useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
+    let html5QrCode: Html5Qrcode | null = null;
     let isComponentMounted = true;
 
     if (isScanning && !alreadyCheckedIn) {
@@ -75,45 +75,45 @@ export default function DriverPointagePage() {
         if (!isComponentMounted) return;
         
         try {
-          // Add config to make the scanner camera only, no file upload
-          const config = { 
-            fps: 10, 
-            qrbox: { width: 250, height: 250 },
-            supportedScanTypes: [0] // Html5QrcodeScanType.SCAN_TYPE_CAMERA is 0
-          };
-          
-          scanner = new Html5QrcodeScanner(
-            "qr-reader",
-            config,
-            /* verbose= */ false
-          );
+          html5QrCode = new Html5Qrcode("qr-reader");
 
-          scanner.render((decodedText) => {
-            const today = new Date().toISOString().split('T')[0];
-            if (decodedText === `pointage-afro-dispatch-${today}`) {
-              
-              if (userRef.current && (isAloneRef.current || selectedConvoyeursIdsRef.current.length > 0)) {
-                const now = new Date();
-                addPointage({
-                  id: nanoid(),
-                  driverId: userRef.current.id,
-                  convoyeursIds: isAloneRef.current ? [] : selectedConvoyeursIdsRef.current,
-                  date: now.toISOString().split('T')[0],
-                  timestamp: now.toISOString()
-                });
-                setScanStatus('success');
-                setIsScanning(false);
-                setAlreadyCheckedIn(true);
+          html5QrCode.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 }
+            },
+            (decodedText) => {
+              const today = new Date().toISOString().split('T')[0];
+              if (decodedText === `pointage-afro-dispatch-${today}`) {
+                
+                if (userRef.current && (isAloneRef.current || selectedConvoyeursIdsRef.current.length > 0)) {
+                  const now = new Date();
+                  addPointage({
+                    id: nanoid(),
+                    driverId: userRef.current.id,
+                    convoyeursIds: isAloneRef.current ? [] : selectedConvoyeursIdsRef.current,
+                    date: now.toISOString().split('T')[0],
+                    timestamp: now.toISOString()
+                  });
+                  setScanStatus('success');
+                  setIsScanning(false);
+                  setAlreadyCheckedIn(true);
+                }
+                
+                if (html5QrCode) {
+                  html5QrCode.stop().catch(e => console.error("Scanner stop error on success:", e));
+                  html5QrCode.clear();
+                }
+              } else {
+                setScanStatus('error');
               }
-              
-              if (scanner) {
-                scanner.clear().catch(e => console.error("Scanner clear error on success:", e));
-              }
-            } else {
-              setScanStatus('error');
+            },
+            (error) => {
+              // Ignore finding errors
             }
-          }, (error) => {
-            // Ignore finding errors
+          ).catch(e => {
+            console.error("Scanner start error:", e);
           });
         } catch (e) {
           console.error("Scanner initialization error:", e);
@@ -123,8 +123,15 @@ export default function DriverPointagePage() {
 
     return () => {
       isComponentMounted = false;
-      if (scanner) {
-        scanner.clear().catch(e => console.log('Scanner cleanup error', e));
+      if (html5QrCode) {
+        // Try to stop first if it's scanning
+        if (html5QrCode.isScanning) {
+          html5QrCode.stop().then(() => {
+            html5QrCode?.clear();
+          }).catch(e => console.log('Scanner cleanup error', e));
+        } else {
+          html5QrCode.clear();
+        }
       }
     };
   }, [isScanning, alreadyCheckedIn, addPointage]);

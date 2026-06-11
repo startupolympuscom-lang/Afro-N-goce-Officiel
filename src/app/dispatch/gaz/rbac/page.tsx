@@ -30,19 +30,42 @@ export default function DispatchRbacPage() {
   });
 
   const [viewHistoryAccount, setViewHistoryAccount] = useState<DispatchAccount | null>(null);
+  const [selectedMatrixRole, setSelectedMatrixRole] = useState<DispatchRole>('driver');
 
-  const handleCheckboxChange = (role: DispatchRole, permission: keyof typeof permissions[DispatchRole], checked: boolean) => {
+  const pagesList: { id: keyof typeof permissions[DispatchRole]; label: string }[] = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'live', label: 'Live Tracking' },
+    { id: 'stock', label: 'Stock Chauffeurs' },
+    { id: 'manual_sale', label: 'Vente Manuelle' },
+    { id: 'drivers', label: 'Chauffeurs' },
+    { id: 'hr', label: 'Ressources Humaines' },
+    { id: 'settings', label: 'Paramètres' },
+    { id: 'clients', label: 'Clients' },
+    { id: 'caisse', label: 'Caisse' },
+    { id: 'commande', label: 'Commandes' },
+    { id: 'compta', label: 'Comptabilité' },
+    { id: 'rbac', label: 'Contrôle d\'accès' },
+    { id: 'comptoir_sale', label: 'Vente Comptoir' },
+    { id: 'driver_pointage', label: 'Pointage Chauffeur' },
+    { id: 'driver_sale', label: 'Vente Chauffeur' },
+    { id: 'driver_history', label: 'Mes Ventes (Chauffeur)' },
+  ];
+
+  const handleCheckboxChange = (page: keyof typeof permissions[DispatchRole], permission: keyof typeof permissions[DispatchRole][typeof page], checked: boolean) => {
+    const rolePermissions = permissions[selectedMatrixRole];
+    const pagePermissions = rolePermissions[page] || { view: false, modify: false, addEdit: false, delete: false, all: false };
+    
     if (permission === 'all' && checked) {
-      updatePermissions(role, { all: true, view: true, modify: true, addEdit: true, delete: true });
+      updatePermissions(selectedMatrixRole, page, { all: true, view: true, modify: true, addEdit: true, delete: true });
     } else if (permission === 'all' && !checked) {
-      updatePermissions(role, { all: false });
+      updatePermissions(selectedMatrixRole, page, { all: false });
     } else {
       let isAllNow = false;
-      const current = { ...permissions[role], [permission]: checked };
+      const current = { ...pagePermissions, [permission]: checked };
       if (current.view && current.modify && current.addEdit && current.delete) {
         isAllNow = true;
       }
-      updatePermissions(role, { [permission]: checked, all: isAllNow });
+      updatePermissions(selectedMatrixRole, page, { [permission]: checked, all: isAllNow });
     }
   };
 
@@ -139,25 +162,37 @@ export default function DispatchRbacPage() {
 
       {activeTab === 'matrix' ? (
         <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between flex-wrap gap-4">
             <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <Shield className="w-5 h-5 text-indigo-600" />
-              Matrice des Permissions par Rôle
+              Matrice des Permissions par Page
             </h2>
-            <button
-              onClick={handleSaveMatrix}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm text-sm font-bold"
-            >
-              <Save className="w-4 h-4" />
-              Sauvegarder
-            </button>
+            <div className="flex items-center gap-4">
+              <select
+                value={selectedMatrixRole}
+                onChange={(e) => setSelectedMatrixRole(e.target.value as DispatchRole)}
+                className="rounded-xl border-slate-200 text-sm font-medium focus:ring-indigo-500 focus:border-indigo-500 py-2.5 pl-4 pr-10"
+              >
+                {rolesList.map(r => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={handleSaveMatrix}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm text-sm font-bold"
+              >
+                <Save className="w-4 h-4" />
+                Sauvegarder
+              </button>
+            </div>
           </div>
           
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
-                  <th className="py-4 px-6 min-w-[200px]">Rôle</th>
+                  <th className="py-4 px-6 min-w-[200px]">Page (Vue)</th>
                   <th className="py-4 px-6 text-center">View (Voir)</th>
                   <th className="py-4 px-6 text-center">Modify (Modifier)</th>
                   <th className="py-4 px-6 text-center">Add/Edit (Ajouter)</th>
@@ -166,19 +201,19 @@ export default function DispatchRbacPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rolesList.map((role) => (
-                  <tr key={role.id} className="hover:bg-slate-50/50 transition-colors">
+                {pagesList.map((page) => (
+                  <tr key={page.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-6 font-medium text-slate-900">
-                      {role.label}
+                      {page.label}
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex justify-center">
                         <input
                           type="checkbox"
-                          checked={permissions[role.id]?.view || false}
-                          onChange={(e) => handleCheckboxChange(role.id, 'view', e.target.checked)}
+                          checked={permissions[selectedMatrixRole]?.[page.id]?.view || false}
+                          onChange={(e) => handleCheckboxChange(page.id, 'view', e.target.checked)}
                           className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
-                          disabled={role.id === 'admin'}
+                          disabled={selectedMatrixRole === 'admin'}
                         />
                       </div>
                     </td>
@@ -186,10 +221,10 @@ export default function DispatchRbacPage() {
                       <div className="flex justify-center">
                         <input
                           type="checkbox"
-                          checked={permissions[role.id]?.modify || false}
-                          onChange={(e) => handleCheckboxChange(role.id, 'modify', e.target.checked)}
+                          checked={permissions[selectedMatrixRole]?.[page.id]?.modify || false}
+                          onChange={(e) => handleCheckboxChange(page.id, 'modify', e.target.checked)}
                           className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
-                          disabled={role.id === 'admin'}
+                          disabled={selectedMatrixRole === 'admin'}
                         />
                       </div>
                     </td>
@@ -197,10 +232,10 @@ export default function DispatchRbacPage() {
                       <div className="flex justify-center">
                         <input
                           type="checkbox"
-                          checked={permissions[role.id]?.addEdit || false}
-                          onChange={(e) => handleCheckboxChange(role.id, 'addEdit', e.target.checked)}
+                          checked={permissions[selectedMatrixRole]?.[page.id]?.addEdit || false}
+                          onChange={(e) => handleCheckboxChange(page.id, 'addEdit', e.target.checked)}
                           className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
-                          disabled={role.id === 'admin'}
+                          disabled={selectedMatrixRole === 'admin'}
                         />
                       </div>
                     </td>
@@ -208,10 +243,10 @@ export default function DispatchRbacPage() {
                       <div className="flex justify-center">
                         <input
                           type="checkbox"
-                          checked={permissions[role.id]?.delete || false}
-                          onChange={(e) => handleCheckboxChange(role.id, 'delete', e.target.checked)}
+                          checked={permissions[selectedMatrixRole]?.[page.id]?.delete || false}
+                          onChange={(e) => handleCheckboxChange(page.id, 'delete', e.target.checked)}
                           className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-600 cursor-pointer"
-                          disabled={role.id === 'admin'}
+                          disabled={selectedMatrixRole === 'admin'}
                         />
                       </div>
                     </td>
@@ -219,10 +254,10 @@ export default function DispatchRbacPage() {
                       <div className="flex justify-center">
                         <input
                           type="checkbox"
-                          checked={permissions[role.id]?.all || false}
-                          onChange={(e) => handleCheckboxChange(role.id, 'all', e.target.checked)}
+                          checked={permissions[selectedMatrixRole]?.[page.id]?.all || false}
+                          onChange={(e) => handleCheckboxChange(page.id, 'all', e.target.checked)}
                           className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
-                          disabled={role.id === 'admin'}
+                          disabled={selectedMatrixRole === 'admin'}
                         />
                       </div>
                     </td>

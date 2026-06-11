@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { postgresStorage } from '../lib/postgresStorage';
+import { persist } from 'zustand/middleware';
 
 export type DispatchRole = 'admin' | 'driver' | 'vendeur_comptoir' | 'comptable' | 'stock_superviseur' | 'caissier';
 
@@ -29,7 +28,7 @@ export const useDispatchAuthStore = create<DispatchAuthState>()(
     }),
     {
       name: 'dispatch-auth-storage',
-      storage: createJSONStorage(() => postgresStorage),
+      // Provide no storage to default to localStorage
     }
   )
 );
