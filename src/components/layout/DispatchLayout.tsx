@@ -37,8 +37,8 @@ export function DispatchLayout() {
   const navigate = useNavigate();
   const { user, logout } = useDispatchAuthStore();
   const { updateTruckLocation, setGpsStatus } = useDispatchGazStore();
-  const { language, setLanguage } = useLanguageStore();
   const watchId = useRef<number | null>(null);
+  const retryCount = useRef(0);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,24 +80,63 @@ export function DispatchLayout() {
         setGpsStatus('error', "La géolocalisation n'est pas supportée.");
       } else {
         setGpsStatus('tracking');
-        watchId.current = navigator.geolocation.watchPosition(
-          (position) => {
-            const { latitude, longitude, speed } = position.coords;
-            updateTruckLocation({
-              driverId: user.id,
-              lat: latitude,
-              lng: longitude,
-              speed: speed ? Math.round(speed * 3.6) : 0,
-              lastUpdate: new Date().toISOString()
-            });
-            setGpsStatus('tracking');
-          },
-          (error) => {
-            console.error("GPS Error:", error);
-            setGpsStatus('error', "Erreur GPS: " + error.message);
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+        retryCount.current = 0;
+        const maxRetries = 3;
+        
+        const startTracking = () => {
+          if (retryCount.current > maxRetries) {
+            setGpsStatus('error', "Impossible d'accéder à votre localisation. Veuillez autoriser l'accès dans les paramètres du navigateur.");
+            return;
+          }
+          
+          watchId.current = navigator.geolocation.watchPosition(
+            (position) => {
+              const { latitude, longitude, speed } = position.coords;
+              updateTruckLocation({
+                driverId: user.id,
+                lat: latitude,
+                lng: longitude,
+                speed: speed ? Math.round(speed * 3.6) : 0,
+                lastUpdate: new Date().toISOString()
+              });
+              setGpsStatus('tracking');
+              retryCount.current = 0; // Reset retry count on success
+            },
+            (error) => {
+              console.error("[v0] GPS Error code:", error.code, "Message:", error.message);
+              let errorMessage = "Erreur GPS: " + error.message;
+              let shouldRetry = false;
+              
+              // Handle specific geolocation error codes
+              if (error.code === 1) {
+                // PERMISSION_DENIED
+                errorMessage = "Permission refusée pour la géolocalisation. Veuillez autoriser l'accès à votre localisation dans les paramètres du navigateur.";
+                shouldRetry = true;
+              } else if (error.code === 2) {
+                // POSITION_UNAVAILABLE
+                errorMessage = "Position indisponible. Vérifiez que le GPS est activé.";
+                shouldRetry = true;
+              } else if (error.code === 3) {
+                // TIMEOUT
+                errorMessage = "La demande de localisation a expiré. Vérifiez votre connexion internet.";
+                shouldRetry = true;
+              }
+              
+              // Retry with exponential backoff
+              if (shouldRetry && retryCount.current < maxRetries) {
+                retryCount.current++;
+                const delay = 2000 * retryCount.current; // 2s, 4s, 6s
+                console.log(`[v0] Retrying GPS tracking (attempt ${retryCount.current}/${maxRetries}) in ${delay}ms`);
+                setTimeout(startTracking, delay);
+              } else {
+                setGpsStatus('error', errorMessage);
+              }
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+          );
+        };
+        
+        startTracking();
       }
     }
 
