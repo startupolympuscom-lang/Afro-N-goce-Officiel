@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useDispatchGazStore, DispatchGazDriver } from '../../../../stores/useDispatchGazStore';
-import { useLanguageStore } from '../../../../stores/useLanguageStore';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function DispatchDriversPage() {
   const { drivers, addDriver, updateDriver, deleteDriver } = useDispatchGazStore();
-  const { t } = useLanguageStore();
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState<Partial<DispatchGazDriver> & { password?: string }>({
     nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: ''
@@ -29,7 +27,7 @@ export default function DispatchDriversPage() {
     }
 
     deleteDriver(driverId);
-    toast.success(t('drivers.success.deleted'));
+    toast.success('Chauffeur supprimé');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,17 +50,17 @@ export default function DispatchDriversPage() {
 
           if (!res.ok) {
             const errorData = await res.json();
-            toast.error(errorData.error || t('drivers.error.accountCreation'));
+            toast.error(errorData.error || 'Erreur lors de la création du compte');
             return;
           }
         } catch (err) {
           console.error(err);
-          toast.error(t('drivers.error.network'));
+          toast.error('Erreur réseau');
           return;
         }
       } else if (formData.email && !formData.password) {
         // Email provided but no password - ask for password
-        toast.error(t('drivers.error.passwordRequired'));
+        toast.error('Mot de passe requis si vous fournissez un email');
         return;
       }
 
@@ -79,62 +77,62 @@ export default function DispatchDriversPage() {
       });
       setIsAdding(false);
       setFormData({ nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: '' });
-      toast.success(t('drivers.success.added'));
+      toast.success('Chauffeur ajouté avec succès');
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">{t('drivers.title')}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Chauffeurs / Vendeurs</h1>
         <button 
           onClick={() => setIsAdding(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          {t('drivers.addButton')}
+          Ajouter un chauffeur
         </button>
       </div>
 
       {isAdding && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">{t('drivers.newDriver')}</h2>
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Nouveau Chauffeur</h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.name')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nom</label>
               <input type="text" required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.firstname')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Prénom</label>
               <input type="text" required value={formData.prenom} onChange={e => setFormData({...formData, prenom: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.email')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email (pour connexion)</label>
               <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.password')}</label>
-              <input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder={t('drivers.form.passwordPlaceholder')} />
+              <label className="block text-sm font-medium text-slate-700 mb-1">Mot de passe</label>
+              <input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Créer le mot de passe" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.phone')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone</label>
               <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.cin')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Numéro de CIN</label>
               <input type="text" required value={formData.cin} onChange={e => setFormData({...formData, cin: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.cnss')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Num CNSS</label>
               <input type="text" value={formData.cnss} onChange={e => setFormData({...formData, cnss: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('drivers.form.address')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Adresse Domicile</label>
               <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div className="md:col-span-2 flex justify-end gap-3 mt-4">
-              <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">{t('drivers.form.cancel')}</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t('drivers.form.save')}</button>
+              <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Enregistrer</button>
             </div>
           </form>
         </div>
@@ -144,10 +142,10 @@ export default function DispatchDriversPage() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="p-4 font-medium text-slate-600">{t('drivers.table.namePrename')}</th>
-              <th className="p-4 font-medium text-slate-600">{t('drivers.table.contact')}</th>
-              <th className="p-4 font-medium text-slate-600">{t('drivers.table.status')}</th>
-              <th className="p-4 font-medium text-slate-600 text-right">{t('drivers.table.actions')}</th>
+              <th className="p-4 font-medium text-slate-600">Nom & Prénom</th>
+              <th className="p-4 font-medium text-slate-600">Contact</th>
+              <th className="p-4 font-medium text-slate-600">Statut</th>
+              <th className="p-4 font-medium text-slate-600 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -164,7 +162,7 @@ export default function DispatchDriversPage() {
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     driver.status === 'actif' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'
                   }`}>
-                    {driver.status === 'actif' ? t('drivers.status.active') : t('drivers.status.inactive')}
+                    {driver.status}
                   </span>
                 </td>
                 <td className="p-4 text-right">
@@ -176,7 +174,7 @@ export default function DispatchDriversPage() {
             ))}
             {drivers.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-8 text-center text-slate-500">{t('drivers.table.empty')}</td>
+                <td colSpan={4} className="p-8 text-center text-slate-500">Aucun chauffeur enregistré.</td>
               </tr>
             )}
           </tbody>
