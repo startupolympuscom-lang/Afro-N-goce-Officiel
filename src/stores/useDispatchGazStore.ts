@@ -307,7 +307,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
   persist(
     (set) => ({
       drivers: [
-        { id: '2', nom: 'Chauffeur', prenom: 'Test', email: 'driver@afronegoce.ma', phone: '0600000000', status: 'actif' as const }
+        // Removed hardcoded test driver - drivers should be managed through the UI only
       ] as DispatchGazDriver[],
       brands: [
         { id: 'b1', name: 'Butagaz', categories: ['3Kg', '12Kg', '34Kg'] }
@@ -336,9 +336,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { id: 'c3', brandId: 'b1', category: '34Kg', rate: 1.00 }
       ],
       stockDispatches: [],
-      truckLocations: [
-        { driverId: '2', lat: 33.8935, lng: -5.5473, speed: 0, lastUpdate: new Date().toISOString() }
-      ],
+      truckLocations: [],
       dashboardWidgets: [
         { id: 'stat-daily', type: 'stat' as const, title: 'Ventes du jour', visible: true, layout: { x: 0, y: 0, w: 1, h: 2 } },
         { id: 'stat-total', type: 'stat' as const, title: 'Ventes Totales', visible: true, layout: { x: 1, y: 0, w: 1, h: 2 } },
@@ -403,16 +401,17 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       hasPointageToday: (driverId) => {
         const state = useDispatchGazStore.getState();
         const now = new Date();
-        const todayStrLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-        const todayStrUtc = now.toISOString().split('T')[0];
+        // Get today's date in local timezone (YYYY-MM-DD format)
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayLocal = `${year}-${month}-${day}`;
 
+        // Check if driver has a pointage for today
         return state.pointages.some(p => {
           if (p.driverId !== driverId) return false;
-          const pointageDate = new Date(p.timestamp || p.date);
-          const diffHours = (now.getTime() - pointageDate.getTime()) / (1000 * 60 * 60);
-          const isTodayStr = p.date === todayStrUtc || p.date === todayStrLocal;
-          
-          return diffHours < 16 || isTodayStr;
+          // Check if the pointage date matches today's local date
+          return p.date === todayLocal;
         });
       },
 
