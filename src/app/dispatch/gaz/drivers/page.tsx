@@ -10,9 +10,30 @@ export default function DispatchDriversPage() {
     nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: ''
   });
 
+  const handleDelete = async (driverId: string) => {
+    const driver = drivers.find(d => d.id === driverId);
+    if (!driver) return;
+
+    // Delete the user account from database if email exists
+    if (driver.email) {
+      try {
+        await fetch(`/api/users-by-email/${encodeURIComponent(driver.email)}`, {
+          method: 'DELETE'
+        });
+      } catch (err) {
+        console.error('Error deleting user from database:', err);
+        // Continue anyway - delete from Zustand store
+      }
+    }
+
+    deleteDriver(driverId);
+    toast.success('Chauffeur supprimé');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.nom && formData.prenom) {
+      // Validate email if provided
       if (formData.email && formData.password) {
         try {
           const res = await fetch('/api/users', {
@@ -37,6 +58,10 @@ export default function DispatchDriversPage() {
           toast.error('Erreur réseau');
           return;
         }
+      } else if (formData.email && !formData.password) {
+        // Email provided but no password - ask for password
+        toast.error('Mot de passe requis si vous fournissez un email');
+        return;
       }
 
       addDriver({
@@ -141,7 +166,7 @@ export default function DispatchDriversPage() {
                   </span>
                 </td>
                 <td className="p-4 text-right">
-                  <button onClick={() => deleteDriver(driver.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                  <button onClick={() => handleDelete(driver.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
