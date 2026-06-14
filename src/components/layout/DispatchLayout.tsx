@@ -16,11 +16,13 @@ import {
   QrCode,
   ShoppingCart,
   Shield,
-  Lock
+  Lock,
+  Globe
 } from 'lucide-react';
 import { useDispatchAuthStore } from '../../stores/useDispatchAuthStore';
 import { useDispatchGazStore } from '../../stores/useDispatchGazStore';
 import { useRbacStore } from '../../stores/useRbacStore';
+import { useLanguageStore } from '../../stores/useLanguageStore';
 import { AfroNegoceLogo } from '../Logo';
 import { toast } from 'sonner';
 
@@ -35,6 +37,7 @@ export function DispatchLayout() {
   const navigate = useNavigate();
   const { user, logout } = useDispatchAuthStore();
   const { updateTruckLocation, setGpsStatus } = useDispatchGazStore();
+  const { language, setLanguage } = useLanguageStore();
   const watchId = useRef<number | null>(null);
 
   const handleChangePassword = async (e: React.FormEvent) => {
