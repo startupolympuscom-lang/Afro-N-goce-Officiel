@@ -11,12 +11,54 @@ const rolesList: { id: DispatchRole; label: string }[] = [
   { id: 'vendeur_comptoir', label: 'Vendeur Comptoir' },
   { id: 'comptable', label: 'Comptable' },
   { id: 'caissier', label: 'Caissier' },
+  { id: 'driver', label: 'Chauffeur' },
 ];
 
 export default function DispatchRbacPage() {
   const { permissions, updatePermissions, accounts, addAccount, deleteAccount } = useRbacStore();
   const { sales, expenses, paySlips, pointages, addDriver, deleteDriver } = useDispatchGazStore();
   const [activeTab, setActiveTab] = useState<'matrix' | 'accounts'>('matrix');
+
+  React.useEffect(() => {
+    const syncAccounts = async () => {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const apiUsers = await res.json();
+          const updatedAccounts = [...accounts];
+          let updated = false;
+
+          apiUsers.forEach((user: any) => {
+            const exists = updatedAccounts.find(a => a.id === user.id || (a.email && a.email === user.email));
+            if (!exists) {
+              updatedAccounts.push({
+                id: user.id,
+                nom: user.nom,
+                prenom: user.prenom,
+                email: user.email,
+                role: user.role,
+                createdAt: user.created_at || new Date().toISOString()
+              });
+              updated = true;
+            } else {
+              let individualUpdated = false;
+              if (exists.nom !== user.nom) { exists.nom = user.nom; individualUpdated = true; }
+              if (exists.prenom !== user.prenom) { exists.prenom = user.prenom; individualUpdated = true; }
+              if (exists.role !== user.role) { exists.role = user.role; individualUpdated = true; }
+              if (individualUpdated) updated = true;
+            }
+          });
+
+          if (updated) {
+            useRbacStore.setState({ accounts: updatedAccounts });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync accounts from database:', err);
+      }
+    };
+    syncAccounts();
+  }, []);
 
   // New Account state
   const [showAddForm, setShowAddForm] = useState(false);

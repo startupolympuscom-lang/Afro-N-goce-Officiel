@@ -412,6 +412,16 @@ app.delete('/api/news/:id', async (req, res) => {
 });
 
 // User APIs
+app.get('/api/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, nom, prenom, email, role, created_at FROM users ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/users', async (req, res) => {
   try {
     const { nom, prenom, email, password, role } = req.body;

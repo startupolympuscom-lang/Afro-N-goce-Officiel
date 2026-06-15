@@ -51,8 +51,7 @@ export default function DispatchStockPage() {
     e.preventDefault();
     
     if (!isDriverCheckedIn(formData.driverId)) {
-      toast.error("Impossible d'affecter du stock : Le chauffeur n'a pas effectué son pointage aujourd'hui.");
-      return;
+      toast.warning("Note : Le chauffeur n'a pas encore enregistré son pointage aujourd'hui.");
     }
 
     if (formData.driverId && formData.brandId) {

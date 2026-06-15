@@ -10,6 +10,51 @@ export default function DispatchDriversPage() {
     nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: ''
   });
 
+  React.useEffect(() => {
+    const syncDrivers = async () => {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const apiUsers = await res.json();
+          const dbDrivers = apiUsers.filter((u: any) => u.role === 'driver');
+          
+          const updatedDrivers = [...drivers];
+          let updated = false;
+
+          dbDrivers.forEach((dbD: any) => {
+            const exists = updatedDrivers.find(d => d.id === dbD.id || (d.email && d.email === dbD.email));
+            if (!exists) {
+              updatedDrivers.push({
+                id: dbD.id,
+                nom: dbD.nom,
+                prenom: dbD.prenom,
+                email: dbD.email || '',
+                phone: '',
+                status: 'actif',
+                cnss: '',
+                address: '',
+                cin: '',
+              });
+              updated = true;
+            } else {
+              let individualUpdated = false;
+              if (exists.nom !== dbD.nom) { exists.nom = dbD.nom; individualUpdated = true; }
+              if (exists.prenom !== dbD.prenom) { exists.prenom = dbD.prenom; individualUpdated = true; }
+              if (individualUpdated) updated = true;
+            }
+          });
+
+          if (updated) {
+            useDispatchGazStore.setState({ drivers: updatedDrivers });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync drivers from database:', err);
+      }
+    };
+    syncDrivers();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.nom && formData.prenom) {

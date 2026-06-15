@@ -582,13 +582,6 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       dispatchStock: (dispatch) => set((state) => {
         const today = new Date().toISOString().split('T')[0];
         
-        // Block if no pointage today for this driver
-        const hasPointage = useDispatchGazStore.getState().hasPointageToday(dispatch.driverId);
-        if (!hasPointage) {
-          console.error("Cannot dispatch stock: Driver has not performed pointage today.");
-          return state;
-        }
-
         const existingIndex = state.stockDispatches.findIndex(sd => 
           sd.driverId === dispatch.driverId && 
           sd.brandId === dispatch.brandId && 
