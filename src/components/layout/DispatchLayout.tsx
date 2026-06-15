@@ -161,8 +161,8 @@ export function DispatchLayout() {
 
   // Now filter the baseNavItems using RBAC rules
   const navItems = baseNavItems.filter(item => {
-    // If admin, always show all baseNavItems
-    if (user.role === 'admin') return true;
+    // If admin or driver, always show all baseNavItems
+    if (user.role === 'admin' || user.role === 'driver') return true;
     
     // Otherwise check view permission
     const pagePerm = rolePermissions[item.pageId as keyof typeof rolePermissions];

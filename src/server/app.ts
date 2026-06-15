@@ -449,23 +449,6 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/users-by-email/:email', async (req, res) => {
-  try {
-    const { email } = req.params;
-    const decodedEmail = decodeURIComponent(email);
-    const result = await pool.query('SELECT id FROM users WHERE email = $1', [decodedEmail]);
-    
-    if (result.rows.length > 0) {
-      await pool.query('DELETE FROM users WHERE email = $1', [decodedEmail]);
-    }
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting user by email:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', database: 'connected' });

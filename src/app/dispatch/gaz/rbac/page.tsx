@@ -10,7 +10,6 @@ const rolesList: { id: DispatchRole; label: string }[] = [
   { id: 'stock_superviseur', label: 'Stock Superviseur' },
   { id: 'vendeur_comptoir', label: 'Vendeur Comptoir' },
   { id: 'comptable', label: 'Comptable' },
-  { id: 'driver', label: 'Chauffeur / Vendeur' },
   { id: 'caissier', label: 'Caissier' },
 ];
 
@@ -26,11 +25,11 @@ export default function DispatchRbacPage() {
     prenom: '',
     email: '',
     password: '',
-    role: 'driver' as DispatchRole
+    role: 'stock_superviseur' as DispatchRole
   });
 
   const [viewHistoryAccount, setViewHistoryAccount] = useState<DispatchAccount | null>(null);
-  const [selectedMatrixRole, setSelectedMatrixRole] = useState<DispatchRole>('driver');
+  const [selectedMatrixRole, setSelectedMatrixRole] = useState<DispatchRole>('stock_superviseur');
 
   const pagesList: { id: keyof typeof permissions[DispatchRole]; label: string }[] = [
     { id: 'dashboard', label: 'Dashboard' },
@@ -118,7 +117,7 @@ export default function DispatchRbacPage() {
       }
 
       toast.success('Compte créé avec succès');
-      setNewAccount({ nom: '', prenom: '', email: '', password: '', role: 'driver' });
+      setNewAccount({ nom: '', prenom: '', email: '', password: '', role: 'stock_superviseur' });
       setShowAddForm(false);
     } catch (err) {
       toast.error('Une erreur est survenue');
