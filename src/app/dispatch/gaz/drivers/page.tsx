@@ -13,6 +13,7 @@ export default function DispatchDriversPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.nom && formData.prenom) {
+      let createdUserId = Date.now().toString();
       if (formData.email && formData.password) {
         try {
           const res = await fetch('/api/users', {
@@ -32,6 +33,9 @@ export default function DispatchDriversPage() {
             toast.error(errorData.error || 'Erreur lors de la création du compte');
             return;
           }
+
+          const createdUser = await res.json();
+          createdUserId = createdUser.id;
         } catch (err) {
           console.error(err);
           toast.error('Erreur réseau');
@@ -40,7 +44,7 @@ export default function DispatchDriversPage() {
       }
 
       addDriver({
-        id: Date.now().toString(),
+        id: createdUserId,
         nom: formData.nom,
         prenom: formData.prenom,
         email: formData.email || '',
@@ -53,6 +57,18 @@ export default function DispatchDriversPage() {
       setIsAdding(false);
       setFormData({ nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: '' });
       toast.success('Chauffeur ajouté avec succès');
+    }
+  };
+
+  const handleDeleteDriver = async (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce chauffeur ?')) {
+      try {
+        await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Failed to delete user account:', err);
+      }
+      deleteDriver(id);
+      toast.success('Chauffeur supprimé avec succès');
     }
   };
 
@@ -141,7 +157,7 @@ export default function DispatchDriversPage() {
                   </span>
                 </td>
                 <td className="p-4 text-right">
-                  <button onClick={() => deleteDriver(driver.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                  <button onClick={() => handleDeleteDriver(driver.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </td>

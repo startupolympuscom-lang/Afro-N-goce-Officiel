@@ -406,8 +406,21 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         const todayStrLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
         const todayStrUtc = now.toISOString().split('T')[0];
 
+        const driver = state.drivers.find(d => d.id === driverId || (d.email && d.email === driverId));
+        const matchedDriverIds = new Set<string>([driverId]);
+        if (driver) {
+          matchedDriverIds.add(driver.id);
+          if (driver.email) {
+            state.drivers.forEach(d => {
+              if (d.email === driver.email) {
+                matchedDriverIds.add(d.id);
+              }
+            });
+          }
+        }
+
         return state.pointages.some(p => {
-          if (p.driverId !== driverId) return false;
+          if (!matchedDriverIds.has(p.driverId)) return false;
           const pointageDate = new Date(p.timestamp || p.date);
           const diffHours = (now.getTime() - pointageDate.getTime()) / (1000 * 60 * 60);
           const isTodayStr = p.date === todayStrUtc || p.date === todayStrLocal;

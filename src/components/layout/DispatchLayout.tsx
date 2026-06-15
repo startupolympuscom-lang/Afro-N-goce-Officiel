@@ -134,9 +134,9 @@ export function DispatchLayout() {
     { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText, pageId: 'compta' },
     { name: 'Contrôle d\'Accès (RBAC)', href: '/dispatch/gaz/rbac', icon: Shield, pageId: 'rbac' },
     { name: 'Vente Comptoir', href: '/dispatch/gaz/comptoir/sale', icon: Flame, pageId: 'comptoir_sale' },
-    { name: 'الحضور اليومي', href: '/dispatch/gaz/driver/pointage', icon: QrCode, pageId: 'driver_pointage' },
-    { name: 'بيع جديد', href: '/dispatch/gaz/driver/sale', icon: Flame, pageId: 'driver_sale' },
-    { name: 'مبيعاتي', href: '/dispatch/gaz/driver/history', icon: Wallet, pageId: 'driver_history' },
+    { name: 'Pointage', href: '/dispatch/gaz/driver/pointage', icon: QrCode, pageId: 'driver_pointage' },
+    { name: 'Nouvelle Vente', href: '/dispatch/gaz/driver/sale', icon: Flame, pageId: 'driver_sale' },
+    { name: 'Mes Ventes', href: '/dispatch/gaz/driver/history', icon: Wallet, pageId: 'driver_history' },
   ];
 
   const adminNavItems = allNavItems;

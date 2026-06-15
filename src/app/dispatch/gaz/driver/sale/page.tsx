@@ -101,8 +101,8 @@ export default function DispatchDriverSalePage() {
         <div className="w-20 h-20 bg-red-50 rounded-[32px] flex items-center justify-center mx-auto text-red-500 mb-6 border border-red-100">
           <AlertTriangle className="w-10 h-10" />
         </div>
-        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">وصول مقيد</h1>
-        <p className="text-slate-500 font-medium">يجب عليك تسجيل الحضور اليومي قبل أن تتمكن من تسجيل المبيعات.</p>
+        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Accès Restreint</h1>
+        <p className="text-slate-500 font-medium">Vous devez enregistrer votre présence (pointage) aujourd'hui pour pouvoir enregistrer des ventes.</p>
         
         <div className="pt-8">
           <button 
@@ -110,7 +110,7 @@ export default function DispatchDriverSalePage() {
             className="px-8 py-4 bg-slate-950 text-white rounded-[24px] font-bold text-lg flex items-center justify-center gap-3 mx-auto hover:bg-blue-600 transition-all shadow-xl shadow-slate-900/10"
           >
             <QrCode className="w-6 h-6" />
-            اذهب للتسجيل
+            Scanner mon QR Code
           </button>
         </div>
       </div>
@@ -118,16 +118,16 @@ export default function DispatchDriverSalePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6" dir="rtl">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">بيع جديد</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Nouvelle Vente</h1>
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
           gpsStatus === 'tracking' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
           gpsStatus === 'error' ? 'bg-red-50 border-red-200 text-red-600' :
           'bg-slate-50 border-slate-200 text-slate-500'
         }`}>
           <Navigation className={`w-3.5 h-3.5 ${gpsStatus === 'tracking' ? 'animate-pulse' : ''}`} />
-          {gpsStatus === 'tracking' ? 'GPS نشط' : gpsStatus === 'error' ? 'خطأ في GPS' : 'GPS غير نشط'}
+          {gpsStatus === 'tracking' ? 'GPS Actif' : gpsStatus === 'error' ? 'Erreur GPS' : 'GPS Inactif'}
         </div>
       </div>
 
@@ -143,33 +143,33 @@ export default function DispatchDriverSalePage() {
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-8 h-8 text-emerald-600" />
           </div>
-          <h2 className="text-xl font-bold text-emerald-900 mb-2">تم تسجيل البيع!</h2>
-          <p className="text-emerald-700">تمت إضافة المعاملة بنجاح.</p>
+          <h2 className="text-xl font-bold text-emerald-900 mb-2">Vente Enregistrée !</h2>
+          <p className="text-emerald-700">La transaction a été ajoutée avec succès.</p>
         </div>
       ) : (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm text-right">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm text-left">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">العميل</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Client</label>
               <select 
                 required 
                 value={selectedClientId} 
                 onChange={e => setSelectedClientId(e.target.value)} 
-                className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-medium text-slate-900 text-right"
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-medium text-slate-900 text-left"
               >
-                <option value="">حدد العميل</option>
+                <option value="">Sélectionner le Client</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.city})</option>)}
               </select>
             </div>
 
             {selectedClient && (
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <p className="text-sm text-blue-800">المنطقة الجغرافية: <span className="font-bold">{selectedClient.zoneId}</span></p>
+                <p className="text-sm text-blue-800">Zone Géographique: <span className="font-bold">{selectedClient.zoneId}</span></p>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">العلامة التجارية</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Marque</label>
               <select 
                 required 
                 value={selectedBrandId} 
@@ -177,9 +177,9 @@ export default function DispatchDriverSalePage() {
                   setSelectedBrandId(e.target.value);
                   setItems([{ category: '', quantity: 1, isConsignment: false }]);
                 }} 
-                className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-medium text-slate-900 text-right"
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-medium text-slate-900 text-left"
               >
-                <option value="">حدد العلامة التجارية</option>
+                <option value="">Sélectionner la Marque</option>
                 {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
@@ -187,9 +187,9 @@ export default function DispatchDriverSalePage() {
             {selectedBrand && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-slate-700">المنتجات المباعة</label>
+                  <label className="block text-sm font-medium text-slate-700">Produits Vendus</label>
                   <button type="button" onClick={addItem} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100">
-                    <Plus className="w-3 h-3" /> إضافة منتج
+                    <Plus className="w-3 h-3" /> Ajouter un produit
                   </button>
                 </div>
                 
@@ -205,7 +205,7 @@ export default function DispatchDriverSalePage() {
                         </div>
                       )}
                       
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         {selectedBrand.categories.map(cat => (
                           <button
                             key={cat}
@@ -226,7 +226,7 @@ export default function DispatchDriverSalePage() {
                         <div className="space-y-4">
                           <div className="flex gap-4 items-end">
                             <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-500 mb-1">الكمية</label>
+                              <label className="block text-xs font-medium text-slate-500 mb-1">Quantité</label>
                               <div className="flex items-center" dir="ltr">
                                 <button type="button" onClick={() => updateItem(index, 'quantity', Math.max(1, item.quantity - 1))} className="w-10 h-10 rounded-l-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-bold text-lg">-</button>
                                 <input 
@@ -240,7 +240,7 @@ export default function DispatchDriverSalePage() {
                               </div>
                             </div>
                             <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-500 mb-1">السعر / الإجمالي</label>
+                              <label className="block text-xs font-medium text-slate-500 mb-1">Prix / Total</label>
                               <div className="h-10 px-3 border border-slate-200 bg-white rounded-lg flex items-center justify-between text-sm" dir="ltr">
                                 <span className="text-slate-500 font-bold">{itemPrice > 0 ? `${itemPrice + (item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0)} MAD` : '--'}</span>
                                 <span className="font-black text-slate-900">{itemPrice > 0 ? `${(itemPrice + (item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0)) * item.quantity} MAD` : '--'}</span>
@@ -252,8 +252,8 @@ export default function DispatchDriverSalePage() {
                             <div className="flex items-center gap-2">
                               <ShieldCheck className={`w-5 h-5 ${item.isConsignment ? 'text-blue-600' : 'text-slate-400'}`} />
                               <div>
-                                <div className="text-[11px] font-black uppercase tracking-tight text-slate-900 leading-tight">إيداع (Consignation)</div>
-                                <div className="text-[10px] text-slate-500 leading-tight">شراء قنينة جديدة (+{getItemConsignmentPrice(selectedBrandId, item.category)} درهم)</div>
+                                <div className="text-[11px] font-black uppercase tracking-tight text-slate-900 leading-tight">Consignations</div>
+                                <div className="text-[10px] text-slate-500 leading-tight">Achat d'une nouvelle bouteille (+{getItemConsignmentPrice(selectedBrandId, item.category)} MAD)</div>
                               </div>
                             </div>
                             <button 
@@ -265,7 +265,7 @@ export default function DispatchDriverSalePage() {
                                   : 'bg-white border border-slate-200 text-slate-600'
                               }`}
                             >
-                              {item.isConsignment ? 'مطبق' : 'تطبيق'}
+                              {item.isConsignment ? 'Appliqué' : 'Appliquer'}
                             </button>
                           </div>
                         </div>
@@ -274,8 +274,8 @@ export default function DispatchDriverSalePage() {
                   );
                 })}
 
-                <div className="space-y-3 pt-4 border-t border-slate-100 text-right">
-                  <label className="block text-sm font-medium text-slate-700">طريقة الدفع</label>
+                <div className="space-y-3 pt-4 border-t border-slate-100 text-left">
+                  <label className="block text-sm font-medium text-slate-700">Mode de Paiement</label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
@@ -285,7 +285,7 @@ export default function DispatchDriverSalePage() {
                       }`}
                     >
                       <Banknote className="w-5 h-5" />
-                      <span className="text-[10px] font-black tracking-widest">نقداً</span>
+                      <span className="text-[10px] font-black tracking-widest">ESPÈCES</span>
                     </button>
                     <button
                       type="button"
@@ -295,7 +295,7 @@ export default function DispatchDriverSalePage() {
                       }`}
                     >
                       <Receipt className="w-5 h-5" />
-                      <span className="text-[10px] font-black tracking-widest">شيك</span>
+                      <span className="text-[10px] font-black tracking-widest">CHÈQUE</span>
                     </button>
                     <button
                       type="button"
@@ -305,7 +305,7 @@ export default function DispatchDriverSalePage() {
                       }`}
                     >
                       <CreditCard className="w-5 h-5" />
-                      <span className="text-[10px] font-black tracking-widest">ائتمان</span>
+                      <span className="text-[10px] font-black tracking-widest">CRÉDIT</span>
                     </button>
                   </div>
                 </div>
@@ -314,8 +314,8 @@ export default function DispatchDriverSalePage() {
 
             <div className="pt-6 border-t border-slate-100">
               <div className="flex justify-between items-center mb-6" dir="ltr">
-                <span className="text-3xl font-bold text-slate-900">{totalPrice} <span className="text-xl text-slate-500">درهم</span></span>
-                <span className="text-lg font-medium text-slate-700">الإجمالي الواجب دفعه</span>
+                <span className="text-3xl font-bold text-slate-900">{totalPrice} <span className="text-xl text-slate-500">MAD</span></span>
+                <span className="text-lg font-medium text-slate-700">Montant Total à Payer</span>
               </div>
               
               <button
@@ -324,10 +324,10 @@ export default function DispatchDriverSalePage() {
                 className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
               >
                 <ShoppingCart className="w-6 h-6" />
-                تأكيد البيع
+                Confirmer la Vente
               </button>
               {isAnyPriceMissing && (
-                <p className="text-red-500 text-sm text-center mt-3">لم يتم تحديد السعر لفئة أو أكثر في هذه المنطقة.</p>
+                <p className="text-red-500 text-sm text-center mt-3">Le prix de vente n'est pas configuré pour cette catégorie dans la zone du client.</p>
               )}
             </div>
           </form>
