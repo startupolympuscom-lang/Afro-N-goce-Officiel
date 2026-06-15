@@ -8,13 +8,27 @@ import { toast } from 'sonner';
 export default function DispatchDriverSalePage() {
   const navigate = useNavigate();
   const { user } = useDispatchAuthStore();
-  const { clients, brands, prices, addSale, gpsStatus, gpsError, hasPointageToday, gplConfig } = useDispatchGazStore();
+  const { clients, brands, prices, addSale, gpsStatus, gpsError, hasPointageToday, gplConfig, stockDispatches } = useDispatchGazStore();
   
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [items, setItems] = useState([{ category: '', quantity: 1, isConsignment: false }]);
   const [paymentMethod, setPaymentMethod] = useState<'espece' | 'cheque' | 'credit'>('espece');
   const [success, setSuccess] = useState(false);
+
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  
+  const driverStockToday = useMemo(() => {
+    if (!user) return [];
+    return (stockDispatches || []).filter(sd => sd.driverId === user.id && sd.date.startsWith(todayStr));
+  }, [stockDispatches, user, todayStr]);
+
+  const getRemainingStock = (brandId: string, category: string) => {
+    const sd = driverStockToday.find(sd => sd.brandId === brandId && sd.category === category);
+    if (!sd) return 0;
+    const soldCount = sd.sold + (sd.soldConsigned || 0);
+    return Math.max(0, sd.quantity - soldCount);
+  };
 
   const isCheckedIn = useMemo(() => {
     if (!user) return false;
@@ -51,6 +65,20 @@ export default function DispatchDriverSalePage() {
       if (validItems.length === 0) {
         toast.error("Données de vente invalides. Vérifiez les catégories et les prix.");
         return;
+      }
+
+      // Check remaining stock limits before making the sale
+      const totalsByCat: { [cat: string]: number } = {};
+      for (const item of validItems) {
+        totalsByCat[item.category] = (totalsByCat[item.category] || 0) + item.quantity;
+      }
+
+      for (const cat of Object.keys(totalsByCat)) {
+        const remaining = getRemainingStock(selectedBrandId, cat);
+        if (totalsByCat[cat] > remaining) {
+          toast.error(`Stock insuffisant pour la catégorie ${cat}. Restant dans votre camion : ${remaining} bouteilles.`);
+          return;
+        }
       }
 
       validItems.forEach((item, idx) => {
@@ -112,6 +140,21 @@ export default function DispatchDriverSalePage() {
             <QrCode className="w-6 h-6" />
             Scanner mon QR Code
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (driverStockToday.length === 0) {
+    return (
+      <div className="max-w-xl mx-auto space-y-6 pt-12 pb-24 text-center">
+        <div className="w-20 h-20 bg-amber-50 border border-amber-200 rounded-[32px] flex items-center justify-center mx-auto text-amber-500 mb-6 shadow-sm">
+          <AlertTriangle className="w-10 h-10 animate-bounce" />
+        </div>
+        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Stock Non Alloué</h1>
+        <p className="text-slate-500 font-medium">Vous n'avez pas de stock de bouteilles alloué aujourd'hui. Veuillez contacter le répartiteur pour recevoir votre chargement avant d'enregistrer des ventes.</p>
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl max-w-sm mx-auto text-xs font-semibold text-slate-500">
+          Date de session : {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
       </div>
     );
@@ -206,20 +249,35 @@ export default function DispatchDriverSalePage() {
                       )}
                       
                       <div className="grid grid-cols-3 gap-3">
-                        {selectedBrand.categories.map(cat => (
-                          <button
-                            key={cat}
-                            type="button"
-                            onClick={() => updateItem(index, 'category', cat)}
-                            className={`py-2 px-3 text-sm rounded-lg border font-medium transition-all ${
-                              item.category === cat 
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                                : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300'
-                            }`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
+                        {selectedBrand.categories.map(cat => {
+                          const remaining = getRemainingStock(selectedBrandId, cat);
+                          const isSelected = item.category === cat;
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => {
+                                if (remaining === 0) {
+                                  toast.error(`Vous n'avez pas de stock de bouteilles pour la catégorie ${cat}.`);
+                                  return;
+                                }
+                                updateItem(index, 'category', cat);
+                              }}
+                              className={`py-2.5 px-3 text-xs rounded-xl border font-bold transition-all flex flex-col items-center justify-center gap-1 ${
+                                isSelected 
+                                  ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                                  : remaining === 0
+                                    ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-50'
+                                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300'
+                              }`}
+                            >
+                              <span className="font-extrabold">{cat}</span>
+                              <span className={`text-[9px] font-black ${isSelected ? 'text-blue-100' : remaining === 0 ? 'text-slate-300' : 'text-slate-500 font-mono'}`}>
+                                {remaining} dispo
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
 
                       {item.category && (
@@ -228,15 +286,35 @@ export default function DispatchDriverSalePage() {
                             <div className="flex-1">
                               <label className="block text-xs font-medium text-slate-500 mb-1">Quantité</label>
                               <div className="flex items-center" dir="ltr">
-                                <button type="button" onClick={() => updateItem(index, 'quantity', Math.max(1, item.quantity - 1))} className="w-10 h-10 rounded-l-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-bold text-lg">-</button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => updateItem(index, 'quantity', Math.max(1, item.quantity - 1))} 
+                                  className="w-10 h-10 rounded-l-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-bold text-lg"
+                                >
+                                  -
+                                </button>
                                 <input 
                                   type="number" 
                                   min="1" 
+                                  max={getRemainingStock(selectedBrandId, item.category)}
                                   value={item.quantity} 
-                                  onChange={e => updateItem(index, 'quantity', parseInt(e.target.value) || 1)} 
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 1;
+                                    const maxVal = getRemainingStock(selectedBrandId, item.category);
+                                    updateItem(index, 'quantity', Math.min(maxVal, Math.max(1, val)));
+                                  }} 
                                   className="w-full h-10 border-y border-slate-300 text-center font-bold text-base focus:outline-none"
                                 />
-                                <button type="button" onClick={() => updateItem(index, 'quantity', item.quantity + 1)} className="w-10 h-10 rounded-r-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-bold text-lg">+</button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    const maxVal = getRemainingStock(selectedBrandId, item.category);
+                                    updateItem(index, 'quantity', Math.min(maxVal, item.quantity + 1));
+                                  }} 
+                                  className="w-10 h-10 rounded-r-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-bold text-lg"
+                                >
+                                  +
+                                </button>
                               </div>
                             </div>
                             <div className="flex-1">

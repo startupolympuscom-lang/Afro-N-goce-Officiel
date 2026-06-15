@@ -732,17 +732,17 @@ export default function DispatchLivePage() {
                           </div>
                           <input 
                             type="range"
-                            min={480} // 08:00
-                            max={1140} // 19:00
-                            step={15} // 15-min intervals
+                            min={0} // 00:00
+                            max={1439} // 23:59
+                            step={10} // 10-min intervals
                             value={historyTimeMinutes}
                             onChange={(e) => setHistoryTimeMinutes(Number(e.target.value))}
                             className="w-full accent-amber-500 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
                           />
                           <div className="flex justify-between items-center text-[9px] text-slate-500 font-semibold mt-1">
-                            <span>08:00</span>
-                            <span>13:30</span>
-                            <span>19:00</span>
+                            <span>00:00</span>
+                            <span>12:00</span>
+                            <span>23:59</span>
                           </div>
                         </div>
 
