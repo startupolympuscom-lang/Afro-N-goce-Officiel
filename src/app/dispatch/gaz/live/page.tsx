@@ -364,6 +364,23 @@ export default function DispatchLivePage() {
     });
   };
 
+  const createSaleIcon = (driverName: string) => {
+    return L.divIcon({
+      className: 'custom-sale-icon',
+      html: `<div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+               <div class="animate-bounce" style="width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.15); border: 2px solid white; background-color: #10b981;">
+                 <span style="color: white; font-size: 14px; font-weight: 900;">$</span>
+               </div>
+               <div style="background-color: #10b981; color: white; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: 800; white-space: nowrap; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                 Vente${driverName ? `: ${driverName}` : ''}
+               </div>
+             </div>`,
+      iconSize: [60, 45],
+      iconAnchor: [30, 22],
+      popupAnchor: [0, -22]
+    });
+  };
+
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col space-y-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
@@ -481,6 +498,10 @@ export default function DispatchLivePage() {
                 <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                 <span className="text-[10px] font-bold text-slate-600 uppercase">Prospects</span>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Ventes</span>
+              </div>
             </div>
           </div>
 
@@ -563,6 +584,57 @@ export default function DispatchLivePage() {
                   <Popup>
                     <div className="font-bold text-slate-900">{client.name}</div>
                     <div className="text-xs text-slate-500">{client.address}</div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
+            {/* Sales indicators showing exact location where driver made the sale */}
+            {(sales || []).filter(sale => {
+              if (!sale.lat || !sale.lng) return false;
+              
+              // Filter by Date: today or selected history date
+              const saleDateStr = new Date(sale.date).toISOString().split('T')[0];
+              const targetDateStr = isHistoryMode ? historyDate : new Date().toISOString().split('T')[0];
+              if (saleDateStr !== targetDateStr) return false;
+              
+              // Filter by Selected Driver (if any)
+              if (selectedDriverId && sale.driverId !== selectedDriverId) return false;
+              
+              return true;
+            }).map((sale) => {
+              const driver = drivers.find(d => d.id === sale.driverId);
+              const client = clients.find(c => c.id === sale.clientId);
+              const brand = brands.find(b => b.id === sale.brandId);
+              const formattedTime = new Date(sale.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+              
+              return (
+                <Marker
+                  key={`map-sale-${sale.id}`}
+                  position={[sale.lat!, sale.lng!]}
+                  icon={createSaleIcon(driver ? driver.prenom : '')}
+                >
+                  <Popup>
+                    <div className="p-2 space-y-1.5 max-w-xs bg-white rounded-xl">
+                      <div className="flex items-center gap-1.5 font-bold text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 uppercase tracking-tight">
+                        <span>💰</span> Vente Réalisée
+                      </div>
+                      <div className="font-extrabold text-slate-900 text-xs tracking-tight">
+                        {client ? client.name : 'Client Temporaire / Comptoir'}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-medium">
+                        Heure de vente : <span className="font-bold text-slate-800">{formattedTime}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-medium border-t border-slate-100 pt-1 flex flex-col gap-0.5">
+                        <div>Détails : <span className="font-extrabold text-slate-900">{sale.quantity} × {brand ? brand.name : 'Gaz'} ({sale.category})</span></div>
+                        <div>Total : <span className="font-black text-emerald-600">{sale.totalPrice.toFixed(2)} DH</span> <span className="text-[8px] bg-slate-100 text-slate-700 font-bold px-1 rounded uppercase ml-1">{sale.paymentMethod}</span></div>
+                      </div>
+                      {driver && (
+                        <div className="text-[9px] text-slate-400 border-t border-slate-100 pt-1 flex items-center gap-1 font-semibold">
+                          🚚 Par {driver.prenom} {driver.nom}
+                        </div>
+                      )}
+                    </div>
                   </Popup>
                 </Marker>
               );

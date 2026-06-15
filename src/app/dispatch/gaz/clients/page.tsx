@@ -241,7 +241,7 @@ export default function DispatchClientsPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Téléphone</label>
-                <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white transition-all outline-none" />
+                <input type="text" placeholder="ex: +212612345678" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white transition-all outline-none" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">ICE</label>

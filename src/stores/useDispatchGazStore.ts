@@ -64,6 +64,8 @@ export interface GazSale {
   totalPrice: number;
   paymentMethod: 'espece' | 'cheque' | 'credit';
   status?: 'payé' | 'non payé';
+  lat?: number;
+  lng?: number;
 }
 
 export interface Convoyeur {
@@ -532,7 +534,24 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           }
           return sd;
         });
-        return { sales: [...state.sales, sale], stockDispatches: newStockDispatches };
+
+        // Enrich the sale with GPS coordinates of the sale if not provided
+        const enrichSale = { ...sale };
+        if (!enrichSale.lat || !enrichSale.lng) {
+          const truckLoc = state.truckLocations.find(l => l.driverId === sale.driverId);
+          if (truckLoc) {
+            enrichSale.lat = truckLoc.lat;
+            enrichSale.lng = truckLoc.lng;
+          } else {
+            const client = state.clients.find(c => c.id === sale.clientId);
+            if (client && client.lat && client.lng) {
+              enrichSale.lat = client.lat;
+              enrichSale.lng = client.lng;
+            }
+          }
+        }
+
+        return { sales: [...state.sales, enrichSale], stockDispatches: newStockDispatches };
       }),
       addComptoirSale: (sale) => set((state) => {
         const newComptoir = [...state.comptoirStock];

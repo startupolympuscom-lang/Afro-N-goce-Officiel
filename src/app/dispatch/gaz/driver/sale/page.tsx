@@ -8,13 +8,22 @@ import { toast } from 'sonner';
 export default function DispatchDriverSalePage() {
   const navigate = useNavigate();
   const { user } = useDispatchAuthStore();
-  const { clients, brands, prices, addSale, gpsStatus, gpsError, hasPointageToday, gplConfig, stockDispatches } = useDispatchGazStore();
+  const { clients, brands, prices, addSale, updateClient, gpsStatus, gpsError, hasPointageToday, gplConfig, stockDispatches } = useDispatchGazStore();
   
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [items, setItems] = useState([{ category: '', quantity: 1, isConsignment: false }]);
   const [paymentMethod, setPaymentMethod] = useState<'espece' | 'cheque' | 'credit'>('espece');
   const [success, setSuccess] = useState(false);
+  const [whatsappInfo, setWhatsappInfo] = useState<{
+    phone: string;
+    clientName: string;
+    message: string;
+    whatsappUrl: string;
+  } | null>(null);
+  const [editingPhone, setEditingPhone] = useState('');
+  const [isSimulatingSend, setIsSimulatingSend] = useState(false);
+  const [simulatedSent, setSimulatedSent] = useState(false);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   
@@ -100,14 +109,42 @@ export default function DispatchDriverSalePage() {
         });
       });
       
+      // Prepare WhatsApp Details for customer
+      const itemsDetail = validItems.map(item => {
+        const basePrice = getItemPrice(item.category);
+        const consignmentPrice = item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0;
+        return `- ${item.category} (x${item.quantity}) : ${(basePrice + consignmentPrice) * item.quantity} MAD${item.isConsignment ? ' [Avec Consignation]' : ''}`;
+      }).join('\n');
+
+      const clientPhone = selectedClient?.phone || '';
+      const clientName = selectedClient?.name || 'Client';
+      const driverName = `${user.prenom} ${user.nom}`;
+      const totalAmount = totalPrice;
+      const payMethodLabel = paymentMethod === 'espece' ? 'Espèces' : paymentMethod === 'cheque' ? 'Chèque' : 'Crédit';
+
+      const textMsg = `Bonjour *${clientName}*,\n\nVotre livraison de gaz a été effectuée avec succès par notre chauffeur *${driverName}*.\n\n*Détails de la livraison :*\nMarque : *${selectedBrand?.name || ''}*\n${itemsDetail}\n\n*Total à payer :* *${totalAmount} MAD*\n*Mode de paiement :* ${payMethodLabel}\n\nMerci pour votre confiance ! 🙏\n_Afro Dispatch_`;
+
+      const cleanPhone = clientPhone ? clientPhone.replace(/\D/g, '') : '';
+      let formattedPhone = cleanPhone;
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '212' + formattedPhone.substring(1);
+      } else if (formattedPhone && !formattedPhone.startsWith('212')) {
+        formattedPhone = '212' + formattedPhone;
+      }
+
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(textMsg)}`;
+
+      setWhatsappInfo({
+        phone: clientPhone,
+        clientName,
+        message: textMsg,
+        whatsappUrl
+      });
+      setEditingPhone(clientPhone || '');
+      setSimulatedSent(false);
+      setIsSimulatingSend(false);
+      
       setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        setSelectedClientId('');
-        setSelectedBrandId('');
-        setItems([{ category: '', quantity: 1, isConsignment: false }]);
-        setPaymentMethod('espece');
-      }, 3000);
     }
   };
 
@@ -182,12 +219,146 @@ export default function DispatchDriverSalePage() {
       )}
 
       {success ? (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+        <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center max-w-xl mx-auto shadow-xl space-y-6 animate-in fade-in duration-300">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 animate-bounce" />
           </div>
-          <h2 className="text-xl font-bold text-emerald-900 mb-2">Vente Enregistrée !</h2>
-          <p className="text-emerald-700">La transaction a été ajoutée avec succès.</p>
+          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Vente Enregistrée !</h2>
+          <p className="text-slate-500 font-medium text-sm">La transaction a été ajoutée avec succès et votre stock a été actualisé.</p>
+          
+          {whatsappInfo && (
+            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 text-left space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-emerald-700 font-extrabold text-xs uppercase tracking-wider">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                  Notification WhatsApp
+                </span>
+                {whatsappInfo.phone ? (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full font-mono">
+                    {whatsappInfo.phone}
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full font-mono">
+                    Aucun numéro
+                  </span>
+                )}
+              </div>
+
+              {/* Optional Telephone Input and Database Synced Save Panel */}
+              <div className="space-y-1.5 bg-white/70 p-3 rounded-xl border border-slate-100/50">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">N° Téléphone Client (Base de Données)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="ex: +2126XXXXXXXX"
+                    value={editingPhone}
+                    onChange={(e) => setEditingPhone(e.target.value)}
+                    className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none font-medium bg-white focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!editingPhone.trim()) {
+                        toast.error("Veuillez saisir un numéro valide");
+                        return;
+                      }
+                      
+                      // Persist back to local database store
+                      updateClient(selectedClientId, { phone: editingPhone });
+
+                      const cleanPhone = editingPhone.replace(/\D/g, '');
+                      let formattedPhone = cleanPhone;
+                      if (formattedPhone.startsWith('0')) {
+                        formattedPhone = '212' + formattedPhone.substring(1);
+                      } else if (formattedPhone && !formattedPhone.startsWith('212')) {
+                        formattedPhone = '212' + formattedPhone;
+                      }
+                      
+                      const newUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(whatsappInfo.message)}`;
+                      setWhatsappInfo(prev => prev ? { ...prev, phone: editingPhone, whatsappUrl: newUrl } : null);
+                      toast.success("Numéro du client mis à jour dans la base de données !");
+                    }}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-lg transition-all"
+                  >
+                    Sauvegarder
+                  </button>
+                </div>
+              </div>
+              
+              <div className="text-xs bg-white border border-slate-100 text-slate-700 p-3.5 rounded-xl font-mono whitespace-pre-line leading-relaxed max-h-40 overflow-y-auto">
+                {whatsappInfo.message}
+              </div>
+
+              {/* Message Status indicator */}
+              {simulatedSent && (
+                <div className="p-3 bg-emerald-100 rounded-xl text-emerald-800 text-xs font-bold text-center border border-emerald-200 animate-pulse">
+                  ✓ Message WhatsApp de confirmation simulé et envoyé au {editingPhone || whatsappInfo.phone} !
+                </div>
+              )}
+
+              {/* Activating real or simulated send action */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {editingPhone || whatsappInfo.phone ? (
+                  <a
+                    href={whatsappInfo.whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => {
+                      toast.success("Redirection vers WhatsApp...");
+                    }}
+                    className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs tracking-wide flex items-center justify-center gap-2 shadow-md shadow-emerald-900/10 transition-colors uppercase outline-none text-center"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.03 14.113.999 11.99.999c-5.45 0-9.88 4.372-9.884 9.802-.001 1.778.475 3.51 1.378 5.042l-.946 3.461 3.555-.931zm10.963-7.53c-.31-.155-1.829-.9-2.114-1.002-.285-.102-.492-.153-.7.154-.207.307-.8.1-.98.153-.182-.205-.363-.102-.49-.153-.131-.051-.55-.227-.8-.5-.25-.213-.6-.826-.74-.9-.12-.089-1.127-1.492-1.127-2.85 0-1.357.7-1.423.95-1.68.25-.257.545-.308.72-.308.18 0 .36 0 .52.008.167.008.388-.063.59.395.207.47.7 1.71.76 1.83.06.12.1.25.02.41-.08.16-.16.355-.26.47-.1.115-.22.256-.31.37-.11.139-.23.29-.1.52.13.23.59.97 1.26 1.57.86.77 1.58 1.01 1.8 1.13.23.116.36.1.5-.06.14-.16.59-.7.75-.95.16-.25.32-.2.54-.12.22.08 1.4.66 1.64.78.24.12.4.18.46.28.06.1.06.57-.15.78s-1.22 1.2-1.7 1.2c-.48 0-1.1-.31-1.85-.62zm0 0"/>
+                    </svg>
+                    Envoyer Direct
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="py-2.5 bg-slate-100 text-slate-400 rounded-xl font-bold text-xs uppercase cursor-not-allowed"
+                  >
+                    Aucun Numéro Configuré
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  disabled={isSimulatingSend || !editingPhone.trim()}
+                  onClick={() => {
+                    setIsSimulatingSend(true);
+                    setTimeout(() => {
+                      setIsSimulatingSend(false);
+                      setSimulatedSent(true);
+                      toast.success(`Message WhatsApp simulé avec succès !`);
+                    }, 1200);
+                  }}
+                  className="py-2.5 bg-indigo-50 hover:bg-slate-100 text-indigo-700 disabled:opacity-40 rounded-xl font-bold text-xs uppercase tracking-wide transition-all"
+                >
+                  {isSimulatingSend ? 'Envoi en cours...' : 'Simuler un Envoi'}
+                </button>
+              </div>
+
+            </div>
+          )}
+
+          <button 
+            onClick={() => {
+              setSuccess(false);
+              setSelectedClientId('');
+              setSelectedBrandId('');
+              setItems([{ category: '', quantity: 1, isConsignment: false }]);
+              setPaymentMethod('espece');
+              setWhatsappInfo(null);
+              setEditingPhone('');
+              setSimulatedSent(false);
+              setIsSimulatingSend(false);
+            }}
+            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm tracking-wider uppercase transition-all shadow-md shadow-slate-900/10"
+          >
+            Nouvelle Vente
+          </button>
         </div>
       ) : (
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm text-left">
