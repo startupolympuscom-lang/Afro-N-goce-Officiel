@@ -172,6 +172,51 @@ export interface TruckLocation {
   stoppedSince?: string; // Timestamp when the driver stopped
 }
 
+export interface LocationHistoryItem {
+  id: string;
+  driverId: string;
+  lat: number;
+  lng: number;
+  speed: number;
+  timestamp: string; // ISO format string
+}
+
+export function generateMockLocationHistory() {
+  const history: LocationHistoryItem[] = [];
+  const driverIds = ['2'];
+  const baseLat = 33.8935;
+  const baseLng = -5.5473;
+  
+  // Last 3 days
+  for (let d = 0; d < 3; d++) {
+    const date = new Date();
+    date.setDate(date.getDate() - d);
+    const dateString = date.toISOString().split('T')[0];
+    
+    driverIds.forEach((driverId) => {
+      // 10 points per day from 08:00 to 17:00
+      for (let h = 8; h <= 17; h++) {
+        const timestamp = `${dateString}T${h.toString().padStart(2, '0')}:00:00.000Z`;
+        
+        // Generate a nice smooth circular path
+        const rad = ((h - 8) / 9) * 2 * Math.PI;
+        const latOffset = Math.sin(rad) * 0.025;
+        const lngOffset = Math.cos(rad) * 0.025;
+        
+        history.push({
+          id: `hist-${driverId}-${d}-${h}`,
+          driverId,
+          lat: baseLat + latOffset,
+          lng: baseLng + lngOffset,
+          speed: h === 8 || h === 13 || h === 17 ? 0 : 35 + Math.floor(Math.random() * 15),
+          timestamp
+        });
+      }
+    });
+  }
+  return history;
+}
+
 export interface DashboardWidget {
   id: string;
   type: 'stat' | 'chart' | 'ranking';
@@ -221,6 +266,7 @@ interface DispatchGazState {
   commissions: GazCommission[];
   stockDispatches: StockDispatch[];
   truckLocations: TruckLocation[];
+  locationHistory: LocationHistoryItem[];
   dashboardWidgets: DashboardWidget[];
   alerts: DispatchAlert[];
   paySlips: GazPaySlip[];
@@ -286,6 +332,7 @@ interface DispatchGazState {
   updateGPLConfig: (config: GPLConfig) => void;
 
   updateTruckLocation: (location: TruckLocation) => void;
+  addLocationHistoryItem: (item: Omit<LocationHistoryItem, 'id'>) => void;
   
   updateDashboardWidgets: (widgets: DashboardWidget[]) => void;
   addAlert: (alert: DispatchAlert) => void;
@@ -339,6 +386,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       truckLocations: [
         { driverId: '2', lat: 33.8935, lng: -5.5473, speed: 0, lastUpdate: new Date().toISOString() }
       ],
+      locationHistory: generateMockLocationHistory(),
       dashboardWidgets: [
         { id: 'stat-daily', type: 'stat' as const, title: 'Ventes du jour', visible: true, layout: { x: 0, y: 0, w: 1, h: 2 } },
         { id: 'stat-total', type: 'stat' as const, title: 'Ventes Totales', visible: true, layout: { x: 1, y: 0, w: 1, h: 2 } },
@@ -634,6 +682,16 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         let newAlerts = [...state.alerts];
         let updatedLocation = { ...location };
 
+        const newHistoryItem: LocationHistoryItem = {
+          id: `hist-${location.driverId}-${now.getTime()}`,
+          driverId: location.driverId,
+          lat: location.lat,
+          lng: location.lng,
+          speed: location.speed,
+          timestamp: location.lastUpdate || now.toISOString()
+        };
+        const updatedHistory = [...(state.locationHistory || []), newHistoryItem];
+
         if (existingIndex >= 0) {
           const prevLocation = state.truckLocations[existingIndex];
           
@@ -683,11 +741,15 @@ export const useDispatchGazStore = create<DispatchGazState>()(
             return d;
           });
 
-          return { truckLocations: newLocations, alerts: newAlerts, drivers: newDrivers };
+          return { truckLocations: newLocations, alerts: newAlerts, drivers: newDrivers, locationHistory: updatedHistory };
         }
         
-        return { truckLocations: [...state.truckLocations, updatedLocation], alerts: newAlerts };
+        return { truckLocations: [...state.truckLocations, updatedLocation], alerts: newAlerts, locationHistory: updatedHistory };
       }),
+
+      addLocationHistoryItem: (item) => set((state) => ({
+        locationHistory: [...(state.locationHistory || []), { ...item, id: `hist-${Date.now()}-${Math.random()}` }]
+      })),
 
       updateDashboardWidgets: (widgets) => set({ dashboardWidgets: widgets }),
       addAlert: (alert) => set((state) => ({ alerts: [alert, ...state.alerts].slice(0, 50) })),
@@ -751,6 +813,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           expenses: [],
           stockDispatches: [],
           truckLocations: [],
+          locationHistory: generateMockLocationHistory(),
           alerts: [],
           pointages: [],
           comptoirStock: [],

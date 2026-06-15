@@ -16,7 +16,9 @@ import {
   QrCode,
   ShoppingCart,
   Shield,
-  Lock
+  Lock,
+  MapPin,
+  Navigation
 } from 'lucide-react';
 import { useDispatchAuthStore } from '../../stores/useDispatchAuthStore';
 import { useDispatchGazStore } from '../../stores/useDispatchGazStore';
@@ -35,7 +37,10 @@ export function DispatchLayout() {
   const navigate = useNavigate();
   const { user, logout } = useDispatchAuthStore();
   const { updateTruckLocation, setGpsStatus } = useDispatchGazStore();
+  const gpsStatus = useDispatchGazStore(s => s.gpsStatus);
   const watchId = useRef<number | null>(null);
+  const simInterval = useRef<number | null>(null);
+  const [showGpsModal, setShowGpsModal] = React.useState(user?.role === 'driver');
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,37 +70,106 @@ export function DispatchLayout() {
     }
   };
 
-  React.useEffect(() => {
-    if (!user) {
-      navigate('/dispatch/login');
+  const enableNativeGps = () => {
+    if (!user) return;
+    if (!("geolocation" in navigator)) {
+      setGpsStatus('error', "La géolocalisation n'est pas supportée par votre navigateur.");
+      toast.error("La géolocalisation n'est pas supportée.");
       return;
     }
-
-    // GPS Tracking for drivers
-    if (user.role === 'driver') {
-      if (!("geolocation" in navigator)) {
-        setGpsStatus('error', "La géolocalisation n'est pas supportée.");
-      } else {
+    
+    toast("Demande d'autorisation GPS...");
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, speed } = position.coords;
+        updateTruckLocation({
+          driverId: user.id,
+          lat: latitude,
+          lng: longitude,
+          speed: speed ? Math.round(speed * 3.6) : 0,
+          lastUpdate: new Date().toISOString()
+        });
         setGpsStatus('tracking');
+        setShowGpsModal(false);
+        toast.success("GPS activé avec succès !");
+        
+        // Setup continuous watch
+        if (watchId.current !== null) {
+          navigator.geolocation.clearWatch(watchId.current);
+        }
+        
         watchId.current = navigator.geolocation.watchPosition(
-          (position) => {
-            const { latitude, longitude, speed } = position.coords;
+          (pos) => {
+            const { latitude: lat, longitude: lng, speed: sp } = pos.coords;
             updateTruckLocation({
               driverId: user.id,
-              lat: latitude,
-              lng: longitude,
-              speed: speed ? Math.round(speed * 3.6) : 0,
+              lat,
+              lng,
+              speed: sp ? Math.round(sp * 3.6) : 0,
               lastUpdate: new Date().toISOString()
             });
             setGpsStatus('tracking');
           },
-          (error) => {
-            console.error("GPS Error:", error);
-            setGpsStatus('error', "Erreur GPS: " + error.message);
+          (err) => {
+            console.error("GPS Watch error:", err);
+            setGpsStatus('error', "Erreur GPS: " + err.message);
           },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
-      }
+      },
+      (error) => {
+        console.error("GPS Native Error:", error);
+        setGpsStatus('error', "Erreur GPS: " + error.message);
+        toast.error("Échec de l'activation du GPS : " + error.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const enableSimulatedGps = () => {
+    if (!user) return;
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    
+    let angle = Math.random() * 2 * Math.PI;
+    const baseLat = 33.8935;
+    const baseLng = -5.5473;
+    
+    const updateSim = () => {
+      angle += 0.05 + Math.random() * 0.03;
+      // circular-ish trajectory in Meknes
+      const lat = baseLat + Math.sin(angle) * 0.015;
+      const lng = baseLng + Math.cos(angle) * 0.015;
+      const speed = Math.floor(25 + Math.random() * 20);
+      
+      updateTruckLocation({
+        driverId: user.id,
+        lat,
+        lng,
+        speed,
+        lastUpdate: new Date().toISOString()
+      });
+    };
+    
+    updateSim();
+    
+    if (simInterval.current) {
+      clearInterval(simInterval.current);
+    }
+    simInterval.current = window.setInterval(updateSim, 8500) as any;
+    
+    setGpsStatus('tracking');
+    setShowGpsModal(false);
+    toast.success("Simulation GPS active (Suivi Meknès) !");
+  };
+
+  React.useEffect(() => {
+    if (!user) {
+      navigate('/dispatch/login');
+      return;
     }
 
     if (user.role === 'driver' && location.pathname.includes('/dashboard')) {
@@ -109,8 +183,11 @@ export function DispatchLayout() {
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
       }
+      if (simInterval.current !== null) {
+        clearInterval(simInterval.current);
+      }
     };
-  }, [user, location.pathname, navigate, updateTruckLocation, setGpsStatus]);
+  }, [user, location.pathname, navigate]);
 
   const { permissions } = useRbacStore();
 
@@ -290,6 +367,33 @@ export function DispatchLayout() {
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          {user?.role === 'driver' && gpsStatus !== 'tracking' && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0">
+                  <MapPin className="w-5 h-5 animate-bounce" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-amber-900 text-sm">Géolocalisation Inactive</h4>
+                  <p className="text-amber-700 text-xs font-medium mt-0.5">Le répartiteur admin ne peut pas vous voir en direct sur la carte.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <button 
+                  onClick={enableNativeGps}
+                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                >
+                  <Navigation className="w-3.5 h-3.5" /> Activer GPS
+                </button>
+                <button 
+                  onClick={enableSimulatedGps}
+                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                >
+                  Simuler trajet (Mode démo)
+                </button>
+              </div>
+            </div>
+          )}
           <Outlet />
         </div>
       </main>
@@ -349,6 +453,68 @@ export function DispatchLayout() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* GPS Activation modal for drivers */}
+      {user?.role === 'driver' && showGpsModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setShowGpsModal(false)} />
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="bg-gradient-to-r from-slate-900 to-slate-850 p-8 text-white relative">
+              <div className="absolute top-4 right-4">
+                <button 
+                  onClick={() => setShowGpsModal(false)}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="w-14 h-14 bg-blue-500/15 rounded-2xl flex items-center justify-center mb-4 text-blue-400 border border-blue-400/20">
+                <MapPin className="w-8 h-8 animate-pulse" />
+              </div>
+              <h2 className="text-2xl font-extrabold tracking-tight">📍 Activer votre Géolocalisation</h2>
+              <p className="text-slate-300 text-sm mt-2 font-medium">Pour assurer le suivi des livraisons en temps réel et optimiser les trajets sur le Live Dispatch.</p>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={enableNativeGps}
+                  className="w-full p-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-lg shadow-blue-600/10 hover:shadow-blue-600/20 flex items-center justify-between text-left group"
+                >
+                  <div>
+                    <div className="text-base font-bold">📡 Partager ma position GPS</div>
+                    <div className="text-xs text-blue-100 font-normal mt-0.5">Demande l'autorisation du navigateur</div>
+                  </div>
+                  <Navigation className="w-5 h-5 opacity-70 group-hover:translate-x-1 transition-transform" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={enableSimulatedGps}
+                  className="w-full p-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-2xl transition-all flex items-center justify-between text-left group border border-slate-200"
+                >
+                  <div>
+                    <div className="text-base text-slate-900 font-bold">🔄 Activer la simulation (Iframe / Démo)</div>
+                    <div className="text-xs text-slate-500 font-normal mt-0.5">Pour contourner les blocages ou sandboxing d'iframes</div>
+                  </div>
+                  <span className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-md font-semibold shrink-0">Meknès, MAR</span>
+                </button>
+              </div>
+
+              <div className="pt-2 flex justify-between items-center text-xs text-slate-400">
+                <span>* Requis pour s'afficher en direct en tant que livreur</span>
+                <button
+                  onClick={() => setShowGpsModal(false)}
+                  className="font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  Remettre à plus tard
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

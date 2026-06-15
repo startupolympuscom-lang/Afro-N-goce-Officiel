@@ -5,7 +5,7 @@ import {
   TrendingUp, Target, MousePointer2, X, Search, Utensils, Info,
   AlertTriangle, Bell, Maximize2, Minimize2, Activity, Clock
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { renderToString } from 'react-dom/server';
@@ -36,7 +36,7 @@ interface Prospect {
 }
 
 export default function DispatchLivePage() {
-  const { truckLocations, drivers, clients, sales, brands, alerts, stockDispatches } = useDispatchGazStore();
+  const { truckLocations, locationHistory, drivers, clients, sales, brands, alerts, stockDispatches } = useDispatchGazStore();
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'driver' | 'performance' | 'prospecting' | 'alerts'>('driver');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -50,6 +50,60 @@ export default function DispatchLivePage() {
   // Map Highlight Tool
   const [highlightMode, setHighlightMode] = useState(false);
   const [highlightCircle, setHighlightCircle] = useState<{ lat: number, lng: number, radius: number } | null>(null);
+
+  // History tracking state
+  const [isHistoryMode, setIsHistoryMode] = useState(false);
+  const [historyDate, setHistoryDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [historyTimeMinutes, setHistoryTimeMinutes] = useState<number>(600); // 10:00 default
+
+  const formatMinutesToTime = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  const targetTime = useMemo(() => {
+    const [yr, mo, dy] = historyDate.split('-');
+    const target = new Date(Number(yr), Number(mo) - 1, Number(dy));
+    const h = Math.floor(historyTimeMinutes / 60);
+    const m = historyTimeMinutes % 60;
+    target.setHours(h, m, 0, 0);
+    return target;
+  }, [historyDate, historyTimeMinutes]);
+
+  const selectedDriver = useMemo(() => {
+    return drivers.find(d => d.id === selectedDriverId);
+  }, [drivers, selectedDriverId]);
+
+  const driverHistoryPointsForDate = useMemo(() => {
+    if (!selectedDriverId) return [];
+    return (locationHistory || []).filter(item => {
+      if (item.driverId !== selectedDriverId) return false;
+      const itemDateStr = new Date(item.timestamp).toISOString().split('T')[0];
+      return itemDateStr === historyDate;
+    }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }, [locationHistory, selectedDriverId, historyDate]);
+
+  const pathPoints = useMemo(() => {
+    return driverHistoryPointsForDate.filter(item => {
+      return new Date(item.timestamp).getTime() <= targetTime.getTime();
+    });
+  }, [driverHistoryPointsForDate, targetTime]);
+
+  const activeHistoryPoint = useMemo(() => {
+    if (driverHistoryPointsForDate.length === 0) return null;
+    let closest = driverHistoryPointsForDate[0];
+    let minDiff = Math.abs(new Date(closest.timestamp).getTime() - targetTime.getTime());
+    
+    for (const pt of driverHistoryPointsForDate) {
+      const diff = Math.abs(new Date(pt.timestamp).getTime() - targetTime.getTime());
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = pt;
+      }
+    }
+    return closest;
+  }, [driverHistoryPointsForDate, targetTime]);
 
   // Prospecting
   const [prospects, setProspects] = useState<Prospect[]>([]);
@@ -514,7 +568,34 @@ export default function DispatchLivePage() {
               );
             })}
 
+            {isHistoryMode && pathPoints.length > 0 && (
+              <Polyline 
+                positions={pathPoints.map(p => [p.lat, p.lng])} 
+                color="#f59e0b" 
+                weight={4} 
+                dashArray="5, 10" 
+              />
+            )}
+
+            {isHistoryMode && activeHistoryPoint && (
+              <Marker 
+                position={[activeHistoryPoint.lat, activeHistoryPoint.lng]} 
+                icon={createTruckIcon(true, false, `${selectedDriver?.prenom} ${selectedDriver?.nom} (Hist: ${formatMinutesToTime(historyTimeMinutes)})`)}
+              >
+                <Popup>
+                  <div className="font-bold text-slate-900">{selectedDriver?.prenom} {selectedDriver?.nom} (Historique)</div>
+                  <div className="text-xs text-slate-500 font-bold mb-1">Passage à : {formatMinutesToTime(historyTimeMinutes)}</div>
+                  <div className="text-xs text-slate-500">Heure log : {new Date(activeHistoryPoint.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                  <div className="text-xs text-slate-500">Vitesse : {activeHistoryPoint.speed} km/h</div>
+                </Popup>
+              </Marker>
+            )}
+
             {truckLocations.map(loc => {
+              if (isHistoryMode && selectedDriverId === loc.driverId) {
+                // Hide live marker in historical tracking mode for this driver
+                return null;
+              }
               const driver = drivers.find(d => d.id === loc.driverId);
               const isSelected = selectedDriverId === loc.driverId;
               const isStuck = !!loc.stoppedSince && (new Date().getTime() - new Date(loc.stoppedSince).getTime() > 15 * 60 * 1000);
@@ -608,6 +689,94 @@ export default function DispatchLivePage() {
                     >
                       <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${showDriverHeatmap ? 'left-7' : 'left-1'}`} />
                     </button>
+                  </div>
+
+                  {/* Historique de Trajet Section */}
+                  <div className={`p-4 rounded-2xl border ${isHistoryMode ? 'bg-amber-550/5 border-amber-500/30 ring-1 ring-amber-500/10' : (isFullScreen ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200-gray border-slate-200')}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className={`text-sm font-bold flex items-center gap-2 ${isHistoryMode ? 'text-amber-600 font-extrabold' : (isFullScreen ? 'text-white' : 'text-slate-900')}`}>
+                          <Calendar className="w-4 h-4 text-amber-500" />
+                          Historique de Trajet
+                        </h4>
+                        <p className="text-xs text-slate-500">Suivre le parcours pour une date/heure.</p>
+                      </div>
+                      <button 
+                        onClick={() => setIsHistoryMode(!isHistoryMode)}
+                        className={`w-12 h-6 rounded-full transition-colors relative ${isHistoryMode ? 'bg-amber-500' : 'bg-slate-300'}`}
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${isHistoryMode ? 'left-7' : 'left-1'}`} />
+                      </button>
+                    </div>
+
+                    {isHistoryMode && (
+                      <div className="space-y-4 pt-4 border-t border-dashed border-slate-300/30 animate-in fade-in duration-200">
+                        {/* Date Picker */}
+                        <div>
+                          <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isFullScreen ? 'text-slate-400' : 'text-slate-500'}`}>Date du trajet</label>
+                          <input 
+                            type="date"
+                            value={historyDate}
+                            onChange={(e) => setHistoryDate(e.target.value)}
+                            className={`w-full px-3 py-2 rounded-xl text-xs font-semibold outline-none border ${isFullScreen ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800 focus:border-amber-500'}`}
+                          />
+                        </div>
+
+                        {/* Slider time */}
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <label className={`block text-[10px] font-bold uppercase tracking-wider ${isFullScreen ? 'text-slate-400' : 'text-slate-500'}`}>Heure recherchée</label>
+                            <span className="text-xs font-black text-amber-600 font-mono tracking-tight bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                              {formatMinutesToTime(historyTimeMinutes)}
+                            </span>
+                          </div>
+                          <input 
+                            type="range"
+                            min={480} // 08:00
+                            max={1140} // 19:00
+                            step={15} // 15-min intervals
+                            value={historyTimeMinutes}
+                            onChange={(e) => setHistoryTimeMinutes(Number(e.target.value))}
+                            className="w-full accent-amber-500 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                          <div className="flex justify-between items-center text-[9px] text-slate-500 font-semibold mt-1">
+                            <span>08:00</span>
+                            <span>13:30</span>
+                            <span>19:00</span>
+                          </div>
+                        </div>
+
+                        {/* Point Status summary */}
+                        <div className={`p-3 rounded-xl text-xs font-medium space-y-1.5 ${isFullScreen ? 'bg-slate-900/50 text-slate-300' : 'bg-white text-slate-700 border border-slate-100'}`}>
+                          {driverHistoryPointsForDate.length === 0 ? (
+                            <div className="text-slate-500 text-center py-2 italic font-normal text-xs">
+                              Aucune position GPS sur ce jour.
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400 text-[10px]">Position estimée :</span>
+                                <span className="font-bold text-slate-800 font-mono">
+                                  {activeHistoryPoint ? `${activeHistoryPoint.lat.toFixed(4)}, ${activeHistoryPoint.lng.toFixed(4)}` : 'Indéterminée'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400 text-[10px]">Vitesse du camion :</span>
+                                <span className={`font-bold ${activeHistoryPoint?.speed && activeHistoryPoint.speed > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                  {activeHistoryPoint?.speed || 0} km/h
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400 text-[10px]">Points filtrés :</span>
+                                <span className="text-slate-800 font-bold">
+                                  {pathPoints.length} / {driverHistoryPointsForDate.length} points
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
