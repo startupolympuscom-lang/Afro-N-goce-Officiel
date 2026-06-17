@@ -40,18 +40,46 @@ export default function DispatchSettingsPage() {
 
   const handleImageUpload = (brandId: string, category: string, file: File) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      const brand = brands.find(b => b.id === brandId);
-      if (brand) {
-        useDispatchGazStore.getState().updateBrand(brandId, {
-          productImages: {
-            ...(brand.productImages || {}),
-            [category]: base64String
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 300;
+        const MAX_HEIGHT = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round(height * MAX_WIDTH / width);
+            width = MAX_WIDTH;
           }
-        });
-        toast.success(`Image ajoutée pour ${brand.name} - ${category}`);
-      }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round(width * MAX_HEIGHT / height);
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const base64String = canvas.toDataURL('image/webp', 0.8);
+          
+          const brand = brands.find(b => b.id === brandId);
+          if (brand) {
+            useDispatchGazStore.getState().updateBrand(brandId, {
+              productImages: {
+                ...(brand.productImages || {}),
+                [category]: base64String
+              }
+            });
+            toast.success(`Image ajoutée pour ${brand.name} - ${category}`);
+          }
+        }
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   };

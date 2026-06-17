@@ -50,7 +50,11 @@ export const postgresStorage: StateStorage = {
   setItem: async (name: string, value: string): Promise<void> => {
     try {
       // Still update localStorage as a local secondary backup
-      localStorage.setItem(name, value);
+      try {
+        localStorage.setItem(name, value);
+      } catch (localErr) {
+        console.warn('Could not save to localStorage (quota likely exceeded), proceeding with Postgres:', localErr);
+      }
       
       const state = JSON.parse(value);
       const response = await fetch(`/api/zustand/${name}`, {
