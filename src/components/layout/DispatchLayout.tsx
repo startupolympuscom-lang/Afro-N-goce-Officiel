@@ -36,7 +36,7 @@ export function DispatchLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useDispatchAuthStore();
-  const { updateTruckLocation, setGpsStatus } = useDispatchGazStore();
+  const { updateTruckLocation, setGpsStatus, pointages } = useDispatchGazStore();
   const gpsStatus = useDispatchGazStore(s => s.gpsStatus);
   const watchId = useRef<number | null>(null);
   const simInterval = useRef<number | null>(null);
@@ -172,8 +172,15 @@ export function DispatchLayout() {
       return;
     }
 
-    if (user.role === 'driver' && location.pathname.includes('/dashboard')) {
-      navigate('/dispatch/gaz/driver/sale');
+    const hasPointage = useDispatchGazStore.getState().hasPointageToday(user.id);
+
+    if (user.role === 'driver') {
+      if (location.pathname.includes('/dashboard')) {
+        navigate('/dispatch/gaz/driver/sale');
+      }
+      if (hasPointage && location.pathname.includes('/driver/pointage')) {
+        navigate('/dispatch/gaz/driver/sale');
+      }
     }
     if (user.role === 'admin' && location.pathname.includes('/driver/')) {
       navigate('/dispatch/gaz/dashboard');
@@ -187,7 +194,7 @@ export function DispatchLayout() {
         clearInterval(simInterval.current);
       }
     };
-  }, [user, location.pathname, navigate]);
+  }, [user, location.pathname, navigate, pointages]);
 
   const { permissions } = useRbacStore();
 
@@ -196,6 +203,7 @@ export function DispatchLayout() {
   }
 
   const rolePermissions = (permissions[user.role] || {}) as any;
+  const hasPointage = useDispatchGazStore.getState().hasPointageToday(user.id);
 
   const allNavItems = [
     { name: 'Dashboard', href: '/dispatch/gaz/dashboard', icon: LayoutDashboard, pageId: 'dashboard' },
@@ -221,7 +229,12 @@ export function DispatchLayout() {
   const comptaNavItems = allNavItems.filter(i => ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard'].includes(i.pageId));
   const stockNavItems = allNavItems.filter(i => ['stock', 'manual_sale', 'commande'].includes(i.pageId));
   const comptoirNavItems = allNavItems.filter(i => ['comptoir_sale', 'driver_history'].includes(i.pageId));
-  const driverNavItems = allNavItems.filter(i => ['driver_pointage', 'driver_sale', 'driver_history'].includes(i.pageId));
+  
+  // Conditionally include pointage if not checked in yet
+  const driverNavPages = hasPointage 
+    ? ['driver_sale', 'driver_history'] 
+    : ['driver_pointage', 'driver_sale', 'driver_history'];
+  const driverNavItems = allNavItems.filter(i => driverNavPages.includes(i.pageId));
   const caissierNavItems = allNavItems.filter(i => ['caisse'].includes(i.pageId));
 
   let baseNavItems = user.role === 'admin' 

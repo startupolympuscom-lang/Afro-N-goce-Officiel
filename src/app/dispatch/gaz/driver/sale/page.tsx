@@ -11,7 +11,25 @@ export default function DispatchDriverSalePage() {
   const { clients, brands, prices, addSale, updateClient, gpsStatus, gpsError, hasPointageToday, gplConfig, stockDispatches } = useDispatchGazStore();
   
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [clientSearchStr, setClientSearchStr] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
   const [selectedBrandId, setSelectedBrandId] = useState('');
+
+  // close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = () => setIsClientDropdownOpen(false);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  const filteredClients = useMemo(() => {
+    if (!clientSearchStr.trim()) return clients.slice(0, 50); // limit empty search to 50
+    const str = clientSearchStr.toLowerCase();
+    return clients.filter(c => 
+      c.name.toLowerCase().includes(str) || 
+      (c.code && c.code.toLowerCase().includes(str))
+    ).slice(0, 50);
+  }, [clients, clientSearchStr]);
   const [items, setItems] = useState([{ category: '', quantity: 1, isConsignment: false }]);
   const [paymentMethod, setPaymentMethod] = useState<'espece' | 'cheque' | 'credit'>('espece');
   const [success, setSuccess] = useState(false);
@@ -363,22 +381,82 @@ export default function DispatchDriverSalePage() {
       ) : (
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm text-left">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Client</label>
-              <select 
-                required 
-                value={selectedClientId} 
-                onChange={e => setSelectedClientId(e.target.value)} 
-                className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-medium text-slate-900 text-left"
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Choisir un Client</label>
+              <div 
+                className={`flex items-center w-full px-4 py-3 border rounded-xl bg-slate-50 transition-all ${
+                  isClientDropdownOpen ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-300'
+                }`}
               >
-                <option value="">Sélectionner le Client</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.city})</option>)}
-              </select>
+                <div className="flex-1 flex items-center">
+                  {selectedClient ? (
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className="font-bold text-slate-900 truncate pr-2">
+                        {selectedClient.name} {selectedClient.code ? `(${selectedClient.code})` : ''} - {selectedClient.city}
+                      </span>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setSelectedClientId('');
+                          setClientSearchStr('');
+                          setIsClientDropdownOpen(true);
+                        }}
+                        className="text-slate-400 hover:text-red-500"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      className="w-full bg-transparent outline-none font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal"
+                      placeholder="Chercher par nom ou code..."
+                      value={clientSearchStr}
+                      onChange={e => {
+                        setClientSearchStr(e.target.value);
+                        setIsClientDropdownOpen(true);
+                      }}
+                      onClick={() => setIsClientDropdownOpen(true)}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {isClientDropdownOpen && !selectedClient && (
+                <div className="absolute z-10 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto overflow-x-hidden">
+                  {filteredClients.length > 0 ? (
+                    filteredClients.map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedClientId(c.id);
+                          setClientSearchStr('');
+                          setIsClientDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-slate-50 last:border-0"
+                      >
+                        <div className="font-bold truncate">{c.name}</div>
+                        <div className="text-[10px] uppercase text-slate-500 flex items-center gap-2 mt-0.5">
+                          {c.code && <span className="text-blue-600 font-mono font-bold tracking-wider">{c.code}</span>}
+                          <span>•</span>
+                          <span>{c.city}</span>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-4 text-center text-sm text-slate-500">Aucun client trouvé.</div>
+                  )}
+                </div>
+              )}
             </div>
 
             {selectedClient && (
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <p className="text-sm text-blue-800">Zone Géographique: <span className="font-bold">{selectedClient.zoneId}</span></p>
+              <div className="px-4 py-3 bg-blue-50/50 rounded-xl border border-blue-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-400 uppercase tracking-wider font-bold mb-0.5">Zone</p>
+                  <p className="text-sm font-black text-blue-900">{selectedClient.zoneId}</p>
+                </div>
               </div>
             )}
 
@@ -419,7 +497,7 @@ export default function DispatchDriverSalePage() {
                         </div>
                       )}
                       
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {selectedBrand.categories.map(cat => {
                           const remaining = getRemainingStock(selectedBrandId, cat);
                           const isSelected = item.category === cat;
