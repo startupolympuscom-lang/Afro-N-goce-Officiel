@@ -38,6 +38,24 @@ export default function DispatchSettingsPage() {
   const [securityCodeInput, setSecurityCodeInput] = useState('');
   const [confirmStepVisible, setConfirmStepVisible] = useState(false);
 
+  const handleImageUpload = (brandId: string, category: string, file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const brand = brands.find(b => b.id === brandId);
+      if (brand) {
+        useDispatchGazStore.getState().updateBrand(brandId, {
+          productImages: {
+            ...(brand.productImages || {}),
+            [category]: base64String
+          }
+        });
+        toast.success(`Image ajoutée pour ${brand.name} - ${category}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAddBrand = (e: React.FormEvent) => {
     e.preventDefault();
     if (newBrandName && newBrandCategories) {
@@ -109,30 +127,67 @@ export default function DispatchSettingsPage() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Marques et Catégories</h2>
           
-          <form onSubmit={handleAddBrand} className="mb-6 flex gap-2 items-end">
+          <form onSubmit={handleAddBrand} className="mb-6 flex flex-col sm:flex-row gap-3 sm:items-end">
             <div className="flex-1">
               <label className="block text-xs font-medium text-slate-500 mb-1">Nom de la marque</label>
-              <input type="text" value={newBrandName} onChange={e => setNewBrandName(e.target.value)} placeholder="ex: Butagaz" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <input type="text" value={newBrandName} onChange={e => setNewBrandName(e.target.value)} placeholder="ex: Butagaz" className="w-full px-4 py-3 sm:py-2 border border-slate-300 rounded-xl sm:rounded-lg text-sm" />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-slate-500 mb-1">Catégories (séparées par virgule)</label>
-              <input type="text" value={newBrandCategories} onChange={e => setNewBrandCategories(e.target.value)} placeholder="ex: 3Kg, 12Kg, 34Kg" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <input type="text" value={newBrandCategories} onChange={e => setNewBrandCategories(e.target.value)} placeholder="ex: 3Kg, 12Kg, 34Kg" className="w-full px-4 py-3 sm:py-2 border border-slate-300 rounded-xl sm:rounded-lg text-sm" />
             </div>
-            <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700">
-              <Plus className="w-5 h-5" />
+            <button type="submit" className="bg-blue-600 text-white p-3 sm:p-2 rounded-xl sm:rounded-lg hover:bg-blue-700 flex justify-center mt-2 sm:mt-0">
+              <Plus className="w-5 h-5 sm:w-5 sm:h-5" />
+              <span className="ml-2 font-bold sm:hidden">Ajouter Marque</span>
             </button>
           </form>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {brands.map(brand => (
-              <div key={brand.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div>
-                  <p className="font-bold text-slate-900">{brand.name}</p>
-                  <p className="text-xs text-slate-500">{brand.categories.join(', ')}</p>
+              <div key={brand.id} className="flex flex-col p-4 bg-slate-50 rounded-xl border border-slate-100 gap-4">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-slate-900 text-lg uppercase tracking-wide">{brand.name}</p>
+                  <button onClick={() => deleteBrand(brand.id)} className="text-red-500 p-2 hover:bg-red-100 rounded-lg transition-colors" title="Supprimer la marque">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
-                <button onClick={() => deleteBrand(brand.id)} className="text-red-500 p-1 hover:bg-red-50 rounded">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-100">
+                  {brand.categories.map(cat => (
+                    <div key={cat} className="flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200">
+                      <p className="text-sm font-bold text-slate-700 mb-3">{cat}</p>
+                      {brand.productImages?.[cat] ? (
+                        <div className="relative group flex items-center justify-center">
+                          <img src={brand.productImages[cat]} alt={cat} className="w-16 h-16 object-contain" />
+                          <button 
+                            title="Changer l'image"
+                            className="absolute -top-2 -right-2 bg-slate-800 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                            onClick={() => document.getElementById(`img-upload-${brand.id}-${cat}`)?.click()}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById(`img-upload-${brand.id}-${cat}`)?.click()}
+                          className="w-16 h-16 bg-slate-50 flex items-center justify-center rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-colors text-slate-400 hover:text-blue-500"
+                        >
+                          <Plus className="w-6 h-6" />
+                        </button>
+                      )}
+                      <input 
+                        type="file" 
+                        id={`img-upload-${brand.id}-${cat}`}
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(brand.id, cat, file);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

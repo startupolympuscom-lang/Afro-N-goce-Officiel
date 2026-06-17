@@ -21,6 +21,7 @@ export interface GazBrand {
   id: string;
   name: string;
   categories: string[]; // e.g. "3Kg", "12Kg", "34Kg"
+  productImages?: Record<string, string>;
 }
 
 export interface GazZone {

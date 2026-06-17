@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatchGazStore } from '../../../../../stores/useDispatchGazStore';
 import { useDispatchAuthStore } from '../../../../../stores/useDispatchAuthStore';
-import { ShoppingCart, CheckCircle2, MapPin, Navigation, Banknote, CreditCard, Receipt, AlertTriangle, QrCode, Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, CheckCircle2, MapPin, Navigation, Banknote, CreditCard, Receipt, AlertTriangle, QrCode, Plus, Trash2, ShieldCheck, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function DispatchDriverSalePage() {
@@ -497,10 +497,11 @@ export default function DispatchDriverSalePage() {
                         </div>
                       )}
                       
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {selectedBrand.categories.map(cat => {
                           const remaining = getRemainingStock(selectedBrandId, cat);
                           const isSelected = item.category === cat;
+                          const hasImage = !!selectedBrand.productImages?.[cat];
                           return (
                             <button
                               key={cat}
@@ -512,16 +513,25 @@ export default function DispatchDriverSalePage() {
                                 }
                                 updateItem(index, 'category', cat);
                               }}
-                              className={`py-2.5 px-3 text-xs rounded-xl border font-bold transition-all flex flex-col items-center justify-center gap-1 ${
+                              className={`py-4 px-3 text-sm rounded-xl border-2 font-bold transition-all flex flex-col items-center justify-center gap-2 ${
                                 isSelected 
-                                  ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                                  ? 'bg-blue-600 border-blue-600 shadow-lg text-white ring-2 ring-blue-600 ring-offset-2' 
                                   : remaining === 0
-                                    ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-50'
-                                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300'
+                                    ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-50 grayscale'
+                                    : 'bg-white border-transparent shadow-md hover:border-blue-300 hover:shadow-lg'
                               }`}
                             >
-                              <span className="font-extrabold">{cat}</span>
-                              <span className={`text-[9px] font-black ${isSelected ? 'text-blue-100' : remaining === 0 ? 'text-slate-300' : 'text-slate-500 font-mono'}`}>
+                              {hasImage ? (
+                                <img src={selectedBrand.productImages![cat]} alt={cat} className="w-16 h-16 object-contain drop-shadow-sm" />
+                              ) : (
+                                <div className={`w-14 h-14 flex items-center justify-center rounded-xl ${isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                  <Truck className="w-7 h-7 opacity-50" />
+                                </div>
+                              )}
+                              <span className={`font-black text-base ${isSelected ? 'text-white' : 'text-slate-800'}`}>{cat}</span>
+                              <span className={`text-[11px] font-black w-full text-center px-1.5 py-1 rounded ${
+                                isSelected ? 'bg-blue-700/50 text-blue-100' : remaining === 0 ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-600'
+                              }`}>
                                 {remaining} dispo
                               </span>
                             </button>
@@ -530,15 +540,15 @@ export default function DispatchDriverSalePage() {
                       </div>
 
                       {item.category && (
-                        <div className="space-y-4">
-                          <div className="flex gap-4 items-end">
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-500 mb-1">Quantité</label>
+                        <div className="space-y-4 pt-4 border-t border-slate-100">
+                          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                            <div className="w-full sm:flex-1">
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Quantité</label>
                               <div className="flex items-center" dir="ltr">
                                 <button 
                                   type="button" 
                                   onClick={() => updateItem(index, 'quantity', Math.max(1, item.quantity - 1))} 
-                                  className="w-10 h-10 rounded-l-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-bold text-lg"
+                                  className="w-14 h-14 rounded-l-xl border-2 border-r-0 border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 font-black text-2xl flex items-center justify-center transition-colors focus:ring-2 focus:ring-blue-500 relative z-10"
                                 >
                                   -
                                 </button>
@@ -552,7 +562,7 @@ export default function DispatchDriverSalePage() {
                                     const maxVal = getRemainingStock(selectedBrandId, item.category);
                                     updateItem(index, 'quantity', Math.min(maxVal, Math.max(1, val)));
                                   }} 
-                                  className="w-full h-10 border-y border-slate-300 text-center font-bold text-base focus:outline-none"
+                                  className="w-full h-14 border-y-2 border-slate-300 text-center font-black text-2xl text-blue-900 bg-white focus:outline-none shadow-inner"
                                 />
                                 <button 
                                   type="button" 
@@ -560,17 +570,17 @@ export default function DispatchDriverSalePage() {
                                     const maxVal = getRemainingStock(selectedBrandId, item.category);
                                     updateItem(index, 'quantity', Math.min(maxVal, item.quantity + 1));
                                   }} 
-                                  className="w-10 h-10 rounded-r-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-bold text-lg"
+                                  className="w-14 h-14 rounded-r-xl border-2 border-l-0 border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 font-black text-2xl flex items-center justify-center transition-colors focus:ring-2 focus:ring-blue-500 relative z-10"
                                 >
                                   +
                                 </button>
                               </div>
                             </div>
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-500 mb-1">Prix / Total</label>
-                              <div className="h-10 px-3 border border-slate-200 bg-white rounded-lg flex items-center justify-between text-sm" dir="ltr">
-                                <span className="text-slate-500 font-bold">{itemPrice > 0 ? `${itemPrice + (item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0)} MAD` : '--'}</span>
-                                <span className="font-black text-slate-900">{itemPrice > 0 ? `${(itemPrice + (item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0)) * item.quantity} MAD` : '--'}</span>
+                            <div className="w-full sm:flex-1">
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Prix / Total</label>
+                              <div className="h-14 px-4 border-2 border-slate-200 bg-slate-50 tracking-tight rounded-xl flex items-center justify-between" dir="ltr">
+                                <span className="text-slate-500 font-bold text-sm">{itemPrice > 0 ? `${itemPrice + (item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0)} MAD` : '--'}</span>
+                                <span className="font-black text-blue-900 text-xl">{itemPrice > 0 ? `${(itemPrice + (item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0)) * item.quantity} MAD` : '--'}</span>
                               </div>
                             </div>
                           </div>
