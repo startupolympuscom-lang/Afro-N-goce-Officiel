@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDispatchGazStore } from '../../../../../stores/useDispatchGazStore';
 import { useDispatchAuthStore } from '../../../../../stores/useDispatchAuthStore';
 import { QrCode, Users, CheckCircle2, AlertCircle, Loader2, Camera, ShieldCheck } from 'lucide-react';
@@ -8,8 +8,9 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { nanoid } from 'nanoid';
 
 export default function DriverPointagePage() {
+  const navigate = useNavigate();
   const { user } = useDispatchAuthStore();
-  const { pointages, convoyeurs, addPointage, hasPointageToday } = useDispatchGazStore();
+  const { pointages, convoyeurs, addPointage, hasPointageToday, stockDispatches } = useDispatchGazStore();
   const [searchParams] = useSearchParams();
   const shouldAutoScan = searchParams.get('scan') === 'true';
   const todayDateStr = new Date().toISOString().split('T')[0];
@@ -108,6 +109,11 @@ export default function DriverPointagePage() {
                   setScanStatus('success');
                   setIsScanning(false);
                   setAlreadyCheckedIn(true);
+                  
+                  // Auto-redirect to the selling page to keep the workflow fluid and avoid 404 router mismatch
+                  setTimeout(() => {
+                    navigate('/dispatch/gaz/driver/sale');
+                  }, 800);
                 }
                 
                 if (html5QrCode) {
@@ -176,7 +182,7 @@ export default function DriverPointagePage() {
         </div>
 
         <button 
-          onClick={() => window.location.href = '/dispatch/gaz/driver/sale'}
+          onClick={() => navigate('/dispatch/gaz/driver/sale')}
           className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all"
         >
           Accéder aux Ventes
