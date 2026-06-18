@@ -86,18 +86,17 @@ export default function DriverPointagePage() {
             },
             (decodedText) => {
               const cleanedText = decodedText.trim();
-              const today = new Date().toISOString().split('T')[0];
-              const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-              const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-              
-              const isValidQr = 
-                cleanedText === `pointage-afro-dispatch-${today}` ||
-                cleanedText === `pointage-afro-dispatch-${yesterday}` || 
-                cleanedText === `pointage-afro-dispatch-${tomorrow}`;
+              const isValidQr = cleanedText.startsWith('pointage-afro-dispatch-');
 
               if (isValidQr) {
-                
                 if (userRef.current && (isAloneRef.current || selectedConvoyeursIdsRef.current.length > 0)) {
+                  // Pause scanner visually if supported
+                  try {
+                    if (html5QrCode?.getState() === 2) {
+                      html5QrCode.pause();
+                    }
+                  } catch (e) {}
+
                   const now = new Date();
                   addPointage({
                     id: nanoid(),
@@ -107,18 +106,23 @@ export default function DriverPointagePage() {
                     timestamp: now.toISOString()
                   });
                   setScanStatus('success');
-                  setIsScanning(false);
-                  setAlreadyCheckedIn(true);
-                  
-                  // Auto-redirect to the selling page to keep the workflow fluid and avoid 404 router mismatch
-                  setTimeout(() => {
-                    navigate('/dispatch/gaz/driver/sale');
-                  }, 800);
-                }
-                
-                if (html5QrCode) {
-                  html5QrCode.stop().catch(e => console.error("Scanner stop error on success:", e));
-                  html5QrCode.clear();
+
+                  const finishCheckIn = () => {
+                    setIsScanning(false);
+                    setAlreadyCheckedIn(true);
+                    setTimeout(() => {
+                      navigate('/dispatch/gaz/driver/sale');
+                    }, 500);
+                  };
+
+                  if (html5QrCode) {
+                    html5QrCode.stop().catch(e => console.error("Scanner stop error:", e)).finally(() => {
+                      try { html5QrCode?.clear(); } catch(e) {}
+                      finishCheckIn();
+                    });
+                  } else {
+                    finishCheckIn();
+                  }
                 }
               } else {
                 setScanStatus('error');

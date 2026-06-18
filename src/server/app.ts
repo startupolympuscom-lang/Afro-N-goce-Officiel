@@ -205,6 +205,25 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// SSE clients for real-time zustand updates
+const sseClients = new Set<express.Response>();
+
+app.get('/api/zustand-stream', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+  
+  // Send initial connected message
+  res.write('data: {"connected": true}\n\n');
+  
+  sseClients.add(res);
+  req.on('close', () => {
+    sseClients.delete(res);
+  });
+});
+
 // API Routes for Zustand Persistence
 app.get('/api/zustand/:name', async (req, res) => {
   try {
@@ -229,6 +248,13 @@ app.post('/api/zustand/:name', async (req, res) => {
       'INSERT INTO zustand_stores (name, state, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (name) DO UPDATE SET state = $2, updated_at = CURRENT_TIMESTAMP',
       [name, state]
     );
+    
+    // Broadcast update to all connected SSE clients
+    const eventData = JSON.stringify({ name, timestamp: Date.now() });
+    sseClients.forEach(client => {
+      client.write(`data: ${eventData}\n\n`);
+    });
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error writing to Postgres:', error);

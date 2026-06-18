@@ -227,24 +227,28 @@ export default function LandingPage() {
                   <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em]">{heroSubtitle}</span>
                 </div>
                 
-                <h1 className="text-5xl md:text-7xl lg:text-[100px] font-black text-slate-900 leading-[0.85] tracking-[-0.04em] mb-10 font-display uppercase">
-                  {heroTitle.split(' ').map((word, i) => (
-                    <React.Fragment key={i}>
-                      {word === 'PURE' ? (
-                        <span className="text-blue-600 inline-flex items-center gap-4">
-                          {word}
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: "80px" }}
-                            transition={{ delay: 0.5, duration: 1 }}
-                            className="hidden lg:block h-2 bg-blue-600/10 rounded-full"
-                          />
-                        </span>
-                      ) : word}
-                      {i === 1 && <br />}
-                      {i !== heroTitle.split(' ').length - 1 && ' '}
-                    </React.Fragment>
-                  ))}
+                <h1 className="text-4xl md:text-5xl lg:text-7xl font-black text-slate-900 leading-[0.95] tracking-[-0.02em] mb-10 font-display uppercase">
+                  {heroTitle.split(' ').map((word, i) => {
+                    const isHighlight = ['DISTRIBUTION', 'GAZ'].includes(word);
+                    return (
+                      <React.Fragment key={i}>
+                        {isHighlight ? (
+                          <span className="text-blue-600 inline-flex items-center gap-4">
+                            {word}
+                            {word === 'GAZ' && (
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: "80px" }}
+                                transition={{ delay: 0.5, duration: 1 }}
+                                className="hidden lg:block h-2 bg-blue-600/10 rounded-full"
+                              />
+                            )}
+                          </span>
+                        ) : word}
+                        {i !== heroTitle.split(' ').length - 1 && ' '}
+                      </React.Fragment>
+                    );
+                  })}
                 </h1>
                 
                 <div className="flex flex-col md:flex-row items-start gap-12 mb-12">

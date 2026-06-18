@@ -196,6 +196,33 @@ export function DispatchLayout() {
     };
   }, [user, location.pathname, navigate, pointages]);
 
+  // Real-time syncing: Auto-refresh store from database immediately on changes
+  React.useEffect(() => {
+    if (user && user.role !== 'driver') {
+      const eventSource = new EventSource('/api/zustand-stream');
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.name === 'dispatch-gaz-storage') {
+            useDispatchGazStore.persist.rehydrate();
+          }
+        } catch (e) {
+          console.error("SSE parse error", e);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error("SSE connection error", error);
+        // Do NOT close, let browser auto-reconnect
+      };
+
+      return () => {
+        eventSource.close();
+      };
+    }
+  }, [user]);
+
   const { permissions } = useRbacStore();
 
   if (!user) {

@@ -81,9 +81,9 @@ export const useLandingStore = create<LandingState>()(
   persist(
     (set) => ({
       heroImage: "https://images.unsplash.com/photo-1516937941344-00b4e0337589?auto=format&fit=crop&q=80&w=1000",
-      heroTitle: "L'ÉNERGIE PURE EXPÉRIENCE.",
-      heroSubtitle: "Dépositaire Officiel • Meknès",
-      heroDescription: "Partenaire de confiance pour vos besoins en Butane, Propane et Gaz Industriels. Excellence logistique et sécurité depuis 1976.",
+      heroTitle: "LE LEADER DE LA DISTRIBUTION DE GAZ CONDITIONNÉ EN BOUTEILLE",
+      heroSubtitle: "Butane, propane, oxygène, argon, azote, CO2",
+      heroDescription: "Industrielle, foyer, agriculture... pour tout type de consommation de gaz",
       
       aboutTitle: "MAÎTRISE et RIGUEUR.",
       aboutDescription: "AFRO Négoce redéfinie la distribution énergétique au Maroc. Nous allions logistique de haute précision et standards de sécurité internationaux.",
