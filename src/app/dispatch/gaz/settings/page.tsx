@@ -44,8 +44,8 @@ export default function DispatchSettingsPage() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 300;
-        const MAX_HEIGHT = 300;
+        const MAX_WIDTH = 150;
+        const MAX_HEIGHT = 150;
         let width = img.width;
         let height = img.height;
 
@@ -65,9 +65,10 @@ export default function DispatchSettingsPage() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          const base64String = canvas.toDataURL('image/webp', 0.8);
+          const base64String = canvas.toDataURL('image/webp', 0.7);
           
-          const brand = brands.find(b => b.id === brandId);
+          const currentBrands = useDispatchGazStore.getState().brands;
+          const brand = currentBrands.find(b => b.id === brandId);
           if (brand) {
             useDispatchGazStore.getState().updateBrand(brandId, {
               productImages: {
@@ -77,9 +78,17 @@ export default function DispatchSettingsPage() {
             });
             toast.success(`Image ajoutée pour ${brand.name} - ${category}`);
           }
+        } else {
+          toast.error("Erreur lors du recadrage de l'image");
         }
       };
+      img.onerror = () => {
+        toast.error("L'image est invalide ou corrompue");
+      };
       img.src = e.target?.result as string;
+    };
+    reader.onerror = () => {
+      toast.error("Erreur lors de la lecture du fichier");
     };
     reader.readAsDataURL(file);
   };
@@ -210,7 +219,10 @@ export default function DispatchSettingsPage() {
                         accept="image/*"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handleImageUpload(brand.id, cat, file);
+                          if (file) {
+                            handleImageUpload(brand.id, cat, file);
+                          }
+                          e.target.value = '';
                         }}
                       />
                     </div>
