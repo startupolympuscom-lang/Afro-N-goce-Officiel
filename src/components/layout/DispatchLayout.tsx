@@ -241,6 +241,7 @@ export function DispatchLayout() {
     { name: 'Ressources Humaines', href: '/dispatch/gaz/hr', icon: FileText, pageId: 'hr' },
     { name: 'GPL Settings', href: '/dispatch/gaz/settings', icon: Flame, pageId: 'settings' },
     { name: 'Clients', href: '/dispatch/gaz/clients', icon: Building2, pageId: 'clients' },
+    { name: 'Facturation', href: '/dispatch/gaz/facturation', icon: FileText, pageId: 'facturation' },
     { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet, pageId: 'caisse' },
     { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart, pageId: 'commande' },
     { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText, pageId: 'compta' },
@@ -253,7 +254,7 @@ export function DispatchLayout() {
 
   const adminNavItems = allNavItems;
 
-  const comptaNavItems = allNavItems.filter(i => ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard'].includes(i.pageId));
+  const comptaNavItems = allNavItems.filter(i => ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard', 'facturation'].includes(i.pageId));
   const stockNavItems = allNavItems.filter(i => ['stock', 'manual_sale', 'commande'].includes(i.pageId));
   const comptoirNavItems = allNavItems.filter(i => ['comptoir_sale', 'driver_history'].includes(i.pageId));
   

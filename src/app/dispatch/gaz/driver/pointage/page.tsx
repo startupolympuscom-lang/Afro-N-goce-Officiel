@@ -6,6 +6,7 @@ import { QrCode, Users, CheckCircle2, AlertCircle, Loader2, Camera, ShieldCheck 
 import { motion, AnimatePresence } from 'motion/react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { nanoid } from 'nanoid';
+import { toast } from 'sonner';
 
 export default function DriverPointagePage() {
   const navigate = useNavigate();
@@ -90,13 +91,6 @@ export default function DriverPointagePage() {
 
               if (isValidQr) {
                 if (userRef.current && (isAloneRef.current || selectedConvoyeursIdsRef.current.length > 0)) {
-                  // Pause scanner visually if supported
-                  try {
-                    if (html5QrCode?.getState() === 2) {
-                      html5QrCode.pause();
-                    }
-                  } catch (e) {}
-
                   const now = new Date();
                   addPointage({
                     id: nanoid(),
@@ -107,21 +101,30 @@ export default function DriverPointagePage() {
                   });
                   setScanStatus('success');
 
-                  const finishCheckIn = () => {
-                    setIsScanning(false);
-                    setAlreadyCheckedIn(true);
-                    setTimeout(() => {
+                  setTimeout(() => {
+                    if (html5QrCode) {
+                      html5QrCode.stop().catch(() => {}).finally(() => {
+                        html5QrCode?.clear();
+                        setIsScanning(false);
+                        setAlreadyCheckedIn(true);
+                        navigate('/dispatch/gaz/driver/sale');
+                      });
+                    } else {
+                      setIsScanning(false);
+                      setAlreadyCheckedIn(true);
                       navigate('/dispatch/gaz/driver/sale');
-                    }, 500);
-                  };
-
+                    }
+                  }, 500);
+                } else {
                   if (html5QrCode) {
-                    html5QrCode.stop().catch(e => console.error("Scanner stop error:", e)).finally(() => {
-                      try { html5QrCode?.clear(); } catch(e) {}
-                      finishCheckIn();
+                    html5QrCode.stop().catch(() => {}).finally(() => {
+                      html5QrCode?.clear();
+                      setIsScanning(false);
+                      toast.error("Veuillez sélectionner les convoyeurs ou indiquer que vous êtes seul.");
                     });
                   } else {
-                    finishCheckIn();
+                    setIsScanning(false);
+                    toast.error("Veuillez sélectionner les convoyeurs ou indiquer que vous êtes seul.");
                   }
                 }
               } else {
