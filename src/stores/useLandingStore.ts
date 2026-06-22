@@ -169,7 +169,7 @@ export const useLandingStore = create<LandingState>()(
       })),
     }),
     {
-      name: 'landing-storage',
+      name: 'landing-storage-v2',
       storage: createJSONStorage(() => postgresStorage),
     }
   )

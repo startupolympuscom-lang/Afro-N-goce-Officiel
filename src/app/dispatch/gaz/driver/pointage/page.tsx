@@ -72,19 +72,18 @@ export default function DriverPointagePage() {
     let isComponentMounted = true;
 
     if (isScanning && !alreadyCheckedIn) {
-      // Small timeout to ensure DOM is ready and any previous animations settled
       setTimeout(() => {
         if (!isComponentMounted) return;
         
         try {
+          const qrElement = document.getElementById("qr-reader");
+          if (!qrElement) return;
+
           html5QrCode = new Html5Qrcode("qr-reader");
 
           html5QrCode.start(
             { facingMode: "environment" },
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 }
-            },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
             (decodedText) => {
               const cleanedText = decodedText.trim();
               const isValidQr = cleanedText.startsWith('pointage-afro-dispatch-');
@@ -131,29 +130,29 @@ export default function DriverPointagePage() {
                 setScanStatus('error');
               }
             },
-            (error) => {
-              // Ignore finding errors
-            }
+            (error) => {} // ignore local read errors
           ).catch(e => {
             console.error("Scanner start error:", e);
+            toast.error("Erreur d'accès à la caméra. Vérifiez les permissions.");
+            setIsScanning(false);
           });
         } catch (e) {
           console.error("Scanner initialization error:", e);
+          setIsScanning(false);
         }
-      }, 100);
+      }, 300); // Give 300ms for element mount and transitions to complete
     }
 
     return () => {
       isComponentMounted = false;
       if (html5QrCode) {
-        // Try to stop first if it's scanning
-        if (html5QrCode.isScanning) {
-          html5QrCode.stop().then(() => {
-            html5QrCode?.clear();
-          }).catch(e => console.log('Scanner cleanup error', e));
-        } else {
-          html5QrCode.clear();
-        }
+        try {
+          if (html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => html5QrCode?.clear()).catch(e => console.log('Scanner cleanup error', e));
+          } else {
+            html5QrCode.clear();
+          }
+        } catch(e) {}
       }
     };
   }, [isScanning, alreadyCheckedIn, addPointage]);
@@ -293,7 +292,7 @@ export default function DriverPointagePage() {
               ) : (
                 <div className="space-y-4">
                   <div className="bg-slate-950 rounded-[40px] overflow-hidden shadow-2xl relative">
-                    <div id="qr-reader" className="w-full" />
+                    <div id="qr-reader" className="w-full min-h-[250px]" />
                     <div className="absolute inset-0 border-8 border-white/10 pointer-events-none rounded-[40px]" />
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-widest">
                       Scan en cours...
@@ -301,7 +300,10 @@ export default function DriverPointagePage() {
                   </div>
                   
                   <button 
-                    onClick={() => setIsScanning(false)}
+                    onClick={() => {
+                      setIsScanning(false);
+                      setScanStatus('idle');
+                    }}
                     className="w-full py-4 text-slate-500 font-bold text-sm hover:text-red-500 transition-colors"
                   >
                     Annuler le scan

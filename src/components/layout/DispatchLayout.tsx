@@ -295,59 +295,61 @@ export function DispatchLayout() {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar Desktop */}
-      <aside className="w-64 bg-[#0B1120] text-slate-300 flex-col hidden md:flex border-r border-slate-800">
-        <div className="h-16 flex items-center px-6 border-b border-slate-800">
-          <Link to="/dispatch/select" className="flex items-center gap-3 text-white font-bold text-xl">
-            <AfroNegoceLogo className="w-8 h-8" />
+      <aside className="w-72 bg-[#090E17] text-slate-300 flex-col hidden lg:flex border-r border-slate-800/50 shadow-2xl z-20">
+        <div className="h-20 flex items-center px-6 border-b border-slate-800/50 bg-[#090E17]/80 backdrop-blur-md">
+          <Link to="/dispatch/select" className="flex items-center gap-3 text-white font-bold text-xl tracking-tight group">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all">
+              <AfroNegoceLogo className="w-6 h-6 text-white" />
+            </div>
             <span>Afro Dispatch</span>
           </Link>
         </div>
 
-        <div className="p-4 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+        <div className="p-5 border-b border-slate-800/50 bg-gradient-to-b from-[#090E17] to-transparent">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20 border border-white/10">
               {user.prenom.charAt(0)}{user.nom.charAt(0)}
             </div>
-            <div>
-              <p className="text-sm font-medium text-white">{user.prenom} {user.nom}</p>
-              <p className="text-xs text-slate-400 capitalize">{user.role}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">{user.prenom} {user.nom}</p>
+              <p className="text-xs font-medium text-blue-400 capitalize truncate mt-0.5">{user.role.replace('_', ' ')}</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-5 px-4 space-y-1.5 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full">
           {navItems.map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link
                 key={item.name}
                 to={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive 
-                    ? 'bg-blue-600/10 text-blue-500' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-gradient-to-r from-blue-600/15 to-blue-600/5 text-blue-400 border border-blue-500/20 shadow-sm' 
+                    : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border border-transparent'
                 }`}
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500 opacity-80'}`} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 space-y-2">
+        <div className="p-4 border-t border-slate-800/50 bg-[#090E17]/90 space-y-2">
           <button
             onClick={() => setIsPasswordModalOpen(true)}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="flex items-center gap-3 px-3.5 py-3 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all border border-transparent"
           >
-            <Lock className="w-5 h-5" />
+            <Lock className="w-5 h-5 opacity-80" />
             Mot de passe
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors border border-transparent hover:border-red-500/20 hover:text-red-400"
+            className="flex items-center gap-3 px-3.5 py-3 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all border border-transparent hover:border-red-500/20"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-5 h-5 opacity-80 text-red-400" />
             Déconnexion
           </button>
         </div>
@@ -356,33 +358,53 @@ export function DispatchLayout() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:hidden">
-          <div className="flex items-center gap-2">
-            <AfroNegoceLogo className="w-8 h-8" />
-            <span className="font-bold text-slate-900">Afro Dispatch</span>
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:hidden sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-2 group">
+            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-sm">
+              <AfroNegoceLogo className="w-6 h-6 text-white" />
+            </div>
+            <span className="font-bold text-slate-900 tracking-tight">Afro Dispatch</span>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-600">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
             <Menu className="w-6 h-6" />
           </button>
         </header>
 
         {/* Mobile Menu Overlay */}
         {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-50 flex md:hidden">
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#0B1120] text-slate-300">
+          <div className="fixed inset-0 z-50 flex lg:hidden">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setIsMobileMenuOpen(false)} />
+            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#090E17] text-slate-300 shadow-2xl animate-in slide-in-from-left-full duration-300">
               <div className="absolute top-0 right-0 -mr-12 pt-4">
                 <button
-                  className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                  className="ml-1 flex items-center justify-center h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <X className="h-6 w-6 text-white" />
                 </button>
               </div>
-              <div className="h-16 flex items-center px-6 border-b border-slate-800">
-                <span className="text-white font-bold text-xl">Afro Dispatch</span>
+              <div className="h-20 flex items-center px-6 border-b border-slate-800/50 bg-[#090E17]/80 backdrop-blur-md">
+                <div className="flex items-center gap-3 text-white font-bold text-xl tracking-tight">
+                  <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/20">
+                    <AfroNegoceLogo className="w-6 h-6 text-white" />
+                  </div>
+                  <span>Afro Dispatch</span>
+                </div>
               </div>
-              <nav className="flex-1 px-3 py-4 space-y-1">
+              
+              <div className="p-5 border-b border-slate-800/50 bg-gradient-to-b from-[#090E17] to-transparent">
+                <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20 border border-white/10">
+                    {user.prenom.charAt(0)}{user.nom.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{user.prenom} {user.nom}</p>
+                    <p className="text-xs font-medium text-blue-400 capitalize truncate mt-0.5">{user.role.replace('_', ' ')}</p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="flex-1 px-4 py-5 space-y-1.5 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
@@ -390,24 +412,41 @@ export function DispatchLayout() {
                       key={item.name}
                       to={item.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-blue-600/10 text-blue-500' 
-                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                          ? 'bg-gradient-to-r from-blue-600/15 to-blue-600/5 text-blue-400 border border-blue-500/20 shadow-sm' 
+                          : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border border-transparent'
                       }`}
                     >
-                      <item.icon className="w-5 h-5" />
+                      <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500 opacity-80'}`} />
                       {item.name}
                     </Link>
                   );
                 })}
               </nav>
+
+              <div className="p-4 border-t border-slate-800/50 bg-[#090E17]/90 space-y-2">
+                <button
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="flex items-center gap-3 px-3.5 py-3 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all border border-transparent"
+                >
+                  <Lock className="w-5 h-5 opacity-80" />
+                  Mot de passe
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-3.5 py-3 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all border border-transparent hover:border-red-500/20"
+                >
+                  <LogOut className="w-5 h-5 opacity-80 text-red-400" />
+                  Déconnexion
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 lg:p-10">
           {user?.role === 'driver' && gpsStatus !== 'tracking' && (
             <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
               <div className="flex items-start gap-3">

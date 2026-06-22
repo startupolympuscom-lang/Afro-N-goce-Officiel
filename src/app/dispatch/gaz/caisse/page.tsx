@@ -38,25 +38,48 @@ export default function DispatchCaissePage() {
   const [isOcrValidating, setIsOcrValidating] = useState(false);
   const [ocrData, setOcrData] = useState<any>(null);
 
-  const handleOCRUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOCRUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Simulate OCR processing
-      toast.info("Analyse du bon en cours...", { duration: 2000 });
-      setTimeout(() => {
-        setOcrData({
-          date: new Date().toISOString(),
-          quantity: 10,
-          unitPrice: 42,
-          totalPrice: 420,
-          driverId: drivers[0]?.id || '',
-          brandId: brands[0]?.id || '',
-          category: brands[0]?.categories[0] || '',
-          paymentMethod: 'espece'
-        });
-        setIsOcrValidating(true);
-        toast.success("Extraction réussie, veuillez valider.");
-      }, 2000);
+      toast.info("Analyse du bon en cours, veuillez patienter...", { duration: 5000 });
+      
+      try {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+          const base64 = reader.result as string;
+          
+          const response = await fetch('/api/ocr', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ imageBase64: base64 })
+          });
+          
+          if (!response.ok) throw new Error("Erreur serveur lors de l'OCR");
+          
+          const data = await response.json();
+          
+          setOcrData({
+            date: new Date().toISOString(),
+            quantity: data.quantity || 0,
+            unitPrice: data.unitPrice || 0,
+            totalPrice: data.totalPrice || 0,
+            driverId: drivers.length > 0 ? drivers[0].id : '',
+            brandId: brands.length > 0 ? brands[0].id : '',
+            category: brands.length > 0 ? brands[0].categories[0] : '',
+            paymentMethod: data.paymentMethod || 'espece'
+          });
+          setIsOcrValidating(true);
+          toast.success("Extraction réussie, veuillez valider.");
+        };
+        reader.onerror = () => {
+          toast.error("Erreur de lecture de l'image");
+        };
+      } catch (err) {
+        toast.error("L'analyse OCR a échoué.");
+      }
     }
   };
 
@@ -330,11 +353,16 @@ export default function DispatchCaissePage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200">
+    <div className="space-y-8 pb-20">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Gestion de la Caisse</h1>
-          <p className="text-sm text-slate-500 font-medium">Date: {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+              <Wallet className="w-7 h-7" />
+            </div>
+            Gestion de la Caisse
+          </h1>
+          <p className="text-sm text-slate-500 font-medium mt-2">Date: {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <input 
@@ -397,8 +425,11 @@ export default function DispatchCaissePage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-          <div>
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
+            <ArrowDownRight className="w-24 h-24 text-emerald-600" />
+          </div>
+          <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Entrées Globales</h3>
               <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -407,7 +438,7 @@ export default function DispatchCaissePage() {
             </div>
             <p className="text-xl font-black text-slate-900 mb-2">{totalEntrees.toLocaleString()} MAD</p>
           </div>
-          <div className="border-t border-slate-100 pt-2 text-[10px] font-bold text-slate-500 space-y-1">
+          <div className="border-t border-slate-100 pt-2 text-[10px] font-bold text-slate-500 space-y-1 relative z-10">
             <div className="flex justify-between">
               <span>Ventes Chauffeurs :</span>
               <span className="text-slate-800">{totalSalesEntrees.toLocaleString()} MAD</span>
@@ -422,59 +453,74 @@ export default function DispatchCaissePage() {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-slate-500 font-bold text-xs uppercase tracking-widest">Sorties (Dépenses)</h3>
-            <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center">
-              <ArrowUpRight className="w-5 h-5 text-red-600" />
-            </div>
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
+            <ArrowUpRight className="w-24 h-24 text-red-600" />
           </div>
-          <p className="text-2xl font-black text-slate-900">{totalSorties.toLocaleString()} MAD</p>
-          <p className="text-xs text-slate-400 mt-2 font-medium">{expensesToday.length} opérations</p>
-        </div>
-        <div className="bg-emerald-950 p-6 rounded-3xl border border-emerald-800 shadow-xl text-white relative overflow-hidden flex flex-col justify-between min-h-[160px]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-          <div>
-            <div className="flex items-center justify-between mb-2 relative z-10">
-              <h3 className="text-emerald-400 font-bold text-[10px] uppercase tracking-widest">Cash Disponible</h3>
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <Wallet className="w-4 h-4 text-emerald-400" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Sorties (Dépenses)</h3>
+              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                <ArrowUpRight className="w-4 h-4 text-red-600" />
               </div>
             </div>
-            <p className="text-xl font-black text-white relative z-10">{soldeDisponible.toLocaleString()} MAD</p>
+            <p className="text-xl font-black text-slate-900 mb-2">{totalSorties.toLocaleString()} MAD</p>
           </div>
-          <div className="border-t border-emerald-800/60 pt-2 text-[10px] font-bold text-emerald-300/80 space-y-1 relative z-10 mt-3">
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest relative z-10">{expensesToday.length} opérations</p>
+        </div>
+        <div className="bg-white p-6 rounded-[2rem] border border-emerald-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-emerald-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
+            <Wallet className="w-24 h-24 text-emerald-600" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2 relative z-10">
+              <h3 className="text-emerald-700 font-bold text-[10px] uppercase tracking-widest">Cash Disponible</h3>
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                <Wallet className="w-4 h-4 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-xl font-black text-emerald-900 relative z-10">{soldeDisponible.toLocaleString()} MAD</p>
+          </div>
+          <div className="border-t border-emerald-100 pt-2 text-[10px] font-bold text-emerald-700/80 space-y-1 relative z-10 mt-3">
             <div className="flex justify-between">
               <span>Propres (Ventes+Alim Std) :</span>
-              <span className="text-white">{(soldeDisponible - totalPretsToday).toLocaleString()} MAD</span>
+              <span className="text-emerald-900">{(soldeDisponible - totalPretsToday).toLocaleString()} MAD</span>
             </div>
-            <div className="flex justify-between items-center text-amber-300">
+            <div className="flex justify-between items-center text-amber-600">
               <span>⚠️ Prêts à rembourser :</span>
               <span>{totalPretsToday.toLocaleString()} MAD</span>
             </div>
           </div>
         </div>
-        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-700 shadow-sm text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <h3 className="text-indigo-400 font-bold text-xs uppercase tracking-widest">Caisse Sécuritaire</h3>
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
-              <Lock className="w-5 h-5 text-indigo-400" />
+        <div className="bg-white p-6 rounded-[2rem] border border-indigo-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-indigo-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
+            <Lock className="w-24 h-24 text-indigo-600" />
+          </div>
+          <div className="flex items-center justify-between mb-2 relative z-10">
+            <h3 className="text-indigo-700 font-bold text-[10px] uppercase tracking-widest">Caisse Sécuritaire</h3>
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-indigo-600" />
             </div>
           </div>
-          <p className="text-2xl font-black text-white relative z-10">{(caisseSecuritaire || 0).toLocaleString()} MAD</p>
-          <p className="text-xs text-slate-400 mt-2 font-medium relative z-10">Fonds de sécurité cumulé</p>
+          <div>
+            <p className="text-xl font-black text-indigo-900 relative z-10">{(caisseSecuritaire || 0).toLocaleString()} MAD</p>
+            <p className="text-[10px] text-slate-500 font-medium relative z-10 mt-1">Fonds de sécurité cumulé</p>
+          </div>
         </div>
-        <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-sm text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <h3 className="text-purple-400 font-bold text-xs uppercase tracking-widest">Caisse Noir</h3>
-            <div className="w-10 h-10 rounded-2xl bg-purple-500/25 flex items-center justify-center">
-              <ShieldAlert className="w-5 h-5 text-purple-400" />
+        <div className="bg-white p-6 rounded-[2rem] border border-purple-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-purple-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
+            <ShieldAlert className="w-24 h-24 text-purple-600" />
+          </div>
+          <div className="flex items-center justify-between mb-2 relative z-10">
+            <h3 className="text-purple-700 font-bold text-[10px] uppercase tracking-widest">Caisse Noir</h3>
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+              <ShieldAlert className="w-4 h-4 text-purple-600" />
             </div>
           </div>
-          <p className="text-2xl font-black text-white relative z-10">{(caisseNoir || 0).toLocaleString()} MAD</p>
-          <p className="text-xs text-slate-400 mt-2 font-medium relative z-10">Compte de réserve confidentiel</p>
+          <div>
+            <p className="text-xl font-black text-purple-900 relative z-10">{(caisseNoir || 0).toLocaleString()} MAD</p>
+            <p className="text-[10px] text-slate-500 font-medium relative z-10 mt-1">Compte de réserve confidentiel</p>
+          </div>
         </div>
       </div>
 

@@ -8,7 +8,7 @@ export const postgresStorage: StateStorage = {
 
     const tryFetch = async (): Promise<string | null> => {
       try {
-        const response = await fetch(`/api/zustand/${name}`);
+        const response = await fetch(`/api/zustand/${name}`, { cache: 'no-store' });
         if (response.ok) {
           const state = await response.json();
           return JSON.stringify(state);

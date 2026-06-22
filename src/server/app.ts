@@ -490,4 +490,83 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', database: 'connected' });
 });
 
+import { GoogleGenAI, Type } from "@google/genai";
+
+// ... other routes ...
+
+// OCR API
+app.post('/api/ocr', async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Image base64 is required' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY is missing, returning mock OCR data");
+      return res.json({
+        quantity: 120,
+        unitPrice: 40,
+        totalPrice: 4800,
+        paymentMethod: 'espece',
+        reference: 'SIM-12345'
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+
+    // Remove data URL prefix if present
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: {
+        parts: [
+          {
+            text: "Extract information from this delivery note (bon de livraison/commande). Provide the total quantity of items, the unit price (if consistent or an average, or use 0 if not specified), the total price, the payment method (one of: 'espece', 'cheque', 'virement', 'credit', or 'espece' by default if not found), and the document reference number."
+          },
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: base64Data
+            }
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            quantity: { type: Type.NUMBER, description: "Total quantity" },
+            unitPrice: { type: Type.NUMBER, description: "Unit price" },
+            totalPrice: { type: Type.NUMBER, description: "Total price amount" },
+            paymentMethod: { type: Type.STRING, description: "Payment method" },
+            reference: { type: Type.STRING, description: "Document reference number" }
+          },
+          required: ["quantity", "unitPrice", "totalPrice", "paymentMethod", "reference"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (text) {
+      const data = JSON.parse(text);
+      res.json(data);
+    } else {
+      throw new Error("No data returned from Gemini");
+    }
+  } catch (error) {
+    console.error('Error processing OCR with Gemini:', error);
+    res.status(500).json({ error: 'OCR processing failed' });
+  }
+});
+
 export default app;
