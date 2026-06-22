@@ -523,10 +523,9 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       setClients: (clients) => set({ clients }),
 
       addSale: (sale) => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
         // Also update stock sold
         const newStockDispatches = state.stockDispatches.map(sd => {
-          if (sd.driverId === sale.driverId && sd.brandId === sale.brandId && sd.category === sale.category && sd.date.startsWith(today)) {
+          if (sd.driverId === sale.driverId && sd.brandId === sale.brandId && sd.category === sale.category && !sd.isValidated) {
             if (sale.isConsignment) {
               return { ...sd, soldConsigned: (sd.soldConsigned || 0) + sale.quantity };
             } else {
@@ -581,13 +580,11 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       }),
 
       dispatchStock: (dispatch) => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
-        
         const existingIndex = state.stockDispatches.findIndex(sd => 
           sd.driverId === dispatch.driverId && 
           sd.brandId === dispatch.brandId && 
           sd.category === dispatch.category &&
-          sd.date.startsWith(today)
+          !sd.isValidated
         );
 
         if (existingIndex >= 0) {
@@ -617,9 +614,8 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       }),
 
       updateStockSold: (driverId, brandId, category, quantity, isConsigned) => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
         const newStockDispatches = state.stockDispatches.map(sd => {
-          if (sd.driverId === driverId && sd.brandId === brandId && sd.category === category && sd.date.startsWith(today)) {
+          if (sd.driverId === driverId && sd.brandId === brandId && sd.category === category && !sd.isValidated) {
             if (isConsigned) {
               return { ...sd, soldConsigned: (sd.soldConsigned || 0) + quantity };
             } else {

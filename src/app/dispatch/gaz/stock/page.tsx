@@ -30,9 +30,9 @@ export default function DispatchStockPage() {
   };
 
   const todayStr = getLocalDateStr();
-  const todaysDispatches = stockDispatches.filter(sd => sd.date.includes(todayStr) || sd.date.includes(new Date().toISOString().split('T')[0]));
+  const todaysDispatches = stockDispatches.filter(sd => !sd.isValidated || sd.date.includes(todayStr) || sd.date.includes(new Date().toISOString().split('T')[0]));
 
-  const pendingValidations = todaysDispatches.filter(sd => !sd.isValidated);
+  const pendingValidations = stockDispatches.filter(sd => !sd.isValidated);
 
   const isDriverCheckedIn = (driverId: string) => {
     return pointages.some(p => {

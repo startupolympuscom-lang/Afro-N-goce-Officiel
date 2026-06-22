@@ -47,8 +47,8 @@ export default function DispatchDriverSalePage() {
   
   const driverStockToday = useMemo(() => {
     if (!user) return [];
-    return (stockDispatches || []).filter(sd => sd.driverId === user.id && sd.date.startsWith(todayStr));
-  }, [stockDispatches, user, todayStr]);
+    return (stockDispatches || []).filter(sd => sd.driverId === user.id && !sd.isValidated);
+  }, [stockDispatches, user]);
 
   const getRemainingStock = (brandId: string, category: string) => {
     const sd = driverStockToday.find(sd => sd.brandId === brandId && sd.category === category);

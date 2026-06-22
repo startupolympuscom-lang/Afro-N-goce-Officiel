@@ -47,12 +47,8 @@ export default function DispatchManualSalePage() {
 
   const driverDispatches = useMemo(() => {
     if (!selectedDriverId) return [];
-    return stockDispatches.filter(sd => 
-      sd.driverId === selectedDriverId && 
-      !sd.isValidated && 
-      (sd.date.includes(todayStr) || sd.date.includes(new Date().toISOString().split('T')[0]))
-    );
-  }, [stockDispatches, selectedDriverId, todayStr]);
+    return stockDispatches.filter(sd => sd.driverId === selectedDriverId && !sd.isValidated);
+  }, [stockDispatches, selectedDriverId]);
 
   const availableCategoriesForBrand = useMemo(() => {
     if (!selectedBrandId) return [];

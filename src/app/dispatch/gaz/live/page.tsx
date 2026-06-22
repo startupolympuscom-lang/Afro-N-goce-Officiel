@@ -873,7 +873,7 @@ export default function DispatchLivePage() {
                   <div>
                     <h4 className={`font-bold mb-4 text-xs uppercase tracking-widest ${isFullScreen ? 'text-slate-500' : 'text-slate-400'}`}>Stock & Ventes (Aujourd'hui)</h4>
                     <div className="space-y-3">
-                      {stockDispatches.filter(sd => sd.driverId === selectedDriverId && sd.date.startsWith(new Date().toISOString().split('T')[0])).map(sd => {
+                      {stockDispatches.filter(sd => sd.driverId === selectedDriverId && !sd.isValidated).map(sd => {
                         const brand = brands.find(b => b.id === sd.brandId);
                         const remaining = sd.quantity - sd.sold;
                         const percentage = sd.quantity > 0 ? (sd.sold / sd.quantity) * 100 : 0;
@@ -890,8 +890,8 @@ export default function DispatchLivePage() {
                           </div>
                         );
                       })}
-                      {stockDispatches.filter(sd => sd.driverId === selectedDriverId && sd.date.startsWith(new Date().toISOString().split('T')[0])).length === 0 && (
-                        <p className="text-sm text-slate-500 italic text-center">Aucun stock assigné aujourd'hui.</p>
+                      {stockDispatches.filter(sd => sd.driverId === selectedDriverId && !sd.isValidated).length === 0 && (
+                        <p className="text-sm text-slate-500 italic text-center">Aucun stock assigné en cours.</p>
                       )}
                     </div>
                   </div>
