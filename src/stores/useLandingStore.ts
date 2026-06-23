@@ -51,6 +51,10 @@ interface LandingState {
   contactEmail: string;
   contactAddress: string;
 
+  logoImage: string | null;
+  logoText: string;
+  mascotImage: string | null;
+
   partnerLogos: PartnerLogo[];
   historyImages: HistoryImage[];
   milestones: HistoryMilestone[];
@@ -61,7 +65,7 @@ interface LandingState {
   updateHeroContent: (content: Partial<Pick<LandingState, 'heroTitle' | 'heroSubtitle' | 'heroDescription'>>) => void;
   updateAboutContent: (content: Partial<Pick<LandingState, 'aboutTitle' | 'aboutDescription'>>) => void;
   updateServicesContent: (content: Partial<Pick<LandingState, 'servicesTitle' | 'servicesDescription' | 'pipelineImage'>>) => void;
-  updateMediaContent: (content: Partial<Pick<LandingState, 'butagazCardImage' | 'airLiquideCardImage' | 'contactBgImage'>>) => void;
+  updateMediaContent: (content: Partial<Pick<LandingState, 'butagazCardImage' | 'airLiquideCardImage' | 'contactBgImage' | 'logoImage' | 'logoText' | 'mascotImage'>>) => void;
   updateContactInfo: (info: Partial<Pick<LandingState, 'contactPhone' | 'contactEmail' | 'contactAddress'>>) => void;
 
   addPartnerLogo: (logo: PartnerLogo) => void;
@@ -99,6 +103,10 @@ export const useLandingStore = create<LandingState>()(
       contactPhone: "0535558020",
       contactEmail: "contact@afronegoce.ma",
       contactAddress: "N5 Avenue Bir Anzarane Hay saada Meknes, Maroc",
+
+      logoImage: null,
+      logoText: "AFRO NÉGOCE",
+      mascotImage: "https://storage.googleapis.com/static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_9.png",
 
       partnerLogos: [
         { id: 'p1', name: 'Partner 1', url: 'https://storage.googleapis.com/static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_4.png' },

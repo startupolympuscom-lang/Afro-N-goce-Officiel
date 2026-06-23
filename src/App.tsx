@@ -11,8 +11,6 @@ import { useDocumentStore } from './stores/useDocumentStore';
 const LandingPage = React.lazy(() => import('./app/LandingPage'));
 const HistoryPage = React.lazy(() => import('./app/HistoryPage'));
 const AfroDigitalPage = React.lazy(() => import('./app/AfroDigitalPage'));
-const ButagazPage = React.lazy(() => import('./app/ButagazPage'));
-const AirLiquidePage = React.lazy(() => import('./app/AirLiquidePage'));
 const LoginPage = React.lazy(() => import('./app/login/page'));
 
 // CMS
@@ -87,8 +85,6 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/notre-histoire" element={<HistoryPage />} />
           <Route path="/afro-digital" element={<AfroDigitalPage />} />
-          <Route path="/butagaz" element={<ButagazPage />} />
-          <Route path="/air-liquide" element={<AirLiquidePage />} />
           <Route path="/master-tracker" element={<MasterTrackerPage />} />
           <Route path="/ecom" element={<EcomPage />} />
           <Route path="/ecom/admin" element={<EcomAdminPage />} />

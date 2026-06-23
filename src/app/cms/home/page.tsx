@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Save, ArrowLeft, Image as ImageIcon, Phone, Mail, MapPin, Type, FileText } from 'lucide-react';
+import { Save, ArrowLeft, Image as ImageIcon, Phone, Mail, MapPin, Type, FileText, Plus, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLandingStore } from '../../../stores/useLandingStore';
 
@@ -22,6 +22,9 @@ export default function CMSHomePage() {
     butagazCardImage: store.butagazCardImage,
     airLiquideCardImage: store.airLiquideCardImage,
     contactBgImage: store.contactBgImage,
+    logoText: store.logoText,
+    logoImage: store.logoImage || "",
+    mascotImage: store.mascotImage || "",
   });
 
   const [isSaved, setIsSaved] = useState(false);
@@ -55,10 +58,24 @@ export default function CMSHomePage() {
       butagazCardImage: formData.butagazCardImage,
       airLiquideCardImage: formData.airLiquideCardImage,
       contactBgImage: formData.contactBgImage,
+      logoText: formData.logoText,
+      logoImage: formData.logoImage,
+      mascotImage: formData.mascotImage,
     });
 
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
+  };
+
+  const handleMascotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, mascotImage: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -269,6 +286,43 @@ export default function CMSHomePage() {
           
           <div className="grid gap-6">
             <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Texte du Logo (Affiché si pas d'image)</label>
+              <input 
+                name="logoText"
+                value={formData.logoText}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all" 
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">URL du Logo (Header)</label>
+              <div className="flex gap-4">
+                <input 
+                  name="logoImage"
+                  value={formData.logoImage}
+                  onChange={handleChange}
+                  className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all" 
+                />
+                {formData.logoImage && (
+                  <img src={formData.logoImage} alt="Preview" className="w-12 h-12 rounded-lg object-contain bg-slate-50 border border-slate-200" />
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Image de la Mascotte (Uploader)</label>
+              <div className="flex gap-4">
+                <input 
+                  type="file"
+                  accept="image/*"
+                  onChange={handleMascotUpload}
+                  className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" 
+                />
+                {formData.mascotImage && (
+                  <img src={formData.mascotImage} alt="Preview" className="w-12 h-12 rounded-lg object-contain bg-slate-50 border border-slate-200" />
+                )}
+              </div>
+            </div>
+            <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Image Carte Butagaz</label>
               <div className="flex gap-4">
                 <input 
@@ -282,6 +336,7 @@ export default function CMSHomePage() {
                 )}
               </div>
             </div>
+
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Image Carte Air Liquide</label>
               <div className="flex gap-4">
@@ -310,6 +365,66 @@ export default function CMSHomePage() {
                 )}
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Partners Logos Section */}
+        <section className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6 text-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+            <div className="flex items-center gap-3">
+              <ImageIcon className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-lg font-black text-slate-900 uppercase">Logos Partenaires</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => store.addPartnerLogo({ id: Math.random().toString(), name: 'Nouveau Partenaire', url: '' })}
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-xs font-bold transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Ajouter
+            </button>
+          </div>
+          
+          <div className="grid gap-4">
+            {store.partnerLogos.map((logo) => (
+              <div key={logo.id} className="flex gap-4 items-start p-4 border border-slate-100 rounded-xl bg-slate-50">
+                <div className="flex-1 space-y-3">
+                  <input 
+                    value={logo.name}
+                    onChange={(e) => store.updatePartnerLogoName(logo.id, e.target.value)}
+                    placeholder="Nom du partenaire"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500" 
+                  />
+                  <input 
+                    value={logo.url}
+                    onChange={(e) => {
+                      const updatedLogos = store.partnerLogos.map(l => l.id === logo.id ? { ...l, url: e.target.value } : l);
+                      useLandingStore.setState({ partnerLogos: updatedLogos });
+                    }}
+                    placeholder="URL de l'image du logo"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500" 
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-3 shrink-0">
+                  <div className="w-16 h-12 bg-white rounded flex items-center justify-center border border-slate-200 p-2 overflow-hidden">
+                    {logo.url ? (
+                      <img src={logo.url} alt="Logo" className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-slate-300" />
+                    )}
+                  </div>
+                  <button
+                    onClick={() => store.removePartnerLogo(logo.id)}
+                    className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {store.partnerLogos.length === 0 && (
+              <p className="text-sm text-center text-slate-500 py-6">Aucun logo configuré. Les logos par défaut seront affichés.</p>
+            )}
           </div>
         </section>
       </motion.div>

@@ -6,9 +6,42 @@ export function SiteWebTab() {
   const { 
     heroImage, setHeroImage, 
     partnerLogos, addPartnerLogo, removePartnerLogo, updatePartnerLogoName,
-    historyImages, addHistoryImage, removeHistoryImage 
+    historyImages, addHistoryImage, removeHistoryImage,
+    productImages, addProductImage, updateProductImage, removeProductImage
   } = useLandingStore();
   
+  const PREDEFINED_PRODUCTS = [
+    { id: 'butane-3', name: 'Butane 3KG', brand: 'Butagaz', defaultUrl: 'https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_2.png' },
+    { id: 'butane-12', name: 'Butane 12KG', brand: 'Butagaz', defaultUrl: 'https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_1.png' },
+    { id: 'propane-34', name: 'Propane 34KG', brand: 'Butagaz', defaultUrl: 'https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_0.png' },
+    { id: 'oxygene-ind', name: 'Oxygène Industriel', brand: 'Air Liquide', defaultUrl: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&q=80&w=800' },
+    { id: 'azote-ind', name: 'Azote Industriel', brand: 'Air Liquide', defaultUrl: 'https://images.unsplash.com/photo-1532187875302-1df92d47ed17?auto=format&fit=crop&q=80&w=800' },
+    { id: 'argon-ind', name: 'Argon Pur', brand: 'Air Liquide', defaultUrl: 'https://images.unsplash.com/photo-1544725121-be3b5088f171?auto=format&fit=crop&q=80&w=800' },
+    { id: 'co2-ind', name: 'Dioxyde de Carbone', brand: 'Air Liquide', defaultUrl: 'https://images.unsplash.com/photo-1581093458622-0f45391e3e7e?auto=format&fit=crop&q=80&w=800' },
+    { id: 'aligal-1', name: 'ALIGAL™ 1', brand: 'Air Liquide', defaultUrl: 'https://images.unsplash.com/photo-1543253687-c934c2e01861?auto=format&fit=crop&q=80&w=800' },
+    { id: 'aligal-2', name: 'ALIGAL™ 2', brand: 'Air Liquide', defaultUrl: 'https://images.unsplash.com/photo-1627483262769-04d4a11bf333?auto=format&fit=crop&q=80&w=800' }
+  ];
+
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>, productInfo: typeof PREDEFINED_PRODUCTS[0]) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const existing = productImages.find(p => p.id === productInfo.id);
+        if (existing) {
+          updateProductImage(productInfo.id, { url: reader.result as string });
+        } else {
+          addProductImage({
+            id: productInfo.id,
+            brand: productInfo.brand as 'Butagaz' | 'Air Liquide',
+            url: reader.result as string,
+            title: productInfo.name
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   const handleSingleUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -171,6 +204,62 @@ export function SiteWebTab() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Product Images */}
+          <div className="p-6 border border-border rounded-xl bg-surface-2/30">
+            <div className="mb-6">
+              <h4 className="font-bold text-text-primary flex items-center gap-2 mb-2">
+                <ImageIcon className="w-5 h-5 text-primary" />
+                Images des Produits (Butagaz & Air Liquide)
+              </h4>
+              <p className="text-sm text-text-secondary">
+                Personnalisez les images affichées pour chaque produit sur la page d'accueil.
+              </p>
+            </div>
+            
+            <div className="space-y-8">
+              {['Butagaz', 'Air Liquide'].map(brand => (
+                <div key={brand}>
+                  <h5 className="font-bold text-text-primary mb-4 pb-2 border-b border-border">{brand}</h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {PREDEFINED_PRODUCTS.filter(p => p.brand === brand).map((product) => {
+                      const customImage = productImages.find(p => p.id === product.id);
+                      const currentUrl = customImage ? customImage.url : product.defaultUrl;
+                      
+                      return (
+                        <div key={product.id} className="border border-border rounded-lg bg-surface overflow-hidden flex flex-col">
+                          <div className="aspect-[4/3] bg-surface-2 relative group">
+                            <img src={currentUrl} alt={product.name} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <label className="p-2 bg-white text-slate-900 rounded-full hover:bg-slate-100 transition-colors cursor-pointer shadow-lg" title="Mettre à jour l'image">
+                                <Upload className="w-4 h-4" />
+                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleProductImageUpload(e, product)} />
+                              </label>
+                              {customImage && (
+                                <button 
+                                  onClick={() => removeProductImage(product.id)}
+                                  className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                                  title="Réinitialiser"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="p-3 border-t border-border">
+                            <div className="text-sm font-bold text-text-primary">{product.name}</div>
+                            <div className="text-xs text-text-secondary mt-1">
+                              {customImage ? <span className="text-green-500 font-medium">Image personnalisée</span> : <span>Image par défaut</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>

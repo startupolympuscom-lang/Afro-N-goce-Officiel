@@ -4,6 +4,7 @@ import { useDispatchGazStore } from '../../../../../stores/useDispatchGazStore';
 import { useDispatchAuthStore } from '../../../../../stores/useDispatchAuthStore';
 import { ShoppingCart, CheckCircle2, MapPin, Navigation, Banknote, CreditCard, Receipt, AlertTriangle, QrCode, Plus, Trash2, ShieldCheck, Truck } from 'lucide-react';
 import { toast } from 'sonner';
+import { nanoid } from 'nanoid';
 
 export default function DispatchDriverSalePage() {
   const navigate = useNavigate();
@@ -108,12 +109,12 @@ export default function DispatchDriverSalePage() {
         }
       }
 
-      validItems.forEach((item, idx) => {
+      validItems.forEach((item) => {
         const basePrice = getItemPrice(item.category);
         const consignmentPrice = item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0;
         
         addSale({
-          id: Date.now().toString() + idx.toString(),
+          id: nanoid(),
           date: new Date().toISOString(),
           driverId: user.id,
           clientId: selectedClientId,

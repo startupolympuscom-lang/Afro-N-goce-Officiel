@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore, GlobalStockItem } from '../../../../stores/useDispatchGazStore';
 import { Package, Plus, Truck, Calendar, AlertTriangle, CheckCircle2, QrCode, Trash2, Settings, ShieldCheck, Database } from 'lucide-react';
 import { toast } from 'sonner';
+import { nanoid } from 'nanoid';
 
 export default function DispatchStockPage() {
   const { drivers, brands, stockDispatches, dispatchStock, pointages, globalStock, setGlobalStock, validateStockDispatch, dispatchToComptoir } = useDispatchGazStore();
@@ -73,19 +74,28 @@ export default function DispatchStockPage() {
 
       if (insufficient) return;
 
-      validItems.forEach((item, idx) => {
-        dispatchStock({
-          id: Date.now().toString() + idx.toString(),
-          date: new Date().toISOString(),
-          driverId: formData.driverId,
-          brandId: formData.brandId,
-          category: item.category,
-          quantity: item.quantity,
-          sold: 0,
-          soldConsigned: 0,
-          isValidated: false
+      const fullBrand = brands.find(b => b.id === formData.brandId);
+      if (fullBrand) {
+        fullBrand.categories.forEach(cat => {
+          const matchingItems = validItems.filter(i => i.category === cat);
+          const quantity = matchingItems.reduce((acc, curr) => acc + curr.quantity, 0);
+          
+          if (quantity > 0) {
+            dispatchStock({
+              id: nanoid(),
+              date: new Date().toISOString(),
+              driverId: formData.driverId,
+              brandId: formData.brandId,
+              category: cat,
+              quantity: quantity,
+              sold: 0,
+              soldConsigned: 0,
+              isValidated: false
+            });
+          }
         });
-      });
+      }
+
       setIsDispatching(false);
       setFormData({ driverId: '', brandId: '', items: [{ category: '', quantity: 0 }] });
       toast.success("Stock affecté avec succès.");
@@ -113,19 +123,47 @@ export default function DispatchStockPage() {
 
       if (insufficient) return;
 
-      validItems.forEach((item) => {
-        dispatchToComptoir(comptoirFormData.brandId, item.category, item.quantity);
-      });
+      const fullBrand = brands.find(b => b.id === comptoirFormData.brandId);
+      if (fullBrand) {
+        fullBrand.categories.forEach(cat => {
+          const matchingItems = validItems.filter(i => i.category === cat);
+          const quantity = matchingItems.reduce((acc, curr) => acc + curr.quantity, 0);
+          if (quantity > 0) {
+            dispatchToComptoir(comptoirFormData.brandId, cat, quantity);
+          }
+        });
+      }
+
       setIsDispatchingComptoir(false);
       setComptoirFormData({ brandId: '', items: [{ category: '', quantity: 0 }] });
       toast.success("Stock affecté au comptoir avec succès.");
     }
   };
 
+  const [securityCode, setSecurityCode] = useState("");
+
   const handleGlobalStockSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setGlobalStock(globalStockForm);
+    if (securityCode.toLowerCase().trim() !== "alpha zulu india zulu") {
+      toast.error("Code de sécurité invalide.");
+      return;
+    }
+
+    const newGlobalStock = globalStock.map((item, idx) => {
+      const delta = globalStockForm.find(g => g.brandId === item.brandId && g.category === item.category);
+      if (delta) {
+        return {
+          ...item,
+          full: Math.max(0, item.full + (delta.full || 0)),
+          empty: Math.max(0, item.empty + (delta.empty || 0))
+        };
+      }
+      return item;
+    });
+
+    setGlobalStock(newGlobalStock);
     setIsSettingGlobal(false);
+    setSecurityCode("");
     toast.success("Stock global mis à jour.");
   };
 
@@ -190,7 +228,7 @@ export default function DispatchStockPage() {
         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
           <button 
             onClick={() => {
-              setGlobalStockForm(globalStock);
+              setGlobalStockForm(globalStock.map(g => ({ ...g, full: 0, empty: 0 })));
               setIsSettingGlobal(true);
             }}
             className="bg-slate-800 text-white px-4 py-2 rounded-xl font-medium hover:bg-slate-900 transition-colors flex items-center gap-2 shadow-sm"
@@ -301,32 +339,37 @@ export default function DispatchStockPage() {
                 const brand = brands.find(b => b.id === item.brandId);
                 return (
                   <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                    <div className="font-bold text-slate-900">{brand?.name} - {item.category}</div>
+                    <div className="flex justify-between items-center">
+                      <div className="font-bold text-slate-900">{brand?.name} - {item.category}</div>
+                      <div className="text-xs font-medium text-slate-500">Actuel: {globalStock.find(g => g.brandId === item.brandId && g.category === item.category)?.full} Pl / {globalStock.find(g => g.brandId === item.brandId && g.category === item.category)?.empty} Vd</div>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pleines</label>
+                        <label className="block text-[10px] font-bold text-blue-500 uppercase mb-1">Ajouter/Déduire Pleines</label>
                         <input 
                           type="number"
-                          value={item.full}
+                          placeholder="Ex: +10 ou -5"
+                          value={item.full || ''}
                           onChange={e => {
                             const newForm = [...globalStockForm];
                             newForm[idx] = { ...newForm[idx], full: parseInt(e.target.value) || 0 };
                             setGlobalStockForm(newForm);
                           }}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Vides (Consignées)</label>
+                        <label className="block text-[10px] font-bold text-blue-500 uppercase mb-1">Ajouter/Déduire Vides</label>
                         <input 
                           type="number"
-                          value={item.empty}
+                          placeholder="Ex: +10 ou -5"
+                          value={item.empty || ''}
                           onChange={e => {
                             const newForm = [...globalStockForm];
                             newForm[idx] = { ...newForm[idx], empty: parseInt(e.target.value) || 0 };
                             setGlobalStockForm(newForm);
                           }}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
                         />
                       </div>
                     </div>
@@ -334,9 +377,22 @@ export default function DispatchStockPage() {
                 );
               })}
             </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={() => setIsSettingGlobal(false)} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200">Annuler</button>
-              <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200">Enregistrer le Stock</button>
+            
+            <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+              <div className="w-64">
+                <input 
+                  type="password"
+                  placeholder="Code de sécurité requis"
+                  required
+                  value={securityCode}
+                  onChange={e => setSecurityCode(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-red-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsSettingGlobal(false)} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200">Annuler</button>
+                <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200">Enregistrer les Modifications</button>
+              </div>
             </div>
           </form>
         </div>

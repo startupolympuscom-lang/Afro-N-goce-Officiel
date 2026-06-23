@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatchGazStore } from '../../../../../stores/useDispatchGazStore';
 import { ShoppingCart, CheckCircle2, User, Banknote, CreditCard, Receipt, Plus, Trash2, ShieldCheck, Flame } from 'lucide-react';
 import { toast } from 'sonner';
+import { nanoid } from 'nanoid';
 
 interface SaleItem {
   category: string;
@@ -118,12 +119,12 @@ export default function DispatchManualSalePage() {
         }
       }
 
-      validItems.forEach((item, idx) => {
+      validItems.forEach((item) => {
         const basePrice = Number(item.unitPrice) || 0;
         const consignmentPrice = item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0;
         
         addSale({
-          id: Date.now().toString() + idx.toString(),
+          id: nanoid(),
           date: new Date().toISOString(),
           driverId: selectedDriverId,
           clientId: selectedClientId,

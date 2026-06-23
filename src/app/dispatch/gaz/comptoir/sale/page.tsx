@@ -4,6 +4,7 @@ import { useDispatchGazStore } from '../../../../../stores/useDispatchGazStore';
 import { useDispatchAuthStore } from '../../../../../stores/useDispatchAuthStore';
 import { ShoppingCart, CheckCircle2, MapPin, Navigation, Banknote, CreditCard, Receipt, AlertTriangle, Plus, Trash2, ShieldCheck, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { nanoid } from 'nanoid';
 
 export default function DispatchComptoirSalePage() {
   const navigate = useNavigate();
@@ -63,12 +64,12 @@ export default function DispatchComptoirSalePage() {
 
       if (insufficientStock) return;
 
-      validItems.forEach((item, idx) => {
+      validItems.forEach((item) => {
         const basePrice = getItemPrice(item.category);
         const consignmentPrice = item.isConsignment ? getItemConsignmentPrice(selectedBrandId, item.category) : 0;
         
         addComptoirSale({
-          id: Date.now().toString() + idx.toString(),
+          id: nanoid(),
           date: new Date().toISOString(),
           driverId: user.id, // we treat vendeur_comptoir as driverId here for relation mapping if needed
           clientId: selectedClientId,
