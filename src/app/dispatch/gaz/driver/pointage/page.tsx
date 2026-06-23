@@ -54,8 +54,9 @@ export default function DriverPointagePage() {
   useEffect(() => {
     if (user && hasPointageToday(user.id)) {
       setAlreadyCheckedIn(true);
+      navigate('/dispatch/gaz/driver/sale');
     }
-  }, [user, hasPointageToday]);
+  }, [user, hasPointageToday, navigate]);
 
   const selectedConvoyeursIdsRef = React.useRef(selectedConvoyeursIds);
   const isAloneRef = React.useRef(isAlone);

@@ -345,6 +345,7 @@ interface DispatchGazState {
 
   setCommission: (commission: GazCommission) => void;
   dispatchStock: (dispatch: StockDispatch) => void;
+  dispatchStockBatch: (dispatches: StockDispatch[]) => void;
   updateStockSold: (driverId: string, brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
   validateStockDispatch: (id: string, returnedFull: number, returnedEmpty: number) => void;
   setGlobalStock: (items: GlobalStockItem[], historyItems?: GlobalStockHistoryItem[]) => void;
@@ -630,6 +631,42 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         });
 
         return { stockDispatches: [...state.stockDispatches, dispatch], globalStock: newGlobalStock };
+      }),
+
+      dispatchStockBatch: (dispatches) => set((state) => {
+        let currentDispatches = [...state.stockDispatches];
+        let currentGlobalStock = [...state.globalStock];
+
+        dispatches.forEach(dispatch => {
+          const existingIndex = currentDispatches.findIndex(sd => 
+            sd.driverId === dispatch.driverId && 
+            sd.brandId === dispatch.brandId && 
+            sd.category === dispatch.category &&
+            !sd.isValidated
+          );
+
+          if (existingIndex >= 0) {
+            currentDispatches[existingIndex] = { 
+              ...currentDispatches[existingIndex], 
+              quantity: currentDispatches[existingIndex].quantity + dispatch.quantity 
+            };
+          } else {
+            currentDispatches.push(dispatch);
+          }
+
+          // Deduct from global stock
+          currentGlobalStock = currentGlobalStock.map(gs => {
+            if (gs.brandId === dispatch.brandId && gs.category === dispatch.category) {
+              return { ...gs, full: Math.max(0, gs.full - dispatch.quantity) };
+            }
+            return gs;
+          });
+        });
+
+        return { 
+          stockDispatches: currentDispatches, 
+          globalStock: currentGlobalStock 
+        };
       }),
 
       updateStockSold: (driverId, brandId, category, quantity, isConsigned) => set((state) => {

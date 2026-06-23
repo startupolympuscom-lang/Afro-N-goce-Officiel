@@ -241,6 +241,53 @@ export default function DispatchDriverSalePage() {
         </div>
       </div>
 
+      {/* Visual Cargo Stock Dashboard for Driver */}
+      <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 text-white rounded-[32px] p-6 shadow-xl relative overflow-hidden border border-slate-800">
+        <div className="absolute right-0 bottom-0 translate-y-1/3 translate-x-1/12 opacity-10 pointer-events-none">
+          <Truck className="w-64 h-64" />
+        </div>
+        <div className="relative z-10 flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 shadow-inner">
+              <Truck className="w-5 h-5 text-blue-300" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200/60 leading-none mb-1">Session Active</p>
+              <h2 className="font-extrabold text-lg text-white">Mon Stock en Camion</h2>
+            </div>
+          </div>
+          <span className="text-[10px] uppercase font-black bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/30">
+            {driverStockToday.length} Produit(s)
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {driverStockToday.map(sd => {
+            const brand = brands.find(b => b.id === sd.brandId);
+            const remaining = sd.quantity - (sd.sold + (sd.soldConsigned || 0));
+            const percentAvailable = sd.quantity > 0 ? (remaining / sd.quantity) * 100 : 0;
+            return (
+              <div key={sd.id} className="bg-white/5 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl flex flex-col justify-between hover:bg-white/10 transition-all duration-300">
+                <div>
+                  <p className="text-xs font-bold text-blue-200 truncate">{brand?.name || sd.brandId}</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-white/50">{sd.category}</p>
+                </div>
+                <div className="mt-3.5 flex items-end justify-between">
+                  <div>
+                    <span className="text-2xl font-black">{remaining}</span>
+                    <span className="text-[10px] font-semibold text-white/50 ml-1">bte</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-white/30">{sd.quantity} initial</span>
+                </div>
+                <div className="w-full bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div className="bg-blue-400 h-full rounded-full transition-all duration-300" style={{ width: `${percentAvailable}%` }}></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {gpsError && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-red-700">
           <MapPin className="w-5 h-5 shrink-0" />

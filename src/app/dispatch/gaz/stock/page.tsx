@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore, GlobalStockItem } from '../../../../stores/useDispatchGazStore';
-import { Package, Plus, Truck, Calendar, AlertTriangle, CheckCircle2, QrCode, Trash2, Settings, ShieldCheck, Database } from 'lucide-react';
+import { Package, Plus, Truck, Calendar, AlertTriangle, CheckCircle2, QrCode, Trash2, Settings, ShieldCheck, Database, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 
 export default function DispatchStockPage() {
-  const { drivers, brands, stockDispatches, dispatchStock, pointages, globalStock, globalStockHistory, setGlobalStock, validateStockDispatch, dispatchToComptoir } = useDispatchGazStore();
+  const { drivers, brands, stockDispatches, dispatchStockBatch, pointages, globalStock, globalStockHistory, setGlobalStock, validateStockDispatch, dispatchToComptoir } = useDispatchGazStore();
   const [isDispatching, setIsDispatching] = useState(false);
   const [isDispatchingComptoir, setIsDispatchingComptoir] = useState(false);
   const [isSettingGlobal, setIsSettingGlobal] = useState(false);
@@ -76,22 +76,19 @@ export default function DispatchStockPage() {
 
       const fullBrand = brands.find(b => b.id === formData.brandId);
       if (fullBrand) {
-        fullBrand.categories.forEach(cat => {
-          const matchingItems = validItems.filter(i => i.category === cat);
-          const quantity = matchingItems.reduce((acc, curr) => acc + curr.quantity, 0);
-          
-          dispatchStock({
-            id: nanoid(),
-            date: new Date().toISOString(),
-            driverId: formData.driverId,
-            brandId: formData.brandId,
-            category: cat,
-            quantity: quantity,
-            sold: 0,
-            soldConsigned: 0,
-            isValidated: false
-          });
-        });
+        const dispatchesToBatch = validItems.map(item => ({
+          id: nanoid(),
+          date: new Date().toISOString(),
+          driverId: formData.driverId,
+          brandId: formData.brandId,
+          category: item.category,
+          quantity: item.quantity,
+          sold: 0,
+          soldConsigned: 0,
+          isValidated: false
+        }));
+        
+        dispatchStockBatch(dispatchesToBatch);
       }
 
       setIsDispatching(false);
@@ -123,10 +120,8 @@ export default function DispatchStockPage() {
 
       const fullBrand = brands.find(b => b.id === comptoirFormData.brandId);
       if (fullBrand) {
-        fullBrand.categories.forEach(cat => {
-          const matchingItems = validItems.filter(i => i.category === cat);
-          const quantity = matchingItems.reduce((acc, curr) => acc + curr.quantity, 0);
-          dispatchToComptoir(comptoirFormData.brandId, cat, quantity);
+        validItems.forEach(item => {
+          dispatchToComptoir(comptoirFormData.brandId, item.category, item.quantity);
         });
       }
 
@@ -327,6 +322,55 @@ export default function DispatchStockPage() {
           </div>
         </div>
       </div>
+
+      {/* Global Stock Change History Section */}
+      {globalStockHistory && globalStockHistory.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6">
+          <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <h2 className="font-bold text-slate-900 flex items-center gap-2">
+              <History className="w-5 h-5 text-indigo-500" />
+              Historique des Modifications du Stock Global (Stainless)
+            </h2>
+          </div>
+          <div className="p-4">
+            <div className="overflow-x-auto max-h-64 overflow-y-auto">
+              <table className="w-full text-left border-collapse min-w-[600px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Marque</th>
+                    <th className="p-3">Catégorie</th>
+                    <th className="p-3 text-center">Modif. Pleines</th>
+                    <th className="p-3 text-center">Modif. Vides</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {globalStockHistory.slice().reverse().map((hLine, idx) => {
+                    const brand = brands.find(b => b.id === hLine.brandId);
+                    return (
+                      <tr key={hLine.id || idx} className="hover:bg-slate-50/50">
+                        <td className="p-3 text-slate-500 text-xs font-medium">{new Date(hLine.date).toLocaleString('fr-FR')}</td>
+                        <td className="p-3 font-semibold text-slate-700">{brand?.name || hLine.brandId}</td>
+                        <td className="p-3 font-mono text-xs text-slate-600">{hLine.category}</td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-block min-w-12 text-center text-xs px-2.5 py-1 rounded-full font-bold ${hLine.deltaFull > 0 ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : hLine.deltaFull < 0 ? 'text-rose-700 bg-rose-50 border border-rose-100' : 'text-slate-400 bg-slate-50'}`}>
+                            {hLine.deltaFull > 0 ? `+${hLine.deltaFull}` : hLine.deltaFull}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-block min-w-12 text-center text-xs px-2.5 py-1 rounded-full font-bold ${hLine.deltaEmpty > 0 ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : hLine.deltaEmpty < 0 ? 'text-rose-700 bg-rose-50 border border-rose-100' : 'text-slate-400 bg-slate-50'}`}>
+                            {hLine.deltaEmpty > 0 ? `+${hLine.deltaEmpty}` : hLine.deltaEmpty}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isSettingGlobal && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">

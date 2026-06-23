@@ -92,7 +92,8 @@ export default function LandingPage() {
     productImages,
     logoImage,
     logoText,
-    mascotImage
+    mascotImage,
+    updateMediaContent
   } = useLandingStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [news, setNews] = useState<any[]>([]);
@@ -111,7 +112,7 @@ export default function LandingPage() {
       .then(data => {
         const butagaz = data.find((b: any) => b.id === 'b1');
         if (butagaz && butagaz.mascot_url) {
-          setButagazMascot(butagaz.mascot_url);
+          updateMediaContent({ mascotImage: butagaz.mascot_url });
         }
       })
       .catch(() => {});
