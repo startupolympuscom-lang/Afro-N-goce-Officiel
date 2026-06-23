@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 
 export default function DispatchStockPage() {
-  const { drivers, brands, stockDispatches, dispatchStock, pointages, globalStock, setGlobalStock, validateStockDispatch, dispatchToComptoir } = useDispatchGazStore();
+  const { drivers, brands, stockDispatches, dispatchStock, pointages, globalStock, globalStockHistory, setGlobalStock, validateStockDispatch, dispatchToComptoir } = useDispatchGazStore();
   const [isDispatching, setIsDispatching] = useState(false);
   const [isDispatchingComptoir, setIsDispatchingComptoir] = useState(false);
   const [isSettingGlobal, setIsSettingGlobal] = useState(false);
@@ -80,19 +80,17 @@ export default function DispatchStockPage() {
           const matchingItems = validItems.filter(i => i.category === cat);
           const quantity = matchingItems.reduce((acc, curr) => acc + curr.quantity, 0);
           
-          if (quantity > 0) {
-            dispatchStock({
-              id: nanoid(),
-              date: new Date().toISOString(),
-              driverId: formData.driverId,
-              brandId: formData.brandId,
-              category: cat,
-              quantity: quantity,
-              sold: 0,
-              soldConsigned: 0,
-              isValidated: false
-            });
-          }
+          dispatchStock({
+            id: nanoid(),
+            date: new Date().toISOString(),
+            driverId: formData.driverId,
+            brandId: formData.brandId,
+            category: cat,
+            quantity: quantity,
+            sold: 0,
+            soldConsigned: 0,
+            isValidated: false
+          });
         });
       }
 
@@ -128,9 +126,7 @@ export default function DispatchStockPage() {
         fullBrand.categories.forEach(cat => {
           const matchingItems = validItems.filter(i => i.category === cat);
           const quantity = matchingItems.reduce((acc, curr) => acc + curr.quantity, 0);
-          if (quantity > 0) {
-            dispatchToComptoir(comptoirFormData.brandId, cat, quantity);
-          }
+          dispatchToComptoir(comptoirFormData.brandId, cat, quantity);
         });
       }
 
@@ -149,9 +145,20 @@ export default function DispatchStockPage() {
       return;
     }
 
+    const historyItems: any[] = [];
+    const date = new Date().toISOString();
+
     const newGlobalStock = globalStock.map((item, idx) => {
       const delta = globalStockForm.find(g => g.brandId === item.brandId && g.category === item.category);
-      if (delta) {
+      if (delta && (delta.full || delta.empty)) {
+        historyItems.push({
+          id: nanoid(),
+          date,
+          brandId: item.brandId,
+          category: item.category,
+          deltaFull: delta.full || 0,
+          deltaEmpty: delta.empty || 0
+        });
         return {
           ...item,
           full: Math.max(0, item.full + (delta.full || 0)),
@@ -161,7 +168,7 @@ export default function DispatchStockPage() {
       return item;
     });
 
-    setGlobalStock(newGlobalStock);
+    setGlobalStock(newGlobalStock, historyItems);
     setIsSettingGlobal(false);
     setSecurityCode("");
     toast.success("Stock global mis à jour.");
@@ -395,6 +402,47 @@ export default function DispatchStockPage() {
               </div>
             </div>
           </form>
+
+          {globalStockHistory && globalStockHistory.length > 0 && (
+            <div className="mt-8 border-t border-slate-100 pt-6">
+              <h3 className="text-sm font-bold text-slate-900 mb-4">Historique des modifications</h3>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto w-full">
+                <table className="w-full text-xs text-left text-slate-600">
+                  <thead className="bg-slate-100 text-slate-500 font-bold uppercase sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Marque</th>
+                      <th className="px-4 py-3">Catégorie</th>
+                      <th className="px-4 py-3">Modif. Pleines</th>
+                      <th className="px-4 py-3">Modif. Vides</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {globalStockHistory.map((hLine, idx) => {
+                      const brand = brands.find(b => b.id === hLine.brandId);
+                      return (
+                        <tr key={hLine.id || idx} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-2 font-medium">{new Date(hLine.date).toLocaleString('fr-FR')}</td>
+                          <td className="px-4 py-2">{brand?.name || hLine.brandId}</td>
+                          <td className="px-4 py-2">{hLine.category}</td>
+                          <td className="px-4 py-2">
+                            <span className={hLine.deltaFull > 0 ? 'text-emerald-600 font-bold' : hLine.deltaFull < 0 ? 'text-rose-600 font-bold' : ''}>
+                              {hLine.deltaFull > 0 ? `+${hLine.deltaFull}` : hLine.deltaFull}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className={hLine.deltaEmpty > 0 ? 'text-emerald-600 font-bold' : hLine.deltaEmpty < 0 ? 'text-rose-600 font-bold' : ''}>
+                              {hLine.deltaEmpty > 0 ? `+${hLine.deltaEmpty}` : hLine.deltaEmpty}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

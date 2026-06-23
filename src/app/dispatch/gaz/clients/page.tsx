@@ -23,7 +23,7 @@ function LocationPicker({ position, setPosition }: { position: [number, number],
 }
 
 export default function DispatchClientsPage() {
-  const { clients, addClient, updateClient, deleteClient, zones, reloadInitialClients, setClients } = useDispatchGazStore();
+  const { clients, addClient, updateClient, deleteClient, zones, reloadInitialClients, setClients, brands } = useDispatchGazStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   // Deduplicate clients if corrupted localStorage exists
@@ -58,7 +58,7 @@ export default function DispatchClientsPage() {
   };
   
   const [formData, setFormData] = useState<Partial<GazClient>>({
-    name: '', type: 'entreprise', zoneId: '', city: 'Meknès', address: '', code: '', ice: '', patente: '', phone: '', secteur: '', lat: 33.8935, lng: -5.5473
+    name: '', type: 'entreprise', zoneId: '', city: 'Meknès', address: '', code: '', ice: '', patente: '', phone: '', secteur: '', lat: 33.8935, lng: -5.5473, hasSpecialPrice: false, specialPrices: []
   });
 
   const filteredClients = useMemo(() => {
@@ -89,6 +89,8 @@ export default function DispatchClientsPage() {
           secteur: formData.secteur,
           lat: formData.lat || 33.8935,
           lng: formData.lng || -5.5473,
+          hasSpecialPrice: formData.hasSpecialPrice,
+          specialPrices: formData.specialPrices || [],
         });
       }
       resetForm();
@@ -98,7 +100,7 @@ export default function DispatchClientsPage() {
   const resetForm = () => {
     setIsFormOpen(false);
     setEditingId(null);
-    setFormData({ name: '', type: 'entreprise', zoneId: '', city: 'Meknès', address: '', code: '', ice: '', patente: '', phone: '', secteur: '', lat: 33.8935, lng: -5.5473 });
+    setFormData({ name: '', type: 'entreprise', zoneId: '', city: 'Meknès', address: '', code: '', ice: '', patente: '', phone: '', secteur: '', lat: 33.8935, lng: -5.5473, hasSpecialPrice: false, specialPrices: [] });
   };
 
   const handleEdit = (client: GazClient) => {
@@ -258,9 +260,11 @@ export default function DispatchClientsPage() {
             </div>
             
             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-              <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-blue-600" />
-                Position Géographique (Optionnel)
+              <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600" />
+                  Position Géographique (Optionnel)
+                </div>
               </h3>
               <div className="h-[300px] w-full rounded-2xl overflow-hidden border border-slate-200 relative z-0">
                 <MapContainer center={[formData.lat || 33.8935, formData.lng || -5.5473]} zoom={13} style={{ width: '100%', height: '100%' }}>
@@ -274,6 +278,68 @@ export default function DispatchClientsPage() {
                   />
                 </MapContainer>
               </div>
+            </div>
+
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  Prix Spécial (Optionnel)
+                </h3>
+                <label className="flex items-center cursor-pointer">
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only" 
+                      checked={formData.hasSpecialPrice || false}
+                      onChange={(e) => setFormData({...formData, hasSpecialPrice: e.target.checked})}
+                    />
+                    <div className={`block w-10 h-6 rounded-full transition-colors ${formData.hasSpecialPrice ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
+                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.hasSpecialPrice ? 'transform translate-x-4' : ''}`}></div>
+                  </div>
+                  <span className="ml-3 text-xs font-bold text-slate-600 uppercase">Activer</span>
+                </label>
+              </div>
+              
+              {formData.hasSpecialPrice && (
+                <div className="space-y-6 mt-4">
+                  {brands.map(brand => (
+                    <div key={brand.id} className="bg-white p-4 rounded-xl border border-slate-200">
+                      <h4 className="font-bold text-slate-800 mb-3">{brand.name}</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        {brand.categories.map(cat => {
+                          const existingPrice = formData.specialPrices?.find(p => p.brandId === brand.id && p.category === cat);
+                          return (
+                            <div key={cat}>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{cat}</label>
+                              <div className="relative">
+                                <input 
+                                  type="number" 
+                                  placeholder="Prix" 
+                                  value={existingPrice?.price || ''}
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const currentPrices = formData.specialPrices || [];
+                                    const filteredPrices = currentPrices.filter(p => !(p.brandId === brand.id && p.category === cat));
+                                    setFormData({
+                                      ...formData, 
+                                      specialPrices: [
+                                        ...filteredPrices,
+                                        { brandId: brand.id, category: cat, price: val }
+                                      ]
+                                    });
+                                  }}
+                                  className="w-full pl-3 pr-10 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" 
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">DH</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">

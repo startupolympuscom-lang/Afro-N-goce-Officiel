@@ -68,6 +68,17 @@ export default function DispatchDriverSalePage() {
   
   const getItemPrice = (category: string) => {
     if (!selectedClient || !selectedBrandId || !category) return 0;
+    
+    // Check for special price first
+    if (selectedClient.hasSpecialPrice && selectedClient.specialPrices) {
+      const specialPrice = selectedClient.specialPrices.find(
+        p => p.brandId === selectedBrandId && p.category === category
+      );
+      if (specialPrice && specialPrice.price > 0) {
+        return specialPrice.price;
+      }
+    }
+
     return prices.find(p => p.brandId === selectedBrandId && p.category === category && p.zoneId === selectedClient.zoneId)?.price || 0;
   };
 

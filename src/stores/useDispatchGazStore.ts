@@ -37,6 +37,12 @@ export interface GazPrice {
   price: number;
 }
 
+export interface GazClientSpecialPrice {
+  brandId: string;
+  category: string;
+  price: number;
+}
+
 export interface GazClient {
   id: string;
   name: string;
@@ -51,6 +57,8 @@ export interface GazClient {
   ice?: string;
   patente?: string;
   phone?: string;
+  hasSpecialPrice?: boolean;
+  specialPrices?: GazClientSpecialPrice[];
 }
 
 export interface GazSale {
@@ -156,6 +164,15 @@ export interface GlobalStockItem {
   category: string;
   full: number;
   empty: number;
+}
+
+export interface GlobalStockHistoryItem {
+  id: string;
+  date: string;
+  brandId: string;
+  category: string;
+  deltaFull: number;
+  deltaEmpty: number;
 }
 
 export interface GPLConfig {
@@ -276,6 +293,7 @@ interface DispatchGazState {
   convoyeurs: Convoyeur[];
   pointages: GazPointage[];
   globalStock: GlobalStockItem[];
+  globalStockHistory: GlobalStockHistoryItem[];
   comptoirStock: GlobalStockItem[];
   caisseSecuritaire: number;
   caisseNoir: number;
@@ -329,7 +347,7 @@ interface DispatchGazState {
   dispatchStock: (dispatch: StockDispatch) => void;
   updateStockSold: (driverId: string, brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
   validateStockDispatch: (id: string, returnedFull: number, returnedEmpty: number) => void;
-  setGlobalStock: (items: GlobalStockItem[]) => void;
+  setGlobalStock: (items: GlobalStockItem[], historyItems?: GlobalStockHistoryItem[]) => void;
   dispatchToComptoir: (brandId: string, category: string, quantity: number) => void;
   updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
   updateGPLConfig: (config: GPLConfig) => void;
@@ -414,6 +432,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { brandId: 'b1', category: '12Kg', full: 200, empty: 80 },
         { brandId: 'b1', category: '34Kg', full: 50, empty: 20 }
       ],
+      globalStockHistory: [],
       comptoirStock: [],
       caisseSecuritaire: 0,
       caisseNoir: 0,
@@ -653,7 +672,10 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         return { stockDispatches: newStockDispatches, globalStock: newGlobalStock };
       }),
 
-      setGlobalStock: (items) => set({ globalStock: items }),
+      setGlobalStock: (items, historyItems) => set((state) => ({ 
+        globalStock: items,
+        ...(historyItems ? { globalStockHistory: [...historyItems, ...state.globalStockHistory] } : {}) 
+      })),
       dispatchToComptoir: (brandId, category, quantity) => set((state) => {
         const newGlobalStock = [...state.globalStock];
         const gIdx = newGlobalStock.findIndex(g => g.brandId === brandId && g.category === category);

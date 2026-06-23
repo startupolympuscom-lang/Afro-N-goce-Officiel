@@ -258,9 +258,9 @@ export default function LandingPage() {
             <Link to="/afro-digital" className="text-[#0B5C9C] hover:text-blue-800 text-[11px] font-bold tracking-widest uppercase transition-colors">
               AFRO DIGITAL
             </Link>
-            <button className="bg-[#0B5C9C] text-white px-5 py-2.5 text-xs font-bold flex items-center gap-2 hover:bg-blue-800 transition-colors uppercase">
-              DEVIS <ChevronRight className="w-4 h-4" />
-            </button>
+            <Link to="/ecom" className="bg-[#0B5C9C] text-white px-5 py-2.5 text-xs font-bold flex items-center gap-2 hover:bg-blue-800 transition-colors uppercase">
+              Pièces & Matériel de Gaz <ChevronRight className="w-4 h-4" />
+            </Link>
           </div>
 
           <div className="xl:hidden flex items-center">
@@ -291,9 +291,9 @@ export default function LandingPage() {
                 <Link to="/afro-digital" onClick={() => setIsMenuOpen(false)} className="mx-auto block text-center w-full bg-slate-50 text-[#0B5C9C] px-6 py-3 border border-slate-200 text-xs font-bold uppercase tracking-widest">
                   AFRO DIGITAL
                 </Link>
-                <button className="bg-[#0B5C9C] text-white px-6 py-3 text-xs font-bold flex items-center justify-center gap-2">
-                  DEMANDE DE DEVIS <ChevronRight className="w-4 h-4" />
-                </button>
+                <Link to="/ecom" onClick={() => setIsMenuOpen(false)} className="bg-[#0B5C9C] text-white px-6 py-3 text-xs font-bold flex items-center justify-center gap-2">
+                  Pièces & Matériel de Gaz <ChevronRight className="w-4 h-4" />
+                </Link>
               </div>
             </motion.div>
           )}
