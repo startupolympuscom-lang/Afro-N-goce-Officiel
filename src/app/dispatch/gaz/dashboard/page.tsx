@@ -108,7 +108,7 @@ export default function DispatchDashboardPage() {
       switch (widget.id) {
         case 'stat-daily':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
                 <Wallet className="w-24 h-24 text-blue-600" />
               </div>
@@ -118,54 +118,54 @@ export default function DispatchDashboardPage() {
                   <ArrowUpRight className="w-3.5 h-3.5" /> +12%
                 </span>
               </div>
-              <div className="relative z-10 mt-4">
+              <div className="relative z-10 mt-auto pt-2">
                 <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-4xl font-black text-slate-900 tracking-tight">{stats.dailySales.toLocaleString()} <span className="text-lg text-slate-400 font-bold">MAD</span></h3>
+                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.dailySales.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
               </div>
             </div>
           );
         case 'stat-total':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
                 <TrendingUp className="w-24 h-24 text-indigo-600" />
               </div>
               <div className="flex justify-between items-start relative z-10">
                 <div className="p-3 bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl text-indigo-600"><TrendingUp className="w-6 h-6" /></div>
               </div>
-              <div className="relative z-10 mt-4">
+              <div className="relative z-10 mt-auto pt-2">
                 <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-4xl font-black text-slate-900 tracking-tight">{stats.totalSales.toLocaleString()} <span className="text-lg text-slate-400 font-bold">MAD</span></h3>
+                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.totalSales.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
               </div>
             </div>
           );
         case 'stat-expenses':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
                 <ArrowDownRight className="w-24 h-24 text-red-600" />
               </div>
               <div className="flex justify-between items-start relative z-10">
                 <div className="p-3 bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl text-red-600"><ArrowDownRight className="w-6 h-6" /></div>
               </div>
-              <div className="relative z-10 mt-4">
+              <div className="relative z-10 mt-auto pt-2">
                 <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-4xl font-black text-slate-900 tracking-tight">{stats.totalExpenses.toLocaleString()} <span className="text-lg text-slate-400 font-bold">MAD</span></h3>
+                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.totalExpenses.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
               </div>
             </div>
           );
         case 'stat-profit':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
                 <Award className="w-24 h-24 text-emerald-600" />
               </div>
               <div className="flex justify-between items-start relative z-10">
                 <div className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl text-emerald-600"><Award className="w-6 h-6" /></div>
               </div>
-              <div className="relative z-10 mt-4">
+              <div className="relative z-10 mt-auto pt-2">
                 <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-4xl font-black text-slate-900 tracking-tight">{stats.netProfit.toLocaleString()} <span className="text-lg text-slate-400 font-bold">MAD</span></h3>
+                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.netProfit.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
               </div>
             </div>
           );
@@ -272,7 +272,7 @@ export default function DispatchDashboardPage() {
     };
 
     return (
-      <div key={widget.id} className={`relative group ${!widget.visible ? 'opacity-40 grayscale' : ''}`}>
+      <div key={widget.id} className={`relative group h-full ${!widget.visible ? 'opacity-40 grayscale' : ''}`}>
         {isEditMode && (
           <div className="absolute -top-2 -right-2 z-50 flex gap-1">
             <button 

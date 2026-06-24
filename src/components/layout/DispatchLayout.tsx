@@ -18,7 +18,8 @@ import {
   Shield,
   Lock,
   MapPin,
-  Navigation
+  Navigation,
+  Phone
 } from 'lucide-react';
 import { useDispatchAuthStore } from '../../stores/useDispatchAuthStore';
 import { useDispatchGazStore } from '../../stores/useDispatchGazStore';
@@ -244,6 +245,7 @@ export function DispatchLayout() {
     { name: 'Facturation', href: '/dispatch/gaz/facturation', icon: FileText, pageId: 'facturation' },
     { name: 'Caisse', href: '/dispatch/gaz/caisse', icon: Wallet, pageId: 'caisse' },
     { name: 'Commande Gaz', href: '/dispatch/gaz/commande', icon: ShoppingCart, pageId: 'commande' },
+    { name: 'Standard (Appels)', href: '/dispatch/gaz/standard', icon: Phone, pageId: 'standard' },
     { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText, pageId: 'compta' },
     { name: 'Contrôle d\'Accès (RBAC)', href: '/dispatch/gaz/rbac', icon: Shield, pageId: 'rbac' },
     { name: 'Vente Comptoir', href: '/dispatch/gaz/comptoir/sale', icon: Flame, pageId: 'comptoir_sale' },

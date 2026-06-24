@@ -275,6 +275,17 @@ export interface ComptaDocument {
   uploadedAt: string;
 }
 
+export interface StandardCall {
+  id: string;
+  timestamp: string; // ISO format string when recorded
+  clientName: string;
+  phoneNumber: string;
+  address?: string;
+  status: 'enregistré' | 'dispatché' | 'livré';
+  notes?: string;
+  driverId?: string;
+}
+
 interface DispatchGazState {
   drivers: DispatchGazDriver[];
   brands: GazBrand[];
@@ -304,11 +315,15 @@ interface DispatchGazState {
   commandePrices?: GazCommandePrice[];
   commandes?: GazCommande[];
   comptaDocuments?: ComptaDocument[];
+  standardCalls: StandardCall[];
   gpsError: string | null;
 
   // Actions
   addComptaDocument: (doc: ComptaDocument) => void;
   deleteComptaDocument: (id: string) => void;
+  addStandardCall: (call: StandardCall) => void;
+  updateStandardCallStatus: (id: string, status: StandardCall['status']) => void;
+  deleteStandardCall: (id: string) => void;
   addDriver: (driver: DispatchGazDriver) => void;
   updateDriver: (id: string, driver: Partial<DispatchGazDriver>) => void;
   deleteDriver: (id: string) => void;
@@ -446,6 +461,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { brandId: 'b1', category: '34Kg', price: 115 }
       ],
       commandes: [],
+      standardCalls: [],
       gplConfig: {
         consignationPrices: {
           'b1': {
@@ -863,6 +879,15 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       deleteComptaDocument: (id) => set((state) => ({
         comptaDocuments: (state.comptaDocuments || []).filter(d => d.id !== id)
       })),
+      addStandardCall: (call) => set((state) => ({
+        standardCalls: [...(state.standardCalls || []), call]
+      })),
+      updateStandardCallStatus: (id, status) => set((state) => ({
+        standardCalls: (state.standardCalls || []).map(c => c.id === id ? { ...c, status } : c)
+      })),
+      deleteStandardCall: (id) => set((state) => ({
+        standardCalls: (state.standardCalls || []).filter(c => c.id !== id)
+      })),
       addCaisseAlimentation: (alimentation) => set((state) => ({
         caisseAlimentations: [...(state.caisseAlimentations || []), alimentation]
       })),
@@ -892,6 +917,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           caisseTransfers: [],
           caisseAlimentations: [],
           comptaDocuments: [],
+          standardCalls: [],
           paySlips: []
         };
       }),

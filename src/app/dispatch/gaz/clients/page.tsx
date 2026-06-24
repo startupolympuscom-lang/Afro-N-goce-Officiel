@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { useDispatchGazStore, GazClient } from '../../../../stores/useDispatchGazStore';
-import { Plus, Trash2, MapPin, Edit2, Search, X, RefreshCw } from 'lucide-react';
+import { useDispatchGazStore, GazClient, GazSale } from '../../../../stores/useDispatchGazStore';
+import { Plus, Trash2, MapPin, Edit2, Search, X, RefreshCw, History, Calendar, Truck } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -23,9 +23,13 @@ function LocationPicker({ position, setPosition }: { position: [number, number],
 }
 
 export default function DispatchClientsPage() {
-  const { clients, addClient, updateClient, deleteClient, zones, reloadInitialClients, setClients, brands } = useDispatchGazStore();
+  const { clients, addClient, updateClient, deleteClient, zones, reloadInitialClients, setClients, brands, sales, drivers } = useDispatchGazStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   
+  const [historyClientId, setHistoryClientId] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+
   // Deduplicate clients if corrupted localStorage exists
   React.useEffect(() => {
     const uniqueClients = Array.from(new Map(clients.map(c => [c.id, c])).values());
@@ -108,6 +112,25 @@ export default function DispatchClientsPage() {
     setFormData(client);
     setIsFormOpen(true);
   };
+
+  const clientHistory = useMemo(() => {
+    if (!historyClientId) return [];
+    
+    let filtered = sales.filter(s => s.clientId === historyClientId);
+    
+    if (dateFrom) {
+      const from = new Date(dateFrom).getTime();
+      filtered = filtered.filter(s => new Date(s.date).getTime() >= from);
+    }
+    
+    if (dateTo) {
+      // Add one day to include the whole "To" date
+      const to = new Date(dateTo).getTime() + 86400000;
+      filtered = filtered.filter(s => new Date(s.date).getTime() <= to);
+    }
+    
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [sales, historyClientId, dateFrom, dateTo]);
 
   return (
     <div className="space-y-6 pb-20">
@@ -204,7 +227,7 @@ export default function DispatchClientsPage() {
       )}
 
       {isFormOpen && (
-        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-4">
+        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-4 mb-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-slate-900">{editingId ? 'Modifier le Client' : 'Nouveau Client'}</h2>
             <button onClick={resetForm} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -352,6 +375,106 @@ export default function DispatchClientsPage() {
         </div>
       )}
 
+      {historyClientId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
+              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                <History className="w-6 h-6 text-indigo-600" />
+                Historique des Ventes: {clients.find(c => c.id === historyClientId)?.name}
+              </h2>
+              <button 
+                onClick={() => setHistoryClientId(null)}
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 shrink-0 bg-white border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex-1 w-full">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> De</label>
+                  <input 
+                    type="date" 
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white transition-all outline-none"
+                  />
+                </div>
+                <div className="flex-1 w-full">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> À</label>
+                  <input 
+                    type="date" 
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white transition-all outline-none"
+                  />
+                </div>
+                <div className="pt-5 sm:w-auto w-full">
+                   <button 
+                      onClick={() => { setDateFrom(''); setDateTo(''); }}
+                      className="w-full sm:w-auto px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                   >
+                     Réinitialiser
+                   </button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="overflow-y-auto p-0 flex-1">
+              <table className="w-full text-left border-collapse min-w-[600px]">
+                <thead className="sticky top-0 bg-slate-50 shadow-sm z-10">
+                  <tr className="border-b border-slate-200">
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Date</th>
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Chauffeur</th>
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Article</th>
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Qté</th>
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {clientHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-500">
+                        Aucun historique trouvé pour cette période.
+                      </td>
+                    </tr>
+                  ) : (
+                    clientHistory.map(sale => {
+                      const driver = drivers.find(d => d.id === sale.driverId);
+                      const brand = brands.find(b => b.id === sale.brandId);
+                      return (
+                        <tr key={sale.id} className="hover:bg-slate-50">
+                          <td className="p-4">
+                            <span className="font-bold text-slate-700">{new Date(sale.date).toLocaleDateString('fr-FR')}</span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                              <Truck className="w-4 h-4 text-slate-400" />
+                              {driver ? `${driver.prenom} ${driver.nom}` : 'Inconnu'}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-900">{brand?.name || sale.brandId}</div>
+                            <div className="text-xs text-slate-500">{sale.category}</div>
+                          </td>
+                          <td className="p-4 text-right font-bold text-indigo-600">
+                            {sale.quantity}
+                          </td>
+                          <td className="p-4 text-right font-black text-slate-900">
+                            {sale.totalPrice} MAD
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
@@ -404,6 +527,9 @@ export default function DispatchClientsPage() {
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setHistoryClientId(client.id)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Historique">
+                        <History className="w-4 h-4" />
+                      </button>
                       <button onClick={() => handleEdit(client)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
                         <Edit2 className="w-4 h-4" />
                       </button>
