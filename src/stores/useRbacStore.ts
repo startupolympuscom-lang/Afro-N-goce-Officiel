@@ -19,6 +19,9 @@ export type DispatchPage =
   | 'comptoir_sale' 
   | 'driver_pointage' 
   | 'driver_sale' 
+  | 'facturation'
+  | 'standard'
+  | 'team'
   | 'driver_history';
 
 export interface RolePermissions {
@@ -82,6 +85,9 @@ const defaultPages = (): PagePermissions => ({
   driver_pointage: { ...emptyPermissions },
   driver_sale: { ...emptyPermissions },
   driver_history: { ...emptyPermissions },
+  facturation: { ...emptyPermissions },
+  standard: { ...emptyPermissions },
+  team: { ...emptyPermissions },
 });
 
 const adminPages = (): PagePermissions => {

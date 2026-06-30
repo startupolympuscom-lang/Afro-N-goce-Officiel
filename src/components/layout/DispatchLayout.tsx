@@ -248,6 +248,7 @@ export function DispatchLayout() {
     { name: 'Standard (Appels)', href: '/dispatch/gaz/standard', icon: Phone, pageId: 'standard' },
     { name: 'Comptabilité Corr.', href: '/dispatch/gaz/compta', icon: FileText, pageId: 'compta' },
     { name: 'Contrôle d\'Accès (RBAC)', href: '/dispatch/gaz/rbac', icon: Shield, pageId: 'rbac' },
+    { name: 'Team / Tâches', href: '/dispatch/gaz/team', icon: Users, pageId: 'team' },
     { name: 'Vente Comptoir', href: '/dispatch/gaz/comptoir/sale', icon: Flame, pageId: 'comptoir_sale' },
     { name: 'Pointage', href: '/dispatch/gaz/driver/pointage', icon: QrCode, pageId: 'driver_pointage' },
     { name: 'Nouvelle Vente', href: '/dispatch/gaz/driver/sale', icon: Flame, pageId: 'driver_sale' },

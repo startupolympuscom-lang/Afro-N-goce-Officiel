@@ -43,6 +43,7 @@ const DispatchDriverSalePage = React.lazy(() => import('./app/dispatch/gaz/drive
 const DispatchDriverHistoryPage = React.lazy(() => import('./app/dispatch/gaz/driver/history/page'));
 const DispatchDriverPointagePage = React.lazy(() => import('./app/dispatch/gaz/driver/pointage/page'));
 const DispatchStandardPage = React.lazy(() => import('./app/dispatch/gaz/standard/page'));
+const DispatchTeamPage = React.lazy(() => import('./app/dispatch/gaz/team/page'));
 const DashboardPage = React.lazy(() => import('./app/dashboard/page'));
 const VehiculesPage = React.lazy(() => import('./app/vehicules/page'));
 const ChauffeursPage = React.lazy(() => import('./app/chauffeurs/page'));
@@ -123,6 +124,7 @@ export default function App() {
             <Route path="stock/manual-sale" element={<DispatchManualSalePage />} />
             <Route path="comptoir/sale" element={<DispatchComptoirSalePage />} />
             <Route path="standard" element={<DispatchStandardPage />} />
+            <Route path="team" element={<DispatchTeamPage />} />
             <Route path="rbac" element={<DispatchRbacPage />} />
             <Route path="driver/sale" element={<DispatchDriverSalePage />} />
             <Route path="driver/history" element={<DispatchDriverHistoryPage />} />
