@@ -379,104 +379,106 @@ export default function DispatchTeamPage() {
 
       {/* Active Tab View Rendering */}
       {activeTab === 'board' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                <th className="p-4">Tâche</th>
-                <th className="p-4">Projet / Départ.</th>
-                <th className="p-4">Assigné à</th>
-                <th className="p-4">Échéance</th>
-                <th className="p-4">Statut</th>
-                <th className="p-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredTasks.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
-                    Aucune tâche correspondante n'a été trouvée pour les filtres sélectionnés.
-                  </td>
-                </tr>
-              ) : (
-                filteredTasks.map(task => {
-                  const assignee = accounts.find(a => a.id === task.assigneeId);
-                  const isDelayed = task.status !== 'done' && new Date(task.deadline).getTime() < new Date().getTime();
-                  const proj = projects.find(p => p.id === task.projectId);
-                  const dept = departments.find(d => d.id === task.departmentId);
-                  
-                  return (
-                    <tr key={task.id} className={`hover:bg-slate-50/50 transition-colors ${isDelayed ? 'bg-rose-50/20' : ''}`}>
-                      <td className="p-4">
-                        <div className="font-bold text-slate-900">{task.title}</div>
-                        <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                          <MessageSquare className="w-3.5 h-3.5" /> {task.comments.length} commentaire(s)
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          {['todo', 'in_progress', 'done'].map((statusValue) => {
+            const statusName = statusValue === 'todo' ? 'À faire' : statusValue === 'in_progress' ? 'En cours' : 'Terminé';
+            const columnTasks = filteredTasks.filter(t => t.status === statusValue);
+            
+            return (
+              <div 
+                key={statusValue} 
+                className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-4 min-h-[400px] transition-colors"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50/30');
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50/30');
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50/30');
+                  const taskId = e.dataTransfer.getData('taskId');
+                  if (taskId) {
+                    updateTaskStatus(taskId, statusValue as any);
+                  }
+                }}
+              >
+                <div className="flex justify-between items-center px-1 mb-2">
+                  <h3 className="font-bold text-slate-700 uppercase tracking-widest text-xs">{statusName}</h3>
+                  <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">{columnTasks.length}</span>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {columnTasks.map(task => {
+                    const assignee = accounts.find(a => a.id === task.assigneeId);
+                    const isDelayed = task.status !== 'done' && new Date(task.deadline).getTime() < new Date().getTime();
+                    const proj = projects.find(p => p.id === task.projectId);
+                    const dept = departments.find(d => d.id === task.departmentId);
+
+                    return (
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('taskId', task.id);
+                        }}
+                        onClick={() => setSelectedTask(task)}
+                        className={`bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 group ${isDelayed ? 'border-rose-300' : ''}`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="font-bold text-slate-900 text-sm leading-tight group-hover:text-indigo-600 transition-colors">{task.title}</h4>
+                          {isDelayed && <AlertTriangle className="w-4 h-4 text-rose-500 flex-shrink-0" />}
                         </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col gap-1">
-                          {proj && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100 w-max">
-                              <Folder className="w-3 h-3" />
-                              {proj.name}
-                            </span>
-                          )}
-                          {dept && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100 w-max">
-                              <Building className="w-3 h-3" />
-                              {dept.name}
-                            </span>
-                          )}
-                          {!proj && !dept && <span className="text-xs text-slate-400 italic">Aucun</span>}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold uppercase">
-                            {assignee ? assignee.prenom.charAt(0) : '?'}
+
+                        {(proj || dept) && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {proj && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                                <Folder className="w-3 h-3" /> {proj.name}
+                              </span>
+                            )}
+                            {dept && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                                <Building className="w-3 h-3" /> {dept.name}
+                              </span>
+                            )}
                           </div>
-                          <span className="text-sm font-medium text-slate-700">
-                            {assignee ? `${assignee.prenom} ${assignee.nom}` : 'Inconnu'}
-                          </span>
+                        )}
+
+                        <div className="flex justify-between items-end mt-2 pt-3 border-t border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold uppercase" title={assignee ? `${assignee.prenom} ${assignee.nom}` : 'Inconnu'}>
+                              {assignee ? assignee.prenom.charAt(0) : '?'}
+                            </div>
+                            <div className="text-[10px] font-bold text-slate-500 truncate max-w-[80px]">
+                              {assignee ? `${assignee.prenom}` : 'Inconnu'}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className={`flex items-center gap-1 text-[11px] font-bold ${isDelayed ? 'text-rose-600' : 'text-slate-500'}`}>
+                              <Calendar className="w-3 h-3" />
+                              {new Date(task.deadline).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            </div>
+                            {task.comments.length > 0 && (
+                              <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3" /> {task.comments.length}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                          <Calendar className={`w-4 h-4 ${isDelayed ? 'text-rose-500' : 'text-slate-400'}`} />
-                          <span className={isDelayed ? 'text-rose-600 font-bold' : ''}>
-                            {new Date(task.deadline).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <select 
-                          value={task.status}
-                          onChange={(e) => updateTaskStatus(task.id, e.target.value as any)}
-                          className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border outline-none cursor-pointer transition-colors ${
-                            task.status === 'done' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            task.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                            'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}
-                        >
-                          <option value="todo">À faire</option>
-                          <option value="in_progress">En cours</option>
-                          <option value="done">Terminé</option>
-                        </select>
-                      </td>
-                      <td className="p-4 text-right">
-                        <button 
-                          onClick={() => setSelectedTask(task)}
-                          className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs rounded-xl transition-colors"
-                        >
-                          Détails & Chat
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                      </div>
+                    );
+                  })}
+                  {columnTasks.length === 0 && (
+                    <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-sm font-medium">
+                      Déposez une tâche ici
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
