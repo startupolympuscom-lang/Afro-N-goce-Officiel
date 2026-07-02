@@ -168,6 +168,7 @@ export interface GlobalStockItem {
   category: string;
   full: number;
   empty: number;
+  damaged?: number;
   company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
@@ -370,6 +371,8 @@ interface DispatchGazState {
   updateStockSold: (driverId: string, brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
   validateStockDispatch: (id: string, returnedFull: number, returnedEmpty: number) => void;
   setGlobalStock: (items: GlobalStockItem[], historyItems?: GlobalStockHistoryItem[]) => void;
+  declareDamagedStock: (brandId: string, category: string, quantity: number, company: 'afro_negoce' | 'chakirine_gaz') => void;
+  repairDamagedStock: (brandId: string, category: string, quantity: number, type: 'full' | 'empty', company: 'afro_negoce' | 'chakirine_gaz') => void;
   dispatchToComptoir: (brandId: string, category: string, quantity: number, company?: 'afro_negoce' | 'chakirine_gaz') => void;
   updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean, company?: 'afro_negoce' | 'chakirine_gaz') => void;
   updateGPLConfig: (config: GPLConfig) => void;
@@ -764,6 +767,29 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         globalStock: items,
         ...(historyItems ? { globalStockHistory: [...historyItems, ...state.globalStockHistory] } : {}) 
       })),
+      declareDamagedStock: (brandId, category, quantity, company) => set((state) => {
+        const newStock = state.globalStock.map(gs => {
+          if (gs.brandId === brandId && gs.category === category && gs.company === company && gs.empty >= quantity) {
+            return { ...gs, empty: gs.empty - quantity, damaged: (gs.damaged || 0) + quantity };
+          }
+          return gs;
+        });
+        return { globalStock: newStock };
+      }),
+      repairDamagedStock: (brandId, category, quantity, type, company) => set((state) => {
+        const newStock = state.globalStock.map(gs => {
+          if (gs.brandId === brandId && gs.category === category && gs.company === company && (gs.damaged || 0) >= quantity) {
+            return { 
+              ...gs, 
+              damaged: (gs.damaged || 0) - quantity,
+              full: type === 'full' ? gs.full + quantity : gs.full,
+              empty: type === 'empty' ? gs.empty + quantity : gs.empty
+            };
+          }
+          return gs;
+        });
+        return { globalStock: newStock };
+      }),
       dispatchToComptoir: (brandId, category, quantity, company: 'afro_negoce' | 'chakirine_gaz' = 'afro_negoce') => set((state) => {
         const newGlobalStock = state.globalStock.map(gs => {
           if (gs.brandId === brandId && gs.category === category && gs.company === company && gs.full >= quantity) {

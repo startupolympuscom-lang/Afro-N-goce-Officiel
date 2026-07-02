@@ -224,107 +224,150 @@ export default function DispatchCaissePage() {
   const generatePDF = () => {
     const doc = new jsPDF();
     const now = new Date().toLocaleString();
-    const companyTitle = selectedCompany === 'chakirine_gaz' ? 'CHAKIRINE GAZ' : 'STE. AFRO NÉGOCE';
-
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${companyTitle} - Rapport de Caisse`, 14, 22);
     
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    doc.text(`Date du rapport: ${now}`, 14, 30);
-    doc.text(`Période: ${today}`, 14, 35);
-
-    // Summary section
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-    doc.text('Récapitulatif de Caisse', 14, 50);
-    
-    autoTable(doc, {
-      startY: 55,
-      head: [['Désignation', 'Montant (MAD)']],
-      body: [
-        ['Total Ventes du jour (Entrées)', totalSalesEntreesCompany.toLocaleString() + ' MAD'],
-        ['Total Alimentations (Hors-ventes)', totalAlimentationsCompany.toLocaleString() + ' MAD'],
-        ['Total Brut Entré de Caisse', totalEntreesCompany.toLocaleString() + ' MAD'],
-        ['Total Sorties (Dépenses)', totalSortiesCompany.toLocaleString() + ' MAD'],
-        ['Allocation Caisse Sécuritaire (aujourd\'hui)', totalTransferredSecuritaireTodayCompany.toLocaleString() + ' MAD'],
-        ['Allocation Caisse Noir (aujourd\'hui)', totalTransferredNoirTodayCompany.toLocaleString() + ' MAD'],
-        ['CASH DISPONIBLE EN CAISSE (Solde Principal)', soldeDisponibleCompany.toLocaleString() + ' MAD'],
-        ['SOLDE GLOBAL BRUT', soldeCompany.toLocaleString() + ' MAD'],
-      ],
-      theme: 'grid',
-      headStyles: { fillColor: [15, 23, 42], fontSize: 9 },
-      styles: { fontSize: 9, cellPadding: 2 }
-    });
-
-    // Detailed Individual Sales Section
-    const salesTableY = (doc as any).lastAutoTable.finalY + 15;
-    doc.text('Journal Détaillé des Ventes', 14, salesTableY);
-    
-    const detailedSalesBody = salesTodayCompany.map(s => {
-      const driver = drivers.find(d => d.id === s.driverId);
-      const brand = brands.find(b => b.id === s.brandId);
-      const client = clients.find(c => c.id === s.clientId);
-      return [
-        new Date(s.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        driver ? `${driver.prenom} ${driver.nom}` : 'N/A',
-        client?.name || 'Vente Directe',
-        `${brand?.name || ''} - ${s.category}`,
-        s.quantity.toString(),
-        s.totalPrice.toLocaleString()
-      ];
-    });
-
-    autoTable(doc, {
-      startY: salesTableY + 5,
-      head: [['Heure', 'Chauffeur', 'Client', 'Produit', 'Qté', 'Total (MAD)']],
-      body: detailedSalesBody,
-      theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
-      styles: { fontSize: 7, cellPadding: 1.5 }
-    });
-
-    // Expenses section
-    if (expensesTodayCompany.length > 0) {
-      const expTableY = (doc as any).lastAutoTable.finalY + 15;
-      if (expTableY > 250) doc.addPage();
+    const renderReportForCompany = (comp: 'afro_negoce' | 'chakirine_gaz' | 'global', isFirstPage: boolean) => {
+      if (!isFirstPage) {
+        doc.addPage();
+      }
       
-      doc.text('Détail des Sorties de Caisse', 14, expTableY > 250 ? 22 : expTableY);
-      const expensesBody = expensesTodayCompany.map(e => {
+      const compSales = comp === 'global' ? salesToday : salesToday.filter(s => {
+        const driver = drivers.find(d => d.id === s.driverId);
+        const saleCompany = s.company || driver?.company || 'afro_negoce';
+        return saleCompany === comp;
+      });
+      
+      const compExpenses = comp === 'global' ? expensesToday : expensesToday.filter(e => {
         const driver = drivers.find(d => d.id === e.driverId);
+        const expCompany = driver?.company || 'afro_negoce';
+        return expCompany === comp;
+      });
+      
+      const compAlimentations = comp === 'global' ? alimentationsToday : alimentationsToday.filter(a => {
+        const alCompany = a.company || 'afro_negoce';
+        return alCompany === comp;
+      });
+      
+      const compTransfers = comp === 'global' ? transfersToday : transfersToday.filter(t => {
+        const trCompany = t.company || 'afro_negoce';
+        return trCompany === comp;
+      });
+
+      const totalSales = compSales.reduce((sum, s) => s.status === 'non payé' ? sum : sum + s.totalPrice, 0);
+      const totalAlim = compAlimentations.reduce((sum, a) => sum + a.amount, 0);
+      const totalSorties = compExpenses.reduce((sum, e) => sum + e.amount, 0);
+      const totalEntrees = totalSales + totalAlim;
+      const solde = totalEntrees - totalSorties;
+      
+      const totalTransSec = compTransfers.filter(t => t.toAccount === 'securitaire').reduce((sum, t) => sum + t.amount, 0);
+      const totalTransNoir = compTransfers.filter(t => t.toAccount === 'noir').reduce((sum, t) => sum + t.amount, 0);
+      const soldeDispo = solde - (totalTransSec + totalTransNoir);
+
+      const title = comp === 'global' ? 'RAPPORT DE CAISSE GLOBAL (AFRO + CHAKIRINE)' : (comp === 'chakirine_gaz' ? 'CHAKIRINE GAZ - Rapport de Caisse' : 'STE. AFRO NÉGOCE - Rapport de Caisse');
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, 14, 22);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100);
+      doc.text(`Date du rapport: ${now}`, 14, 30);
+      doc.text(`Période: ${today}`, 14, 35);
+
+      // Summary section
+      doc.setFontSize(11);
+      doc.setTextColor(0);
+      doc.text('Récapitulatif de Caisse', 14, 50);
+      
+      autoTable(doc, {
+        startY: 55,
+        head: [['Désignation', 'Montant (MAD)']],
+        body: [
+          ['Total Ventes du jour (Entrées)', totalSales.toLocaleString() + ' MAD'],
+          ['Total Alimentations (Hors-ventes)', totalAlim.toLocaleString() + ' MAD'],
+          ['Total Brut Entré de Caisse', totalEntrees.toLocaleString() + ' MAD'],
+          ['Total Sorties (Dépenses)', totalSorties.toLocaleString() + ' MAD'],
+          ['Allocation Caisse Sécuritaire (aujourd\'hui)', totalTransSec.toLocaleString() + ' MAD'],
+          ['Allocation Caisse Noir (aujourd\'hui)', totalTransNoir.toLocaleString() + ' MAD'],
+          ['CASH DISPONIBLE EN CAISSE (Solde Principal)', soldeDispo.toLocaleString() + ' MAD'],
+          ['SOLDE GLOBAL BRUT', solde.toLocaleString() + ' MAD'],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], fontSize: 9 },
+        styles: { fontSize: 9, cellPadding: 2 }
+      });
+
+      // Detailed Individual Sales Section
+      const salesTableY = (doc as any).lastAutoTable.finalY + 15;
+      doc.text('Journal Détaillé des Ventes', 14, salesTableY);
+      
+      const detailedSalesBody = compSales.map(s => {
+        const driver = drivers.find(d => d.id === s.driverId);
+        const brand = brands.find(b => b.id === s.brandId);
+        const client = clients.find(c => c.id === s.clientId);
         return [
-          new Date(e.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          new Date(s.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           driver ? `${driver.prenom} ${driver.nom}` : 'N/A',
-          e.reason,
-          e.amount.toLocaleString()
+          client?.name || 'Vente Directe',
+          `${brand?.name || ''} - ${s.category}`,
+          s.quantity.toString(),
+          s.totalPrice.toLocaleString()
         ];
       });
 
       autoTable(doc, {
-        startY: expTableY > 250 ? 27 : expTableY + 5,
-        head: [['Heure', 'Chauffeur', 'Motif', 'Montant (MAD)']],
-        body: expensesBody,
+        startY: salesTableY + 5,
+        head: [['Heure', 'Chauffeur', 'Client', 'Produit', 'Qté', 'Total (MAD)']],
+        body: detailedSalesBody,
         theme: 'striped',
-        headStyles: { fillColor: [220, 38, 38], fontSize: 8 },
+        headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
         styles: { fontSize: 7, cellPadding: 1.5 }
       });
-    }
 
-    // Signatures
-    const finalY = (doc as any).lastAutoTable.finalY + 30;
-    if (finalY > 260) doc.addPage();
-    
-    const signAreaY = finalY > 260 ? 40 : finalY;
-    doc.setFontSize(8);
-    doc.text('Signature Caissier', 14, signAreaY);
-    doc.line(14, signAreaY + 2, 60, signAreaY + 2);
-    
-    doc.text('Signature Responsable', 140, signAreaY);
-    doc.line(140, signAreaY + 2, 186, signAreaY + 2);
+      // Expenses section
+      if (compExpenses.length > 0) {
+        const expTableY = (doc as any).lastAutoTable.finalY + 15;
+        if (expTableY > 250) doc.addPage();
+        
+        doc.text('Détail des Sorties de Caisse', 14, expTableY > 250 ? 22 : expTableY);
+        const expensesBody = compExpenses.map(e => {
+          const driver = drivers.find(d => d.id === e.driverId);
+          return [
+            new Date(e.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            driver ? `${driver.prenom} ${driver.nom}` : 'N/A',
+            e.reason,
+            e.amount.toLocaleString()
+          ];
+        });
 
-    doc.save(`rapport-caisse-${selectedCompany === 'chakirine_gaz' ? 'chakirine' : 'afro'}-${today}.pdf`);
+        autoTable(doc, {
+          startY: expTableY > 250 ? 27 : expTableY + 5,
+          head: [['Heure', 'Chauffeur', 'Motif', 'Montant (MAD)']],
+          body: expensesBody,
+          theme: 'striped',
+          headStyles: { fillColor: [220, 38, 38], fontSize: 8 },
+          styles: { fontSize: 7, cellPadding: 1.5 }
+        });
+      }
+
+      // Signatures
+      const finalY = (doc as any).lastAutoTable.finalY + 30;
+      if (finalY > 260) doc.addPage();
+      
+      const signAreaY = finalY > 260 ? 40 : finalY;
+      doc.setFontSize(8);
+      doc.text('Signature Caissier', 14, signAreaY);
+      doc.line(14, signAreaY + 2, 60, signAreaY + 2);
+      
+      doc.text('Signature Responsable', 140, signAreaY);
+      doc.line(140, signAreaY + 2, 186, signAreaY + 2);
+    };
+
+    renderReportForCompany('global', true);
+    renderReportForCompany('afro_negoce', false);
+    renderReportForCompany('chakirine_gaz', false);
+
+    doc.save(`rapport-caisse-complet-${today}.pdf`);
   };
 
   const handleAddExpense = (e: React.FormEvent) => {

@@ -9,6 +9,15 @@ export default function DispatchStockPage() {
   const [isDispatching, setIsDispatching] = useState(false);
   const [isDispatchingComptoir, setIsDispatchingComptoir] = useState(false);
   const [isSettingGlobal, setIsSettingGlobal] = useState(false);
+  const [isDamagedStockModalOpen, setIsDamagedStockModalOpen] = useState(false);
+  const [damagedStockForm, setDamagedStockForm] = useState({
+    action: 'declare' as 'declare' | 'repair',
+    company: 'afro_negoce' as 'afro_negoce' | 'chakirine_gaz',
+    brandId: '',
+    category: '',
+    quantity: 0,
+    repairTo: 'empty' as 'empty' | 'full'
+  });
   const [globalStockForm, setGlobalStockForm] = useState<GlobalStockItem[]>(globalStock);
   const [formData, setFormData] = useState({
     driverId: '',
@@ -138,6 +147,45 @@ export default function DispatchStockPage() {
 
   const [securityCode, setSecurityCode] = useState("");
 
+  const handleDamagedStockSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!damagedStockForm.brandId || !damagedStockForm.category || damagedStockForm.quantity <= 0) {
+      toast.error("Veuillez remplir tous les champs correctement.");
+      return;
+    }
+
+    const { action, company, brandId, category, quantity, repairTo } = damagedStockForm;
+    const store = useDispatchGazStore.getState();
+
+    if (action === 'declare') {
+      const gs = store.globalStock.find(g => g.brandId === brandId && g.category === category && g.company === company);
+      if (!gs || gs.empty < quantity) {
+        toast.error("Stock vide insuffisant pour déclarer comme endommagé.");
+        return;
+      }
+      store.declareDamagedStock(brandId, category, quantity, company);
+      toast.success("Stock déclaré comme endommagé.");
+    } else {
+      const gs = store.globalStock.find(g => g.brandId === brandId && g.category === category && g.company === company);
+      if (!gs || (gs.damaged || 0) < quantity) {
+        toast.error("Stock endommagé insuffisant pour la réparation.");
+        return;
+      }
+      store.repairDamagedStock(brandId, category, quantity, repairTo, company);
+      toast.success("Stock endommagé restauré/réparé.");
+    }
+
+    setIsDamagedStockModalOpen(false);
+    setDamagedStockForm({
+      action: 'declare',
+      company: 'afro_negoce',
+      brandId: '',
+      category: '',
+      quantity: 0,
+      repairTo: 'empty'
+    });
+  };
+
   const handleGlobalStockSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (securityCode.toLowerCase().trim() !== "alpha zulu india zulu") {
@@ -234,6 +282,13 @@ export default function DispatchStockPage() {
         </h1>
         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
           <button 
+            onClick={() => setIsDamagedStockModalOpen(true)}
+            className="bg-rose-100 text-rose-700 px-4 py-2 rounded-xl font-bold hover:bg-rose-200 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <AlertTriangle className="w-5 h-5" />
+            Stock Endommagé
+          </button>
+          <button 
             onClick={() => {
               setGlobalStockForm(globalStock.map(g => ({ ...g, full: 0, empty: 0 })));
               setIsSettingGlobal(true);
@@ -271,22 +326,30 @@ export default function DispatchStockPage() {
             {globalStock.filter(item => item.company === 'afro_negoce' || !item.company).map((item, idx) => {
               const brand = brands.find(b => b.id === item.brandId);
               return (
-                <div key={`an-${idx}`} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
+                <div key={`an-${idx}`} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-slate-300 transition-colors">
+                  <div className="flex justify-between items-start mb-2 relative z-10">
                     <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-md uppercase">
                       {brand?.name}
                     </div>
-                    <div className="text-xl font-black text-slate-900">{item.category}</div>
+                    <div className="text-2xl font-black text-slate-900">{item.category}</div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    <div className="bg-green-50 p-2 rounded-xl border border-green-100">
-                      <div className="text-[10px] font-bold text-green-600 uppercase">Pleines</div>
-                      <div className="text-lg font-black text-green-700">{item.full}</div>
+                  <div className="grid grid-cols-3 gap-2 mt-4 relative z-10">
+                    <div className="bg-green-50 p-2.5 rounded-xl border border-green-100 flex flex-col items-center">
+                      <div className="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">Pleines</div>
+                      <div className="text-2xl font-black text-green-700">{item.full}</div>
                     </div>
-                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                      <div className="text-[10px] font-bold text-slate-500 uppercase">Vides</div>
-                      <div className="text-lg font-black text-slate-700">{item.empty}</div>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col items-center">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Vides</div>
+                      <div className="text-2xl font-black text-slate-700">{item.empty}</div>
                     </div>
+                    <div className={`p-2.5 rounded-xl border flex flex-col items-center ${item.damaged && item.damaged > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50/50 border-slate-100 opacity-60'}`}>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${item.damaged && item.damaged > 0 ? 'text-rose-600' : 'text-slate-400'}`}>Avaries</div>
+                      <div className={`text-2xl font-black ${item.damaged && item.damaged > 0 ? 'text-rose-700' : 'text-slate-400'}`}>{item.damaged || 0}</div>
+                    </div>
+                  </div>
+                  {/* subtle decorative background */}
+                  <div className="absolute -bottom-4 -right-4 opacity-[0.03] text-slate-900 z-0">
+                    <Database size={100} />
                   </div>
                 </div>
               );
@@ -303,22 +366,30 @@ export default function DispatchStockPage() {
             {globalStock.filter(item => item.company === 'chakirine_gaz').map((item, idx) => {
               const brand = brands.find(b => b.id === item.brandId);
               return (
-                <div key={`cg-${idx}`} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
+                <div key={`cg-${idx}`} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-slate-300 transition-colors">
+                  <div className="flex justify-between items-start mb-2 relative z-10">
                     <div className="px-2 py-1 bg-amber-50 text-amber-700 text-[10px] font-black rounded-md uppercase">
                       {brand?.name}
                     </div>
-                    <div className="text-xl font-black text-slate-900">{item.category}</div>
+                    <div className="text-2xl font-black text-slate-900">{item.category}</div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    <div className="bg-green-50 p-2 rounded-xl border border-green-100">
-                      <div className="text-[10px] font-bold text-green-600 uppercase">Pleines</div>
-                      <div className="text-lg font-black text-green-700">{item.full}</div>
+                  <div className="grid grid-cols-3 gap-2 mt-4 relative z-10">
+                    <div className="bg-green-50 p-2.5 rounded-xl border border-green-100 flex flex-col items-center">
+                      <div className="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">Pleines</div>
+                      <div className="text-2xl font-black text-green-700">{item.full}</div>
                     </div>
-                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                      <div className="text-[10px] font-bold text-slate-500 uppercase">Vides</div>
-                      <div className="text-lg font-black text-slate-700">{item.empty}</div>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col items-center">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Vides</div>
+                      <div className="text-2xl font-black text-slate-700">{item.empty}</div>
                     </div>
+                    <div className={`p-2.5 rounded-xl border flex flex-col items-center ${item.damaged && item.damaged > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50/50 border-slate-100 opacity-60'}`}>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${item.damaged && item.damaged > 0 ? 'text-rose-600' : 'text-slate-400'}`}>Avaries</div>
+                      <div className={`text-2xl font-black ${item.damaged && item.damaged > 0 ? 'text-rose-700' : 'text-slate-400'}`}>{item.damaged || 0}</div>
+                    </div>
+                  </div>
+                  {/* subtle decorative background */}
+                  <div className="absolute -bottom-4 -right-4 opacity-[0.03] text-slate-900 z-0">
+                    <Database size={100} />
                   </div>
                 </div>
               );
@@ -941,6 +1012,113 @@ export default function DispatchStockPage() {
           </table>
         </div>
       </div>
+
+      {/* Damaged Stock Modal */}
+      {isDamagedStockModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-rose-500" />
+                Gestion des Bouteilles Endommagées
+              </h2>
+              <button onClick={() => setIsDamagedStockModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleDamagedStockSubmit} className="p-6 space-y-6">
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Action</label>
+                  <select 
+                    value={damagedStockForm.action}
+                    onChange={e => setDamagedStockForm({...damagedStockForm, action: e.target.value as any})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
+                  >
+                    <option value="declare">Déclarer comme Endommagé</option>
+                    <option value="repair">Réparer / Remplacer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Société</label>
+                  <select 
+                    value={damagedStockForm.company}
+                    onChange={e => setDamagedStockForm({...damagedStockForm, company: e.target.value as any})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
+                  >
+                    <option value="afro_negoce">Afro Négoce</option>
+                    <option value="chakirine_gaz">Chakirine Gaz</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Marque</label>
+                  <select 
+                    value={damagedStockForm.brandId}
+                    onChange={e => setDamagedStockForm({...damagedStockForm, brandId: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
+                  >
+                    <option value="">Sélectionner</option>
+                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Catégorie</label>
+                  <select 
+                    value={damagedStockForm.category}
+                    onChange={e => setDamagedStockForm({...damagedStockForm, category: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
+                  >
+                    <option value="">Sélectionner</option>
+                    {damagedStockForm.brandId && brands.find(b => b.id === damagedStockForm.brandId)?.categories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Quantité</label>
+                  <input 
+                    type="number"
+                    min="1"
+                    value={damagedStockForm.quantity || ''}
+                    onChange={e => setDamagedStockForm({...damagedStockForm, quantity: parseInt(e.target.value) || 0})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
+                    placeholder="0"
+                  />
+                </div>
+                {damagedStockForm.action === 'repair' && (
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Devient</label>
+                    <select 
+                      value={damagedStockForm.repairTo}
+                      onChange={e => setDamagedStockForm({...damagedStockForm, repairTo: e.target.value as any})}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
+                    >
+                      <option value="empty">Vides</option>
+                      <option value="full">Pleines</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onClick={() => setIsDamagedStockModalOpen(false)} className="px-6 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors">
+                  Annuler
+                </button>
+                <button type="submit" className={`px-8 py-3 text-white font-bold rounded-xl transition-colors shadow-sm ${damagedStockForm.action === 'declare' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'}`}>
+                  {damagedStockForm.action === 'declare' ? 'Déclarer' : 'Appliquer Retour'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
