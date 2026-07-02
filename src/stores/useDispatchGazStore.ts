@@ -371,7 +371,7 @@ interface DispatchGazState {
   updateStockSold: (driverId: string, brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
   validateStockDispatch: (id: string, returnedFull: number, returnedEmpty: number) => void;
   setGlobalStock: (items: GlobalStockItem[], historyItems?: GlobalStockHistoryItem[]) => void;
-  declareDamagedStock: (brandId: string, category: string, quantity: number, company: 'afro_negoce' | 'chakirine_gaz') => void;
+  declareDamagedStock: (brandId: string, category: string, quantity: number, company: 'afro_negoce' | 'chakirine_gaz', source: 'empty' | 'full') => void;
   repairDamagedStock: (brandId: string, category: string, quantity: number, type: 'full' | 'empty', company: 'afro_negoce' | 'chakirine_gaz') => void;
   dispatchToComptoir: (brandId: string, category: string, quantity: number, company?: 'afro_negoce' | 'chakirine_gaz') => void;
   updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean, company?: 'afro_negoce' | 'chakirine_gaz') => void;
@@ -767,10 +767,16 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         globalStock: items,
         ...(historyItems ? { globalStockHistory: [...historyItems, ...state.globalStockHistory] } : {}) 
       })),
-      declareDamagedStock: (brandId, category, quantity, company) => set((state) => {
+      declareDamagedStock: (brandId, category, quantity, company, source) => set((state) => {
         const newStock = state.globalStock.map(gs => {
-          if (gs.brandId === brandId && gs.category === category && gs.company === company && gs.empty >= quantity) {
-            return { ...gs, empty: gs.empty - quantity, damaged: (gs.damaged || 0) + quantity };
+          const gsCompany = gs.company || 'afro_negoce';
+          if (gs.brandId === brandId && gs.category === category && gsCompany === company) {
+            if (source === 'empty' && gs.empty >= quantity) {
+              return { ...gs, empty: gs.empty - quantity, damaged: (gs.damaged || 0) + quantity };
+            }
+            if (source === 'full' && gs.full >= quantity) {
+              return { ...gs, full: gs.full - quantity, damaged: (gs.damaged || 0) + quantity };
+            }
           }
           return gs;
         });
@@ -778,7 +784,8 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       }),
       repairDamagedStock: (brandId, category, quantity, type, company) => set((state) => {
         const newStock = state.globalStock.map(gs => {
-          if (gs.brandId === brandId && gs.category === category && gs.company === company && (gs.damaged || 0) >= quantity) {
+          const gsCompany = gs.company || 'afro_negoce';
+          if (gs.brandId === brandId && gs.category === category && gsCompany === company && (gs.damaged || 0) >= quantity) {
             return { 
               ...gs, 
               damaged: (gs.damaged || 0) - quantity,
@@ -792,14 +799,15 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       }),
       dispatchToComptoir: (brandId, category, quantity, company: 'afro_negoce' | 'chakirine_gaz' = 'afro_negoce') => set((state) => {
         const newGlobalStock = state.globalStock.map(gs => {
-          if (gs.brandId === brandId && gs.category === category && gs.company === company && gs.full >= quantity) {
+          const gsCompany = gs.company || 'afro_negoce';
+          if (gs.brandId === brandId && gs.category === category && gsCompany === company && gs.full >= quantity) {
             return { ...gs, full: gs.full - quantity };
           }
           return gs;
         });
 
         const newComptoir = [...state.comptoirStock];
-        const cIdx = newComptoir.findIndex(g => g.brandId === brandId && g.category === category && g.company === company);
+        const cIdx = newComptoir.findIndex(g => g.brandId === brandId && g.category === category && (g.company || 'afro_negoce') === company);
         if (cIdx > -1) {
           newComptoir[cIdx].full += quantity;
         } else {

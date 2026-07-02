@@ -16,7 +16,8 @@ export default function DispatchStockPage() {
     brandId: '',
     category: '',
     quantity: 0,
-    repairTo: 'empty' as 'empty' | 'full'
+    repairTo: 'empty' as 'empty' | 'full',
+    source: 'empty' as 'empty' | 'full'
   });
   const [globalStockForm, setGlobalStockForm] = useState<GlobalStockItem[]>(globalStock);
   const [formData, setFormData] = useState({
@@ -78,7 +79,7 @@ export default function DispatchStockPage() {
       const driverCompany = driver?.company || 'afro_negoce';
 
       validItems.forEach(item => {
-        const gs = globalStock.find(g => g.brandId === formData.brandId && g.category === item.category && g.company === driverCompany);
+        const gs = globalStock.find(g => g.brandId === formData.brandId && g.category === item.category && (g.company || 'afro_negoce') === driverCompany);
         if (!gs || gs.full < item.quantity) {
           insufficient = true;
           toast.error(`Stock global insuffisant pour ${item.category} (${driverCompany === 'chakirine_gaz' ? 'Chakirine' : 'Afro'})`);
@@ -123,7 +124,7 @@ export default function DispatchStockPage() {
       let insufficient = false;
       const comp = comptoirFormData.company || 'afro_negoce';
       validItems.forEach(item => {
-        const gs = globalStock.find(g => g.brandId === comptoirFormData.brandId && g.category === item.category && g.company === comp);
+        const gs = globalStock.find(g => g.brandId === comptoirFormData.brandId && g.category === item.category && (g.company || 'afro_negoce') === comp);
         if (!gs || gs.full < item.quantity) {
           insufficient = true;
           toast.error(`Stock global insuffisant pour ${item.category} (${comp === 'chakirine_gaz' ? 'Chakirine' : 'Afro'})`);
@@ -154,19 +155,19 @@ export default function DispatchStockPage() {
       return;
     }
 
-    const { action, company, brandId, category, quantity, repairTo } = damagedStockForm;
+    const { action, company, brandId, category, quantity, repairTo, source } = damagedStockForm;
     const store = useDispatchGazStore.getState();
 
     if (action === 'declare') {
-      const gs = store.globalStock.find(g => g.brandId === brandId && g.category === category && g.company === company);
-      if (!gs || gs.empty < quantity) {
-        toast.error("Stock vide insuffisant pour déclarer comme endommagé.");
+      const gs = store.globalStock.find(g => g.brandId === brandId && g.category === category && (g.company || 'afro_negoce') === company);
+      if (!gs || (source === 'empty' && gs.empty < quantity) || (source === 'full' && gs.full < quantity)) {
+        toast.error(`Stock ${source === 'empty' ? 'vide' : 'plein'} insuffisant pour déclarer comme endommagé.`);
         return;
       }
-      store.declareDamagedStock(brandId, category, quantity, company);
+      store.declareDamagedStock(brandId, category, quantity, company, source);
       toast.success("Stock déclaré comme endommagé.");
     } else {
-      const gs = store.globalStock.find(g => g.brandId === brandId && g.category === category && g.company === company);
+      const gs = store.globalStock.find(g => g.brandId === brandId && g.category === category && (g.company || 'afro_negoce') === company);
       if (!gs || (gs.damaged || 0) < quantity) {
         toast.error("Stock endommagé insuffisant pour la réparation.");
         return;
@@ -182,7 +183,8 @@ export default function DispatchStockPage() {
       brandId: '',
       category: '',
       quantity: 0,
-      repairTo: 'empty'
+      repairTo: 'empty',
+      source: 'empty'
     });
   };
 
@@ -1092,12 +1094,24 @@ export default function DispatchStockPage() {
                     placeholder="0"
                   />
                 </div>
-                {damagedStockForm.action === 'repair' && (
+                {damagedStockForm.action === 'repair' ? (
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Devient</label>
                     <select 
                       value={damagedStockForm.repairTo}
                       onChange={e => setDamagedStockForm({...damagedStockForm, repairTo: e.target.value as any})}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
+                    >
+                      <option value="empty">Vides</option>
+                      <option value="full">Pleines</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Source (Endommagé depuis)</label>
+                    <select 
+                      value={damagedStockForm.source}
+                      onChange={e => setDamagedStockForm({...damagedStockForm, source: e.target.value as any})}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-sm"
                     >
                       <option value="empty">Vides</option>
