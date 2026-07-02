@@ -3,9 +3,11 @@ import { useDispatchGazStore, GlobalStockItem } from '../../../../stores/useDisp
 import { Package, Plus, Truck, Calendar, AlertTriangle, CheckCircle2, QrCode, Trash2, Settings, ShieldCheck, Database, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function DispatchStockPage() {
-  const { drivers, brands, stockDispatches, dispatchStockBatch, pointages, globalStock, globalStockHistory, setGlobalStock, validateStockDispatch, dispatchToComptoir } = useDispatchGazStore();
+  const { drivers, brands, stockDispatches, dispatchStockBatch, pointages, globalStock, globalStockHistory, setGlobalStock, validateStockDispatch, dispatchToComptoir, stockActivities } = useDispatchGazStore();
   const [isDispatching, setIsDispatching] = useState(false);
   const [isDispatchingComptoir, setIsDispatchingComptoir] = useState(false);
   const [isSettingGlobal, setIsSettingGlobal] = useState(false);
@@ -90,17 +92,31 @@ export default function DispatchStockPage() {
 
       const fullBrand = brands.find(b => b.id === formData.brandId);
       if (fullBrand) {
-        const dispatchesToBatch = validItems.map(item => ({
-          id: nanoid(),
-          date: new Date().toISOString(),
-          driverId: formData.driverId,
-          brandId: formData.brandId,
-          category: item.category,
-          quantity: item.quantity,
-          sold: 0,
-          soldConsigned: 0,
-          isValidated: false
-        }));
+        const dispatchesToBatch = validItems.map(item => {
+          const driver = drivers.find(d => d.id === formData.driverId);
+          const comp = driver?.company || 'afro_negoce';
+          
+          useDispatchGazStore.getState().addStockActivity({
+            action: 'dispatch_driver',
+            company: comp,
+            brandId: formData.brandId,
+            category: item.category,
+            quantityFull: item.quantity,
+            description: `Affectation à ${driver?.prenom} ${driver?.nom}`
+          });
+          
+          return {
+            id: nanoid(),
+            date: new Date().toISOString(),
+            driverId: formData.driverId,
+            brandId: formData.brandId,
+            category: item.category,
+            quantity: item.quantity,
+            sold: 0,
+            soldConsigned: 0,
+            isValidated: false
+          };
+        });
         
         dispatchStockBatch(dispatchesToBatch);
       }
@@ -137,6 +153,15 @@ export default function DispatchStockPage() {
       if (fullBrand) {
         validItems.forEach(item => {
           dispatchToComptoir(comptoirFormData.brandId, item.category, item.quantity, comp);
+          
+          useDispatchGazStore.getState().addStockActivity({
+            action: 'dispatch_comptoir',
+            company: comp,
+            brandId: comptoirFormData.brandId,
+            category: item.category,
+            quantityFull: item.quantity,
+            description: `Affectation Comptoir`
+          });
         });
       }
 
@@ -165,6 +190,16 @@ export default function DispatchStockPage() {
         return;
       }
       store.declareDamagedStock(brandId, category, quantity, company, source);
+      
+      store.addStockActivity({
+        action: 'declare_damaged',
+        company,
+        brandId,
+        category,
+        quantityDamaged: quantity,
+        description: `Déclaration Endommagé depuis ${source === 'empty' ? 'Vide' : 'Plein'}`
+      });
+      
       toast.success("Stock déclaré comme endommagé.");
     } else {
       const gs = store.globalStock.find(g => g.brandId === brandId && g.category === category && (g.company || 'afro_negoce') === company);
@@ -173,6 +208,16 @@ export default function DispatchStockPage() {
         return;
       }
       store.repairDamagedStock(brandId, category, quantity, repairTo, company);
+      
+      store.addStockActivity({
+        action: 'repair_damaged',
+        company,
+        brandId,
+        category,
+        [repairTo === 'empty' ? 'quantityEmpty' : 'quantityFull']: quantity,
+        description: `Réparation / Remplacement vers ${repairTo === 'empty' ? 'Vide' : 'Plein'}`
+      });
+      
       toast.success("Stock endommagé restauré/réparé.");
     }
 
@@ -199,7 +244,7 @@ export default function DispatchStockPage() {
     const date = new Date().toISOString();
 
     const newGlobalStock = globalStock.map((item, idx) => {
-      const delta = globalStockForm.find(g => g.brandId === item.brandId && g.category === item.category);
+      const delta = globalStockForm.find(g => g.brandId === item.brandId && g.category === item.category && g.company === item.company);
       if (delta && (delta.full || delta.empty)) {
         historyItems.push({
           id: nanoid(),
@@ -207,8 +252,20 @@ export default function DispatchStockPage() {
           brandId: item.brandId,
           category: item.category,
           deltaFull: delta.full || 0,
-          deltaEmpty: delta.empty || 0
+          deltaEmpty: delta.empty || 0,
+          company: item.company || 'afro_negoce'
         });
+        
+        useDispatchGazStore.getState().addStockActivity({
+          action: 'set_global',
+          company: item.company || 'afro_negoce',
+          brandId: item.brandId,
+          category: item.category,
+          quantityFull: delta.full || 0,
+          quantityEmpty: delta.empty || 0,
+          description: `Ajustement Manuel Stock Global`
+        });
+
         return {
           ...item,
           full: Math.max(0, item.full + (delta.full || 0)),
@@ -232,6 +289,98 @@ export default function DispatchStockPage() {
     }
     validateStockDispatch(dispatchId, data.returnedFull, data.returnedEmpty);
     toast.success("Validation effectuée.");
+  };
+
+  const generateStockCheckupReport = () => {
+    const doc = new jsPDF();
+    const todayStr = getLocalDateStr();
+    
+    // Filter activities for today
+    const activitiesToday = stockActivities.filter(a => a.date.includes(todayStr) || a.date.includes(new Date().toISOString().split('T')[0]));
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Rapport Stock Checkup`, 14, 22);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text(`Date du rapport: ${new Date().toLocaleString()}`, 14, 30);
+    
+    // Summary of activities
+    const tableBody = activitiesToday.map(a => {
+      const brand = brands.find(b => b.id === a.brandId)?.name || a.brandId || '-';
+      const time = new Date(a.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const quantityStr = [];
+      if (a.quantityFull) quantityStr.push(`${a.quantityFull} Pl`);
+      if (a.quantityEmpty) quantityStr.push(`${a.quantityEmpty} Vd`);
+      if (a.quantityDamaged) quantityStr.push(`${a.quantityDamaged} Endm`);
+      
+      const company = a.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
+      
+      let actionStr = a.action;
+      if (a.action === 'set_global') actionStr = 'Ajustement Global';
+      if (a.action === 'dispatch_driver') actionStr = 'Affectation Chauffeur';
+      if (a.action === 'dispatch_comptoir') actionStr = 'Affectation Comptoir';
+      if (a.action === 'return_driver') actionStr = 'Retour Chauffeur';
+      if (a.action === 'declare_damaged') actionStr = 'Déclaration Endommagé';
+      if (a.action === 'repair_damaged') actionStr = 'Réparation Endommagé';
+
+      return [
+        time,
+        actionStr,
+        company,
+        `${brand} - ${a.category || '-'}`,
+        quantityStr.join(', '),
+        a.description || '-'
+      ];
+    });
+
+    if (tableBody.length > 0) {
+      autoTable(doc, {
+        startY: 40,
+        head: [['Heure', 'Action', 'Société', 'Produit', 'Quantité', 'Description']],
+        body: tableBody,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42], fontSize: 8 },
+        styles: { fontSize: 7, cellPadding: 2 }
+      });
+    } else {
+      doc.setFontSize(10);
+      doc.setTextColor(50);
+      doc.text("Aucune activité de stock enregistrée aujourd'hui.", 14, 45);
+    }
+    
+    // Current Global Stock state
+    const finalY = (doc as any).lastAutoTable?.finalY || 50;
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.setFont('helvetica', 'bold');
+    doc.text("État du Stock Global (Actuel)", 14, finalY + 15);
+    
+    const stockBody = globalStock.map(gs => {
+      const brand = brands.find(b => b.id === gs.brandId)?.name || gs.brandId;
+      const company = gs.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
+      return [
+        company,
+        brand,
+        gs.category,
+        gs.full.toString(),
+        gs.empty.toString(),
+        (gs.damaged || 0).toString()
+      ];
+    });
+
+    autoTable(doc, {
+      startY: finalY + 20,
+      head: [['Société', 'Marque', 'Catégorie', 'Pleines', 'Vides', 'Endommagées']],
+      body: stockBody,
+      theme: 'grid',
+      headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 2 }
+    });
+    
+    doc.save(`stock-checkup-${todayStr}.pdf`);
   };
 
   const selectedBrand = brands.find(b => b.id === formData.brandId);
@@ -283,6 +432,13 @@ export default function DispatchStockPage() {
           Gestion des Stocks GPL
         </h1>
         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
+          <button 
+            onClick={generateStockCheckupReport}
+            className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl font-bold hover:bg-emerald-200 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <History className="w-5 h-5" />
+            Stock Checkup
+          </button>
           <button 
             onClick={() => setIsDamagedStockModalOpen(true)}
             className="bg-rose-100 text-rose-700 px-4 py-2 rounded-xl font-bold hover:bg-rose-200 transition-colors flex items-center gap-2 shadow-sm"
@@ -545,11 +701,16 @@ export default function DispatchStockPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {globalStockForm.map((item, idx) => {
                 const brand = brands.find(b => b.id === item.brandId);
+                const companyName = item.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro Négoce';
+                const actualStock = globalStock.find(g => g.brandId === item.brandId && g.category === item.category && g.company === item.company);
                 return (
-                  <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                    <div className="flex justify-between items-center">
+                  <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-slate-200 text-slate-600 px-2 py-1 text-[10px] font-black uppercase rounded-bl-lg">
+                      {companyName}
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
                       <div className="font-bold text-slate-900">{brand?.name} - {item.category}</div>
-                      <div className="text-xs font-medium text-slate-500">Actuel: {globalStock.find(g => g.brandId === item.brandId && g.category === item.category)?.full} Pl / {globalStock.find(g => g.brandId === item.brandId && g.category === item.category)?.empty} Vd</div>
+                      <div className="text-xs font-medium text-slate-500">Actuel: {actualStock?.full || 0} Pl / {actualStock?.empty || 0} Vd</div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -1008,6 +1169,72 @@ export default function DispatchStockPage() {
               {pendingValidations.length === 0 && (
                 <tr>
                   <td colSpan={4} className="p-12 text-center text-slate-500 bg-slate-50 font-medium">Tous les retours ont été validés.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Stock Checkup Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-emerald-50">
+          <h2 className="text-lg font-bold text-emerald-900 flex items-center gap-2">
+            <History className="w-5 h-5 text-emerald-600" />
+            Stock Checkup (Aujourd'hui)
+          </h2>
+          <button 
+            onClick={generateStockCheckupReport}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            Exporter PDF
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-medium">
+                <th className="p-4">Heure</th>
+                <th className="p-4">Action</th>
+                <th className="p-4">Société</th>
+                <th className="p-4">Produit</th>
+                <th className="p-4">Quantité</th>
+                <th className="p-4">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stockActivities.filter(a => a.date.includes(todayStr) || a.date.includes(new Date().toISOString().split('T')[0])).map(a => {
+                const brand = brands.find(b => b.id === a.brandId)?.name || a.brandId || '-';
+                const time = new Date(a.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const quantityStr = [];
+                if (a.quantityFull) quantityStr.push(`${a.quantityFull} Pl`);
+                if (a.quantityEmpty) quantityStr.push(`${a.quantityEmpty} Vd`);
+                if (a.quantityDamaged) quantityStr.push(`${a.quantityDamaged} Endm`);
+                
+                const company = a.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
+                
+                let actionStr = a.action;
+                if (a.action === 'set_global') actionStr = 'Ajustement Global';
+                if (a.action === 'dispatch_driver') actionStr = 'Affectation Chauffeur';
+                if (a.action === 'dispatch_comptoir') actionStr = 'Affectation Comptoir';
+                if (a.action === 'return_driver') actionStr = 'Retour Chauffeur';
+                if (a.action === 'declare_damaged') actionStr = 'Déclaration Endommagé';
+                if (a.action === 'repair_damaged') actionStr = 'Réparation Endommagé';
+
+                return (
+                  <tr key={a.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="p-4 text-slate-500 font-mono text-xs">{time}</td>
+                    <td className="p-4 font-bold text-slate-700">{actionStr}</td>
+                    <td className="p-4 font-medium text-slate-600">{company}</td>
+                    <td className="p-4 font-bold text-blue-700">{brand} - {a.category || '-'}</td>
+                    <td className="p-4 font-medium text-slate-700">{quantityStr.join(', ') || '-'}</td>
+                    <td className="p-4 text-slate-500">{a.description || '-'}</td>
+                  </tr>
+                );
+              })}
+              {stockActivities.filter(a => a.date.includes(todayStr) || a.date.includes(new Date().toISOString().split('T')[0])).length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500 bg-slate-50 font-medium">Aucune activité enregistrée aujourd'hui.</td>
                 </tr>
               )}
             </tbody>

@@ -182,6 +182,19 @@ export interface GlobalStockHistoryItem {
   company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
+export interface StockActivityLog {
+  id: string;
+  date: string;
+  action: 'set_global' | 'dispatch_driver' | 'dispatch_comptoir' | 'return_driver' | 'declare_damaged' | 'repair_damaged';
+  company: 'afro_negoce' | 'chakirine_gaz';
+  brandId?: string;
+  category?: string;
+  quantityFull?: number;
+  quantityEmpty?: number;
+  quantityDamaged?: number;
+  description?: string;
+}
+
 export interface GPLConfig {
   consignationPrices: {
     [brandId: string]: {
@@ -323,6 +336,7 @@ interface DispatchGazState {
   commandes?: GazCommande[];
   comptaDocuments?: ComptaDocument[];
   standardCalls: StandardCall[];
+  stockActivities: StockActivityLog[];
   gpsError: string | null;
 
   // Actions
@@ -376,6 +390,7 @@ interface DispatchGazState {
   dispatchToComptoir: (brandId: string, category: string, quantity: number, company?: 'afro_negoce' | 'chakirine_gaz') => void;
   updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean, company?: 'afro_negoce' | 'chakirine_gaz') => void;
   updateGPLConfig: (config: GPLConfig) => void;
+  addStockActivity: (activity: Omit<StockActivityLog, 'id' | 'date'>) => void;
 
   updateTruckLocation: (location: TruckLocation) => void;
   addLocationHistoryItem: (item: Omit<LocationHistoryItem, 'id'>) => void;
@@ -465,6 +480,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { brandId: 'b1', category: '34Kg', full: 40, empty: 15, company: 'chakirine_gaz' }
       ] as GlobalStockItem[],
       globalStockHistory: [],
+      stockActivities: [],
       comptoirStock: [
         { brandId: 'b1', category: '3Kg', full: 20, empty: 10, company: 'afro_negoce' },
         { brandId: 'b1', category: '12Kg', full: 40, empty: 15, company: 'afro_negoce' },
@@ -760,7 +776,23 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           return sd;
         });
 
-        return { stockDispatches: newStockDispatches, globalStock: newGlobalStock };
+        const newActivity: StockActivityLog = {
+          id: Date.now().toString() + Math.random(),
+          date: new Date().toISOString(),
+          action: 'return_driver',
+          company: driverCompany,
+          brandId: dispatch.brandId,
+          category: dispatch.category,
+          quantityFull: returnedFull,
+          quantityEmpty: returnedEmpty,
+          description: `Validation retour ${driver?.prenom} ${driver?.nom}`
+        };
+
+        return { 
+          stockDispatches: newStockDispatches, 
+          globalStock: newGlobalStock,
+          stockActivities: [newActivity, ...(state.stockActivities || [])]
+        };
       }),
 
       setGlobalStock: (items, historyItems) => set((state) => ({ 
@@ -963,6 +995,9 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       })),
       deleteCaisseAlimentation: (id) => set((state) => ({
         caisseAlimentations: (state.caisseAlimentations || []).filter(a => a.id !== id)
+      })),
+      addStockActivity: (activity) => set((state) => ({
+        stockActivities: [{ ...activity, id: Date.now().toString(), date: new Date().toISOString() }, ...(state.stockActivities || [])]
       })),
       resetData: () => set((state) => {
         const newGlobalStock = state.globalStock.map(gs => ({
