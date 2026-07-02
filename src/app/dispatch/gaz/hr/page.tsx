@@ -123,6 +123,10 @@ export default function DispatchHRPage() {
       return;
     }
     
+    // Company properties
+    const compName = selectedDriver.company === 'chakirine_gaz' ? 'CHAKIRINE GAZ' : 'STE. AFRO NÉGOCE';
+    const compCnssNum = selectedDriver.company === 'chakirine_gaz' ? '8425163' : '9764251';
+
     // Calculations
     const totalCommission = payrollData.totalCommission;
     const SMIG = 3422.72;
@@ -148,12 +152,12 @@ export default function DispatchHRPage() {
         <table width="100%" style="margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px;">
           <tr>
             <td>
-              <h1 style="font-size: 18px; margin: 0;">GOCE SARL</h1>
+              <h1 style="font-size: 18px; margin: 0;">${compName}</h1>
               <p style="font-size: 12px; margin: 0; color: #666;">NZARANE SAADA</p>
             </td>
             <td style="text-align: right;">
               <h1 style="font-size: 18px; margin: 0;">BULLETIN DE PAIE</h1>
-              <p style="font-size: 12px; margin: 0; color: #666;">N° CNSS Employeur: 9764251</p>
+              <p style="font-size: 12px; margin: 0; color: #666;">N° CNSS Employeur: ${compCnssNum}</p>
               <p style="font-size: 12px; margin: 0; color: #666;">Période: 01/${monthNum.toString().padStart(2, '0')}/${yearNum} au ${lastDay.toString().padStart(2, '0')}/${monthNum.toString().padStart(2, '0')}/${yearNum}</p>
             </td>
           </tr>
@@ -273,6 +277,10 @@ export default function DispatchHRPage() {
       return;
     }
     
+    // Company properties
+    const compName = selectedDriver.company === 'chakirine_gaz' ? 'CHAKIRINE GAZ' : 'STE. AFRO NÉGOCE';
+    const compCnssNum = selectedDriver.company === 'chakirine_gaz' ? '8425163' : '9764251';
+
     const doc = new jsPDF();
     const yearNum = parseInt(month.split('-')[0]);
     const monthNum = parseInt(month.split('-')[1]);
@@ -284,7 +292,7 @@ export default function DispatchHRPage() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42); // slate 900
-    doc.text('GOCE SARL', 14, 18);
+    doc.text(compName, 14, 18);
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
@@ -302,7 +310,7 @@ export default function DispatchHRPage() {
     doc.setFontSize(8.5);
     doc.setTextColor(51, 65, 85);
     doc.text('N° CNSS', 130, 24);
-    doc.text('9764251', 196, 24, { align: 'right' });
+    doc.text(compCnssNum, 196, 24, { align: 'right' });
     doc.text('Période de paie du', 130, 29);
     doc.text(formattedStart, 196, 29, { align: 'right' });
     doc.text('Période de paie au', 130, 34);
@@ -561,7 +569,7 @@ export default function DispatchHRPage() {
     doc.setFontSize(8.5);
     doc.setTextColor(100);
     doc.text('Mode de paiement : VIREMENT CHEZ COMPTE AGENCE', 14, finalCumulY + 12);
-    doc.text('Licence accordée à : STE GOCE SARL', 14, finalCumulY + 17);
+    doc.text(`Licence accordée à : ${selectedDriver.company === 'chakirine_gaz' ? 'STE CHAKIRINE GAZ' : 'STE AFRO NÉGOCE'}`, 14, finalCumulY + 17);
     
     // Center signature area
     doc.setFont('helvetica', 'bold');
@@ -811,7 +819,9 @@ export default function DispatchHRPage() {
                   >
                     <option value="">Sélectionner un chauffeur...</option>
                     {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>
+                      <option key={d.id} value={d.id}>
+                        {d.prenom} {d.nom} ({d.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Afro Négoce'})
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -848,6 +858,14 @@ export default function DispatchHRPage() {
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4">Informations Chauffeur</h3>
                 <div className="space-y-3 text-sm">
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-slate-500">Société Affiliée</span>
+                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded ${
+                      selectedDriver.company === 'chakirine_gaz' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {selectedDriver.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Ste. Afro Négoce'}
+                    </span>
+                  </div>
                   <div className="flex justify-between border-b pb-2">
                     <span className="text-slate-500">Nom complet</span>
                     <span className="font-medium text-slate-900">{selectedDriver.prenom} {selectedDriver.nom}</span>

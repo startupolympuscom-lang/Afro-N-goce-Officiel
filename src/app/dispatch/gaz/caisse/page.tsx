@@ -99,6 +99,8 @@ export default function DispatchCaissePage() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  const [selectedCompany, setSelectedCompany] = useState<'afro_negoce' | 'chakirine_gaz'>('afro_negoce');
+
   const salesToday = useMemo(() => {
     return sales.filter(s => s.date.startsWith(today));
   }, [sales, today]);
@@ -111,54 +113,97 @@ export default function DispatchCaissePage() {
     return (caisseAlimentations || []).filter(a => a.date.startsWith(today) || a.date === today);
   }, [caisseAlimentations, today]);
 
-  const totalSalesEntrees = useMemo(() => {
-    return salesToday.reduce((sum, s) => {
-      if (s.status === 'non payé') return sum;
-      return sum + s.totalPrice;
-    }, 0);
-  }, [salesToday]);
-
-  const totalAlimentations = useMemo(() => {
-    return alimentationsToday.reduce((sum, a) => sum + a.amount, 0);
-  }, [alimentationsToday]);
-
-  const totalPretsToday = useMemo(() => {
-    return alimentationsToday
-      .filter(a => a.type === 'pret')
-      .reduce((sum, a) => sum + a.amount, 0);
-  }, [alimentationsToday]);
-
-  const totalAlimentationsNormalToday = useMemo(() => {
-    return alimentationsToday
-      .filter(a => a.type !== 'pret')
-      .reduce((sum, a) => sum + a.amount, 0);
-  }, [alimentationsToday]);
-
-  const totalEntrees = totalSalesEntrees + totalAlimentations;
-  const totalSorties = expensesToday.reduce((sum, e) => sum + e.amount, 0);
-  const solde = totalEntrees - totalSorties;
-
-  // Track transfers of today
   const transfersToday = useMemo(() => {
     return (caisseTransfers || []).filter(t => t.date.startsWith(today));
   }, [caisseTransfers, today]);
 
-  const totalTransferredSecuritaireToday = useMemo(() => {
-    return transfersToday.filter(t => t.toAccount === 'securitaire').reduce((sum, t) => sum + t.amount, 0);
-  }, [transfersToday]);
+  // Company Specific Filtering
+  const salesTodayCompany = useMemo(() => {
+    return salesToday.filter(s => {
+      const driver = drivers.find(d => d.id === s.driverId);
+      const saleCompany = s.company || driver?.company || 'afro_negoce';
+      return saleCompany === selectedCompany;
+    });
+  }, [salesToday, drivers, selectedCompany]);
 
-  const totalTransferredNoirToday = useMemo(() => {
-    return transfersToday.filter(t => t.toAccount === 'noir').reduce((sum, t) => sum + t.amount, 0);
-  }, [transfersToday]);
+  const expensesTodayCompany = useMemo(() => {
+    return expensesToday.filter(e => {
+      const driver = drivers.find(d => d.id === e.driverId);
+      const expCompany = driver?.company || 'afro_negoce';
+      return expCompany === selectedCompany;
+    });
+  }, [expensesToday, drivers, selectedCompany]);
 
-  const totalTransferredToday = totalTransferredSecuritaireToday + totalTransferredNoirToday;
-  const soldeDisponible = solde - totalTransferredToday;
+  const alimentationsTodayCompany = useMemo(() => {
+    return alimentationsToday.filter(a => {
+      const alCompany = a.company || 'afro_negoce';
+      return alCompany === selectedCompany;
+    });
+  }, [alimentationsToday, selectedCompany]);
+
+  const transfersTodayCompany = useMemo(() => {
+    return transfersToday.filter(t => {
+      const trCompany = t.company || 'afro_negoce';
+      return trCompany === selectedCompany;
+    });
+  }, [transfersToday, selectedCompany]);
+
+  // Company Specific Calculations
+  const totalSalesEntreesCompany = useMemo(() => {
+    return salesTodayCompany.reduce((sum, s) => {
+      if (s.status === 'non payé') return sum;
+      return sum + s.totalPrice;
+    }, 0);
+  }, [salesTodayCompany]);
+
+  const totalAlimentationsCompany = useMemo(() => {
+    return alimentationsTodayCompany.reduce((sum, a) => sum + a.amount, 0);
+  }, [alimentationsTodayCompany]);
+
+  const totalPretsTodayCompany = useMemo(() => {
+    return alimentationsTodayCompany
+      .filter(a => a.type === 'pret')
+      .reduce((sum, a) => sum + a.amount, 0);
+  }, [alimentationsTodayCompany]);
+
+  const totalAlimentationsNormalTodayCompany = useMemo(() => {
+    return alimentationsTodayCompany
+      .filter(a => a.type !== 'pret')
+      .reduce((sum, a) => sum + a.amount, 0);
+  }, [alimentationsTodayCompany]);
+
+  const totalEntreesCompany = totalSalesEntreesCompany + totalAlimentationsCompany;
+  const totalSortiesCompany = expensesTodayCompany.reduce((sum, e) => sum + e.amount, 0);
+  const soldeCompany = totalEntreesCompany - totalSortiesCompany;
+
+  const totalTransferredSecuritaireTodayCompany = useMemo(() => {
+    return transfersTodayCompany.filter(t => t.toAccount === 'securitaire').reduce((sum, t) => sum + t.amount, 0);
+  }, [transfersTodayCompany]);
+
+  const totalTransferredNoirTodayCompany = useMemo(() => {
+    return transfersTodayCompany.filter(t => t.toAccount === 'noir').reduce((sum, t) => sum + t.amount, 0);
+  }, [transfersTodayCompany]);
+
+  const totalTransferredTodayCompany = totalTransferredSecuritaireTodayCompany + totalTransferredNoirTodayCompany;
+  const soldeDisponibleCompany = soldeCompany - totalTransferredTodayCompany;
+
+  const caisseSecuritaireCompany = useMemo(() => {
+    return (caisseTransfers || [])
+      .filter(t => (t.company || 'afro_negoce') === selectedCompany && t.toAccount === 'securitaire')
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [caisseTransfers, selectedCompany]);
+
+  const caisseNoirCompany = useMemo(() => {
+    return (caisseTransfers || [])
+      .filter(t => (t.company || 'afro_negoce') === selectedCompany && t.toAccount === 'noir')
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [caisseTransfers, selectedCompany]);
 
   // Group sales by driver
   const salesByDriver = useMemo(() => {
     const grouped: Record<string, { driverName: string, total: number, sales: any[] }> = {};
     
-    salesToday.forEach(sale => {
+    salesTodayCompany.forEach(sale => {
       if (!grouped[sale.driverId]) {
         const driver = drivers.find(d => d.id === sale.driverId);
         grouped[sale.driverId] = {
@@ -174,15 +219,16 @@ export default function DispatchCaissePage() {
     });
     
     return Object.entries(grouped);
-  }, [salesToday, drivers]);
+  }, [salesTodayCompany, drivers]);
 
   const generatePDF = () => {
     const doc = new jsPDF();
     const now = new Date().toLocaleString();
+    const companyTitle = selectedCompany === 'chakirine_gaz' ? 'CHAKIRINE GAZ' : 'STE. AFRO NÉGOCE';
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('AFRO NÉGOCE - Rapport de Caisse', 14, 22);
+    doc.text(`${companyTitle} - Rapport de Caisse`, 14, 22);
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
@@ -199,14 +245,14 @@ export default function DispatchCaissePage() {
       startY: 55,
       head: [['Désignation', 'Montant (MAD)']],
       body: [
-        ['Total Ventes du jour (Entrées)', totalSalesEntrees.toLocaleString() + ' MAD'],
-        ['Total Alimentations (Hors-ventes)', totalAlimentations.toLocaleString() + ' MAD'],
-        ['Total Brut Entré de Caisse', totalEntrees.toLocaleString() + ' MAD'],
-        ['Total Sorties (Dépenses)', totalSorties.toLocaleString() + ' MAD'],
-        ['Allocation Caisse Sécuritaire (aujourd\'hui)', totalTransferredSecuritaireToday.toLocaleString() + ' MAD'],
-        ['Allocation Caisse Noir (aujourd\'hui)', totalTransferredNoirToday.toLocaleString() + ' MAD'],
-        ['CASH DISPONIBLE EN CAISSE (Solde Principal)', soldeDisponible.toLocaleString() + ' MAD'],
-        ['SOLDE GLOBAL BRUT', solde.toLocaleString() + ' MAD'],
+        ['Total Ventes du jour (Entrées)', totalSalesEntreesCompany.toLocaleString() + ' MAD'],
+        ['Total Alimentations (Hors-ventes)', totalAlimentationsCompany.toLocaleString() + ' MAD'],
+        ['Total Brut Entré de Caisse', totalEntreesCompany.toLocaleString() + ' MAD'],
+        ['Total Sorties (Dépenses)', totalSortiesCompany.toLocaleString() + ' MAD'],
+        ['Allocation Caisse Sécuritaire (aujourd\'hui)', totalTransferredSecuritaireTodayCompany.toLocaleString() + ' MAD'],
+        ['Allocation Caisse Noir (aujourd\'hui)', totalTransferredNoirTodayCompany.toLocaleString() + ' MAD'],
+        ['CASH DISPONIBLE EN CAISSE (Solde Principal)', soldeDisponibleCompany.toLocaleString() + ' MAD'],
+        ['SOLDE GLOBAL BRUT', soldeCompany.toLocaleString() + ' MAD'],
       ],
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], fontSize: 9 },
@@ -217,7 +263,7 @@ export default function DispatchCaissePage() {
     const salesTableY = (doc as any).lastAutoTable.finalY + 15;
     doc.text('Journal Détaillé des Ventes', 14, salesTableY);
     
-    const detailedSalesBody = salesToday.map(s => {
+    const detailedSalesBody = salesTodayCompany.map(s => {
       const driver = drivers.find(d => d.id === s.driverId);
       const brand = brands.find(b => b.id === s.brandId);
       const client = clients.find(c => c.id === s.clientId);
@@ -241,12 +287,12 @@ export default function DispatchCaissePage() {
     });
 
     // Expenses section
-    if (expensesToday.length > 0) {
+    if (expensesTodayCompany.length > 0) {
       const expTableY = (doc as any).lastAutoTable.finalY + 15;
       if (expTableY > 250) doc.addPage();
       
       doc.text('Détail des Sorties de Caisse', 14, expTableY > 250 ? 22 : expTableY);
-      const expensesBody = expensesToday.map(e => {
+      const expensesBody = expensesTodayCompany.map(e => {
         const driver = drivers.find(d => d.id === e.driverId);
         return [
           new Date(e.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -278,7 +324,7 @@ export default function DispatchCaissePage() {
     doc.text('Signature Responsable', 140, signAreaY);
     doc.line(140, signAreaY + 2, 186, signAreaY + 2);
 
-    doc.save(`rapport-caisse-${today}.pdf`);
+    doc.save(`rapport-caisse-${selectedCompany === 'chakirine_gaz' ? 'chakirine' : 'afro'}-${today}.pdf`);
   };
 
   const handleAddExpense = (e: React.FormEvent) => {
@@ -308,8 +354,8 @@ export default function DispatchCaissePage() {
       toast.error("Veuillez saisir un montant de transfert valide.");
       return;
     }
-    if (amountVal > soldeDisponible) {
-      toast.error("Le montant du transfert dépasse le cash disponible.");
+    if (amountVal > soldeDisponibleCompany) {
+      toast.error("Le montant du transfert dépasse le cash disponible pour cette société.");
       return;
     }
 
@@ -318,7 +364,8 @@ export default function DispatchCaissePage() {
       date: new Date().toISOString(),
       amount: amountVal,
       toAccount: transferData.toAccount,
-      reason: transferData.reason.trim() || (transferData.toAccount === 'securitaire' ? 'Ventilation Caisse Sécuritaire' : 'Ventilation Caisse Noir')
+      reason: transferData.reason.trim() || (transferData.toAccount === 'securitaire' ? 'Ventilation Caisse Sécuritaire' : 'Ventilation Caisse Noir'),
+      company: selectedCompany
     });
     
     setIsAddingTransfer(false);
@@ -344,7 +391,8 @@ export default function DispatchCaissePage() {
       amount: amountVal,
       byWhom: alimentationData.byWhom.trim(),
       reason: alimentationData.reason.trim() || (alimentationData.type === 'pret' ? 'Prêt reçu (Emprunt)' : 'Alimentation de Caisse (Hors-vente)'),
-      type: alimentationData.type || 'normal'
+      type: alimentationData.type || 'normal',
+      company: selectedCompany
     });
 
     setIsAddingAlimentation(false);
@@ -423,6 +471,30 @@ export default function DispatchCaissePage() {
         </div>
       </div>
 
+      {/* Company Selector segment */}
+      <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full max-w-md border border-slate-200/50">
+        <button
+          onClick={() => setSelectedCompany('afro_negoce')}
+          className={`flex-1 py-3 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+            selectedCompany === 'afro_negoce'
+              ? 'bg-blue-650 text-white shadow-lg'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Ste. Afro Négoce
+        </button>
+        <button
+          onClick={() => setSelectedCompany('chakirine_gaz')}
+          className={`flex-1 py-3 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+            selectedCompany === 'chakirine_gaz'
+              ? 'bg-amber-500 text-white shadow-lg'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Chakirine Gaz
+        </button>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
@@ -436,20 +508,20 @@ export default function DispatchCaissePage() {
                 <ArrowDownRight className="w-4 h-4 text-emerald-600" />
               </div>
             </div>
-            <p className="text-xl font-black text-slate-900 mb-2">{totalEntrees.toLocaleString()} MAD</p>
+            <p className="text-xl font-black text-slate-900 mb-2">{totalEntreesCompany.toLocaleString()} MAD</p>
           </div>
           <div className="border-t border-slate-100 pt-2 text-[10px] font-bold text-slate-500 space-y-1 relative z-10">
             <div className="flex justify-between">
               <span>Ventes Chauffeurs :</span>
-              <span className="text-slate-800">{totalSalesEntrees.toLocaleString()} MAD</span>
+              <span className="text-slate-800">{totalSalesEntreesCompany.toLocaleString()} MAD</span>
             </div>
             <div className="flex justify-between">
               <span>Alimentations Std :</span>
-              <span className="text-emerald-600">+{totalAlimentationsNormalToday.toLocaleString()} MAD</span>
+              <span className="text-emerald-600">+{totalAlimentationsNormalTodayCompany.toLocaleString()} MAD</span>
             </div>
             <div className="flex justify-between text-amber-600">
               <span>Prêts (Emprunts) :</span>
-              <span>+{totalPretsToday.toLocaleString()} MAD</span>
+              <span>+{totalPretsTodayCompany.toLocaleString()} MAD</span>
             </div>
           </div>
         </div>
@@ -464,9 +536,9 @@ export default function DispatchCaissePage() {
                 <ArrowUpRight className="w-4 h-4 text-red-600" />
               </div>
             </div>
-            <p className="text-xl font-black text-slate-900 mb-2">{totalSorties.toLocaleString()} MAD</p>
+            <p className="text-xl font-black text-slate-900 mb-2">{totalSortiesCompany.toLocaleString()} MAD</p>
           </div>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest relative z-10">{expensesToday.length} opérations</p>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest relative z-10">{expensesTodayCompany.length} opérations</p>
         </div>
         <div className="bg-white p-6 rounded-[2rem] border border-emerald-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-emerald-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
@@ -479,16 +551,16 @@ export default function DispatchCaissePage() {
                 <Wallet className="w-4 h-4 text-emerald-600" />
               </div>
             </div>
-            <p className="text-xl font-black text-emerald-900 relative z-10">{soldeDisponible.toLocaleString()} MAD</p>
+            <p className="text-xl font-black text-emerald-900 relative z-10">{soldeDisponibleCompany.toLocaleString()} MAD</p>
           </div>
           <div className="border-t border-emerald-100 pt-2 text-[10px] font-bold text-emerald-700/80 space-y-1 relative z-10 mt-3">
             <div className="flex justify-between">
               <span>Propres (Ventes+Alim Std) :</span>
-              <span className="text-emerald-900">{(soldeDisponible - totalPretsToday).toLocaleString()} MAD</span>
+              <span className="text-emerald-900">{(soldeDisponibleCompany - totalPretsTodayCompany).toLocaleString()} MAD</span>
             </div>
             <div className="flex justify-between items-center text-amber-600">
               <span>⚠️ Prêts à rembourser :</span>
-              <span>{totalPretsToday.toLocaleString()} MAD</span>
+              <span>{totalPretsTodayCompany.toLocaleString()} MAD</span>
             </div>
           </div>
         </div>
@@ -503,7 +575,7 @@ export default function DispatchCaissePage() {
             </div>
           </div>
           <div>
-            <p className="text-xl font-black text-indigo-900 relative z-10">{(caisseSecuritaire || 0).toLocaleString()} MAD</p>
+            <p className="text-xl font-black text-indigo-900 relative z-10">{(caisseSecuritaireCompany || 0).toLocaleString()} MAD</p>
             <p className="text-[10px] text-slate-500 font-medium relative z-10 mt-1">Fonds de sécurité cumulé</p>
           </div>
         </div>
@@ -518,7 +590,7 @@ export default function DispatchCaissePage() {
             </div>
           </div>
           <div>
-            <p className="text-xl font-black text-purple-900 relative z-10">{(caisseNoir || 0).toLocaleString()} MAD</p>
+            <p className="text-xl font-black text-purple-900 relative z-10">{(caisseNoirCompany || 0).toLocaleString()} MAD</p>
             <p className="text-[10px] text-slate-500 font-medium relative z-10 mt-1">Compte de réserve confidentiel</p>
           </div>
         </div>
@@ -583,8 +655,8 @@ export default function DispatchCaissePage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Montant (MAD) (Max: {soldeDisponible} MAD)</label>
-              <input type="number" required min="0.01" step="any" max={soldeDisponible} value={transferData.amount} onChange={e => setTransferData({...transferData, amount: e.target.value})} className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all font-medium" placeholder={`Max: ${soldeDisponible}`} />
+              <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Montant (MAD) (Max: {soldeDisponibleCompany} MAD)</label>
+              <input type="number" required min="0.01" step="any" max={soldeDisponibleCompany} value={transferData.amount} onChange={e => setTransferData({...transferData, amount: e.target.value})} className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all font-medium" placeholder={`Max: ${soldeDisponibleCompany}`} />
             </div>
             <div>
               <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Motif / Description</label>
@@ -592,7 +664,7 @@ export default function DispatchCaissePage() {
             </div>
             <div className="md:col-span-3 flex justify-end gap-3 pt-4 border-t border-slate-100">
               <button type="button" onClick={() => setIsAddingTransfer(false)} className="px-6 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-all font-medium">Annuler</button>
-              <button type="submit" disabled={soldeDisponible <= 0} className="px-8 py-3 bg-indigo-600 disabled:opacity-50 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-900/10 font-medium font-medium">Valider le transfert</button>
+              <button type="submit" disabled={soldeDisponibleCompany <= 0} className="px-8 py-3 bg-indigo-600 disabled:opacity-50 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-900/10 font-medium font-medium">Valider le transfert</button>
             </div>
           </form>
         </div>
@@ -717,7 +789,7 @@ export default function DispatchCaissePage() {
                   entreeTab === 'sales' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                Ventes Chauffeurs ({salesToday.length})
+                Ventes Chauffeurs ({salesTodayCompany.length})
               </button>
               <button 
                 type="button"
@@ -726,7 +798,7 @@ export default function DispatchCaissePage() {
                   entreeTab === 'alimentations' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                Alimentations ({alimentationsToday.length})
+                Alimentations ({alimentationsTodayCompany.length})
               </button>
             </div>
           </div>
@@ -797,7 +869,7 @@ export default function DispatchCaissePage() {
               </>
             ) : (
               <div className="space-y-4">
-                {alimentationsToday.map((a) => (
+                {alimentationsTodayCompany.map((a) => (
                   <div key={a.id} className={`p-4 rounded-2xl border transition-all flex items-start justify-between ${
                     a.type === 'pret' 
                       ? 'bg-amber-50/60 border-amber-200 hover:border-amber-300' 
@@ -840,7 +912,7 @@ export default function DispatchCaissePage() {
                     </div>
                   </div>
                 ))}
-                {alimentationsToday.length === 0 && (
+                {alimentationsTodayCompany.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
                     <ArrowDownRight className="w-12 h-12 mb-4 opacity-10 text-emerald-600" />
                     <p className="font-bold text-sm font-medium">Aucune alimentation aujourd'hui.</p>
@@ -858,7 +930,7 @@ export default function DispatchCaissePage() {
             <span className="text-[10px] font-bold px-2 py-1 bg-red-100 text-red-700 rounded-full uppercase font-medium">Pertes / Dépenses</span>
           </div>
           <div className="overflow-y-auto flex-1 p-6 space-y-4 custom-scrollbar font-display">
-            {expensesToday.slice().reverse().map(expense => {
+            {expensesTodayCompany.slice().reverse().map(expense => {
               const driver = drivers.find(d => d.id === expense.driverId);
               return (
                 <div key={expense.id} className="flex items-start justify-between p-4 bg-red-50/50 rounded-2xl border border-red-100 hover:border-red-300 transition-all">
@@ -888,7 +960,7 @@ export default function DispatchCaissePage() {
                 </div>
               );
             })}
-            {expensesToday.length === 0 && (
+            {expensesTodayCompany.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
                 <ArrowUpRight className="w-12 h-12 mb-4 opacity-10" />
                 <p className="font-bold text-sm font-medium">Aucune sortie aujourd'hui.</p>
@@ -904,7 +976,7 @@ export default function DispatchCaissePage() {
             <span className="text-[10px] font-bold px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase font-medium">Répartition</span>
           </div>
           <div className="overflow-y-auto flex-1 p-6 space-y-4 custom-scrollbar font-display">
-            {transfersToday.slice().reverse().map(transfer => (
+            {transfersTodayCompany.slice().reverse().map(transfer => (
               <div key={transfer.id} className="flex items-start justify-between p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 hover:border-indigo-300 transition-all">
                 <div className="flex gap-4">
                   <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold shrink-0">
@@ -922,7 +994,7 @@ export default function DispatchCaissePage() {
                 </div>
               </div>
             ))}
-            {transfersToday.length === 0 && (
+            {transfersTodayCompany.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
                 <Lock className="w-12 h-12 mb-4 opacity-10" />
                 <p className="font-bold text-sm font-medium">Aucun transfert effectué aujourd'hui.</p>

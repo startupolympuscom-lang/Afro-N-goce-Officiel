@@ -9,7 +9,7 @@ import { nanoid } from 'nanoid';
 export default function DispatchComptoirSalePage() {
   const navigate = useNavigate();
   const { user } = useDispatchAuthStore();
-  const { clients, brands, prices, addComptoirSale, getComptoirStockItem, comptoirStock, gplConfig } = useDispatchGazStore();
+  const { clients, brands, prices, addComptoirSale, comptoirStock, gplConfig } = useDispatchGazStore();
   
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedBrandId, setSelectedBrandId] = useState('');

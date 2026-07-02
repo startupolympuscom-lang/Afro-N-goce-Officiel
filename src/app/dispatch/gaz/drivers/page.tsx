@@ -7,7 +7,7 @@ export default function DispatchDriversPage() {
   const { drivers, addDriver, updateDriver, deleteDriver } = useDispatchGazStore();
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState<Partial<DispatchGazDriver> & { password?: string }>({
-    nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: ''
+    nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: '', company: 'afro_negoce'
   });
 
   React.useEffect(() => {
@@ -98,9 +98,10 @@ export default function DispatchDriversPage() {
         cnss: formData.cnss || '',
         address: formData.address || '',
         cin: formData.cin || '',
+        company: formData.company || 'afro_negoce',
       });
       setIsAdding(false);
-      setFormData({ nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: '' });
+      setFormData({ nom: '', prenom: '', email: '', phone: '', status: 'actif', cnss: '', address: '', cin: '', password: '', company: 'afro_negoce' });
       toast.success('Chauffeur ajouté avec succès');
     }
   };
@@ -117,17 +118,38 @@ export default function DispatchDriversPage() {
     }
   };
 
+  const [companyFilter, setCompanyFilter] = useState<'all' | 'afro_negoce' | 'chakirine_gaz'>('all');
+
+  const filteredDrivers = drivers.filter(d => {
+    if (companyFilter === 'all') return true;
+    return d.company === companyFilter;
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Chauffeurs / Vendeurs</h1>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Ajouter un chauffeur
-        </button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Chauffeurs / Vendeurs</h1>
+          <p className="text-sm text-slate-500">Gérez vos chauffeurs par entité (Ste. Afro Négoce & Chakirine Gaz)</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={companyFilter}
+            onChange={e => setCompanyFilter(e.target.value as any)}
+            className="px-3 py-2 border border-slate-300 rounded-xl bg-white text-sm font-medium text-slate-700 outline-none"
+          >
+            <option value="all">Toutes les sociétés</option>
+            <option value="afro_negoce">Ste. Afro Négoce</option>
+            <option value="chakirine_gaz">Chakirine Gaz</option>
+          </select>
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Ajouter un chauffeur
+          </button>
+        </div>
       </div>
 
       {isAdding && (
@@ -155,6 +177,17 @@ export default function DispatchDriversPage() {
               <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Société Affiliée</label>
+              <select 
+                value={formData.company} 
+                onChange={e => setFormData({...formData, company: e.target.value as any})} 
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white outline-none"
+              >
+                <option value="afro_negoce">Ste. Afro Négoce</option>
+                <option value="chakirine_gaz">Chakirine Gaz</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Numéro de CIN</label>
               <input type="text" required value={formData.cin} onChange={e => setFormData({...formData, cin: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
             </div>
@@ -179,16 +212,24 @@ export default function DispatchDriversPage() {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="p-4 font-medium text-slate-600">Nom & Prénom</th>
+              <th className="p-4 font-medium text-slate-600">Société</th>
               <th className="p-4 font-medium text-slate-600">Contact</th>
               <th className="p-4 font-medium text-slate-600">Statut</th>
               <th className="p-4 font-medium text-slate-600 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {drivers.map(driver => (
+            {filteredDrivers.map(driver => (
               <tr key={driver.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="p-4">
                   <div className="font-medium text-slate-900">{driver.prenom} {driver.nom}</div>
+                </td>
+                <td className="p-4">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    driver.company === 'chakirine_gaz' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {driver.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Ste. Afro Négoce'}
+                  </span>
                 </td>
                 <td className="p-4">
                   <div className="text-sm text-slate-600">{driver.email}</div>

@@ -169,7 +169,7 @@ export default function StandardPage() {
                       <option value="">-- Sélectionner un chauffeur --</option>
                       {drivers.map(driver => (
                         <option key={driver.id} value={driver.id}>
-                          {driver.prenom} {driver.nom} - {driver.matricule}
+                          {driver.prenom} {driver.nom}
                         </option>
                       ))}
                     </select>

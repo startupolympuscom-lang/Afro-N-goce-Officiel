@@ -15,6 +15,7 @@ export interface DispatchGazDriver {
   cin?: string;
   speed?: number;
   stops?: number;
+  company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
 export interface GazBrand {
@@ -75,6 +76,7 @@ export interface GazSale {
   status?: 'payé' | 'non payé';
   lat?: number;
   lng?: number;
+  company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
 export interface Convoyeur {
@@ -109,6 +111,7 @@ export interface CaisseTransfer {
   amount: number;
   toAccount: 'securitaire' | 'noir';
   reason?: string;
+  company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
 export interface CaisseAlimentation {
@@ -118,6 +121,7 @@ export interface CaisseAlimentation {
   byWhom: string;
   reason?: string;
   type?: 'normal' | 'pret';
+  company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
 export interface GazCommande {
@@ -164,6 +168,7 @@ export interface GlobalStockItem {
   category: string;
   full: number;
   empty: number;
+  company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
 export interface GlobalStockHistoryItem {
@@ -173,6 +178,7 @@ export interface GlobalStockHistoryItem {
   category: string;
   deltaFull: number;
   deltaEmpty: number;
+  company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
 export interface GPLConfig {
@@ -354,7 +360,7 @@ interface DispatchGazState {
   setClients: (clients: GazClient[]) => void;
 
   addSale: (sale: GazSale & { isConsignment?: boolean }) => void;
-  addComptoirSale: (sale: GazSale & { isConsignment?: boolean }) => void;
+  addComptoirSale: (sale: GazSale & { isConsignment?: boolean, company?: 'afro_negoce' | 'chakirine_gaz' }) => void;
   updateSaleStatus: (id: string, status: 'payé' | 'non payé') => void;
   addExpense: (expense: GazExpense) => void;
 
@@ -364,8 +370,8 @@ interface DispatchGazState {
   updateStockSold: (driverId: string, brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
   validateStockDispatch: (id: string, returnedFull: number, returnedEmpty: number) => void;
   setGlobalStock: (items: GlobalStockItem[], historyItems?: GlobalStockHistoryItem[]) => void;
-  dispatchToComptoir: (brandId: string, category: string, quantity: number) => void;
-  updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
+  dispatchToComptoir: (brandId: string, category: string, quantity: number, company?: 'afro_negoce' | 'chakirine_gaz') => void;
+  updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean, company?: 'afro_negoce' | 'chakirine_gaz') => void;
   updateGPLConfig: (config: GPLConfig) => void;
 
   updateTruckLocation: (location: TruckLocation) => void;
@@ -391,7 +397,10 @@ export const useDispatchGazStore = create<DispatchGazState>()(
   persist(
     (set) => ({
       drivers: [
-        { id: '2', nom: 'Chauffeur', prenom: 'Test', email: 'driver@afronegoce.ma', phone: '0600000000', status: 'actif' as const }
+        { id: '2', nom: 'Chauffeur', prenom: 'Test', email: 'driver@afronegoce.ma', phone: '0600000000', status: 'actif' as const, company: 'afro_negoce' },
+        { id: '3', nom: 'El Amrani', prenom: 'Yassine', email: 'yassine@chakirine.ma', phone: '0611223344', status: 'actif' as const, company: 'chakirine_gaz' },
+        { id: '4', nom: 'Chakir', prenom: 'Karim', email: 'karim@chakirine.ma', phone: '0655667788', status: 'actif' as const, company: 'chakirine_gaz' },
+        { id: '5', nom: 'Ait Oufella', prenom: 'Brahim', email: 'brahim@afronegoce.ma', phone: '0677889900', status: 'actif' as const, company: 'afro_negoce' }
       ] as DispatchGazDriver[],
       brands: [
         { id: 'b1', name: 'Butagaz', categories: ['3Kg', '12Kg', '34Kg'] }
@@ -421,7 +430,8 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       ],
       stockDispatches: [],
       truckLocations: [
-        { driverId: '2', lat: 33.8935, lng: -5.5473, speed: 0, lastUpdate: new Date().toISOString() }
+        { driverId: '2', lat: 33.8935, lng: -5.5473, speed: 0, lastUpdate: new Date().toISOString() },
+        { driverId: '3', lat: 33.9021, lng: -5.5510, speed: 0, lastUpdate: new Date().toISOString() }
       ],
       locationHistory: generateMockLocationHistory(),
       dashboardWidgets: [
@@ -444,12 +454,22 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       ] as Convoyeur[],
       pointages: [],
       globalStock: [
-        { brandId: 'b1', category: '3Kg', full: 100, empty: 50 },
-        { brandId: 'b1', category: '12Kg', full: 200, empty: 80 },
-        { brandId: 'b1', category: '34Kg', full: 50, empty: 20 }
-      ],
+        { brandId: 'b1', category: '3Kg', full: 100, empty: 50, company: 'afro_negoce' },
+        { brandId: 'b1', category: '12Kg', full: 200, empty: 80, company: 'afro_negoce' },
+        { brandId: 'b1', category: '34Kg', full: 50, empty: 20, company: 'afro_negoce' },
+        { brandId: 'b1', category: '3Kg', full: 120, empty: 40, company: 'chakirine_gaz' },
+        { brandId: 'b1', category: '12Kg', full: 180, empty: 60, company: 'chakirine_gaz' },
+        { brandId: 'b1', category: '34Kg', full: 40, empty: 15, company: 'chakirine_gaz' }
+      ] as GlobalStockItem[],
       globalStockHistory: [],
-      comptoirStock: [],
+      comptoirStock: [
+        { brandId: 'b1', category: '3Kg', full: 20, empty: 10, company: 'afro_negoce' },
+        { brandId: 'b1', category: '12Kg', full: 40, empty: 15, company: 'afro_negoce' },
+        { brandId: 'b1', category: '34Kg', full: 10, empty: 5, company: 'afro_negoce' },
+        { brandId: 'b1', category: '3Kg', full: 30, empty: 5, company: 'chakirine_gaz' },
+        { brandId: 'b1', category: '12Kg', full: 35, empty: 10, company: 'chakirine_gaz' },
+        { brandId: 'b1', category: '34Kg', full: 15, empty: 2, company: 'chakirine_gaz' }
+      ] as GlobalStockItem[],
       caisseSecuritaire: 0,
       caisseNoir: 0,
       caisseTransfers: [],
@@ -559,6 +579,10 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       setClients: (clients) => set({ clients }),
 
       addSale: (sale) => set((state) => {
+        const driver = state.drivers.find(d => d.id === sale.driverId);
+        const driverCompany = driver?.company || 'afro_negoce';
+        const saleWithCompany = { ...sale, company: sale.company || driverCompany };
+
         // Also update stock sold
         const newStockDispatches = state.stockDispatches.map(sd => {
           if (sd.driverId === sale.driverId && sd.brandId === sale.brandId && sd.category === sale.category && !sd.isValidated) {
@@ -572,7 +596,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         });
 
         // Enrich the sale with GPS coordinates of the sale if not provided
-        const enrichSale = { ...sale };
+        const enrichSale = { ...saleWithCompany };
         if (!enrichSale.lat || !enrichSale.lng) {
           const truckLoc = state.truckLocations.find(l => l.driverId === sale.driverId);
           if (truckLoc) {
@@ -590,15 +614,17 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         return { sales: [...state.sales, enrichSale], stockDispatches: newStockDispatches };
       }),
       addComptoirSale: (sale) => set((state) => {
+        const saleCompany = sale.company || 'afro_negoce';
+        const saleWithCompany = { ...sale, company: saleCompany };
         const newComptoir = [...state.comptoirStock];
-        const cIdx = newComptoir.findIndex(g => g.brandId === sale.brandId && g.category === sale.category);
+        const cIdx = newComptoir.findIndex(g => g.brandId === sale.brandId && g.category === sale.category && g.company === saleCompany);
         if (cIdx > -1) {
           if (!sale.isConsignment) {
             newComptoir[cIdx].empty += sale.quantity;
           }
           newComptoir[cIdx].full -= sale.quantity;
         }
-        return { sales: [...state.sales, sale], comptoirStock: newComptoir };
+        return { sales: [...state.sales, saleWithCompany], comptoirStock: newComptoir };
       }),
       updateSaleStatus: (id, status) => set((state) => ({
         sales: state.sales.map(s => s.id === id ? { ...s, status } : s)
@@ -616,6 +642,9 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       }),
 
       dispatchStock: (dispatch) => set((state) => {
+        const driver = state.drivers.find(d => d.id === dispatch.driverId);
+        const driverCompany = driver?.company || 'afro_negoce';
+
         const existingIndex = state.stockDispatches.findIndex(sd => 
           sd.driverId === dispatch.driverId && 
           sd.brandId === dispatch.brandId && 
@@ -629,8 +658,8 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           
           // Deduct from global stock
           const newGlobalStock = state.globalStock.map(gs => {
-            if (gs.brandId === dispatch.brandId && gs.category === dispatch.category) {
-              return { ...gs, full: gs.full - dispatch.quantity };
+            if (gs.brandId === dispatch.brandId && gs.category === dispatch.category && (gs.company === driverCompany || !gs.company)) {
+              return { ...gs, full: Math.max(0, gs.full - dispatch.quantity) };
             }
             return gs;
           });
@@ -640,8 +669,8 @@ export const useDispatchGazStore = create<DispatchGazState>()(
 
         // Deduct from global stock
         const newGlobalStock = state.globalStock.map(gs => {
-          if (gs.brandId === dispatch.brandId && gs.category === dispatch.category) {
-            return { ...gs, full: gs.full - dispatch.quantity };
+          if (gs.brandId === dispatch.brandId && gs.category === dispatch.category && (gs.company === driverCompany || !gs.company)) {
+            return { ...gs, full: Math.max(0, gs.full - dispatch.quantity) };
           }
           return gs;
         });
@@ -654,6 +683,9 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         let currentGlobalStock = [...state.globalStock];
 
         dispatches.forEach(dispatch => {
+          const driver = state.drivers.find(d => d.id === dispatch.driverId);
+          const driverCompany = driver?.company || 'afro_negoce';
+
           const existingIndex = currentDispatches.findIndex(sd => 
             sd.driverId === dispatch.driverId && 
             sd.brandId === dispatch.brandId && 
@@ -670,9 +702,9 @@ export const useDispatchGazStore = create<DispatchGazState>()(
             currentDispatches.push(dispatch);
           }
 
-          // Deduct from global stock
+          // Deduct from global stock for driver's company
           currentGlobalStock = currentGlobalStock.map(gs => {
-            if (gs.brandId === dispatch.brandId && gs.category === dispatch.category) {
+            if (gs.brandId === dispatch.brandId && gs.category === dispatch.category && (gs.company === driverCompany || !gs.company)) {
               return { ...gs, full: Math.max(0, gs.full - dispatch.quantity) };
             }
             return gs;
@@ -703,9 +735,12 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         const dispatch = state.stockDispatches.find(sd => sd.id === id);
         if (!dispatch) return state;
 
+        const driver = state.drivers.find(d => d.id === dispatch.driverId);
+        const driverCompany = driver?.company || 'afro_negoce';
+
         // Update global stock based on returns
         const newGlobalStock = state.globalStock.map(gs => {
-          if (gs.brandId === dispatch.brandId && gs.category === dispatch.category) {
+          if (gs.brandId === dispatch.brandId && gs.category === dispatch.category && (gs.company === driverCompany || !gs.company)) {
             return { 
               ...gs, 
               full: gs.full + returnedFull, 
@@ -729,25 +764,26 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         globalStock: items,
         ...(historyItems ? { globalStockHistory: [...historyItems, ...state.globalStockHistory] } : {}) 
       })),
-      dispatchToComptoir: (brandId, category, quantity) => set((state) => {
-        const newGlobalStock = [...state.globalStock];
-        const gIdx = newGlobalStock.findIndex(g => g.brandId === brandId && g.category === category);
-        if (gIdx > -1 && newGlobalStock[gIdx].full >= quantity) {
-          newGlobalStock[gIdx].full -= quantity;
-        }
+      dispatchToComptoir: (brandId, category, quantity, company: 'afro_negoce' | 'chakirine_gaz' = 'afro_negoce') => set((state) => {
+        const newGlobalStock = state.globalStock.map(gs => {
+          if (gs.brandId === brandId && gs.category === category && gs.company === company && gs.full >= quantity) {
+            return { ...gs, full: gs.full - quantity };
+          }
+          return gs;
+        });
 
         const newComptoir = [...state.comptoirStock];
-        const cIdx = newComptoir.findIndex(g => g.brandId === brandId && g.category === category);
+        const cIdx = newComptoir.findIndex(g => g.brandId === brandId && g.category === category && g.company === company);
         if (cIdx > -1) {
           newComptoir[cIdx].full += quantity;
         } else {
-          newComptoir.push({ brandId, category, full: quantity, empty: 0 });
+          newComptoir.push({ brandId, category, full: quantity, empty: 0, company });
         }
         return { globalStock: newGlobalStock, comptoirStock: newComptoir };
       }),
-      updateComptoirStockSold: (brandId, category, quantity, isConsigned) => set((state) => {
+      updateComptoirStockSold: (brandId, category, quantity, isConsigned, company: 'afro_negoce' | 'chakirine_gaz' = 'afro_negoce') => set((state) => {
         const newComptoir = [...state.comptoirStock];
-        const cIdx = newComptoir.findIndex(g => g.brandId === brandId && g.category === category);
+        const cIdx = newComptoir.findIndex(g => g.brandId === brandId && g.category === category && g.company === company);
         if (cIdx > -1) {
           if (!isConsigned) {
             newComptoir[cIdx].empty += quantity;
@@ -899,7 +935,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           ...gs,
           full: 0,
           empty: 0
-        }));
+        })) as GlobalStockItem[];
 
         return {
           sales: [],

@@ -43,17 +43,18 @@ export default function DispatchComptaPage() {
   } = useDispatchGazStore();
 
   // Filters & State
+  const [selectedCompany, setSelectedCompany] = useState<'afro_negoce' | 'chakirine_gaz'>('afro_negoce');
   const [filterMonth, setFilterMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [docSearch, setDocSearch] = useState('');
   const [docTypeFilter, setDocTypeFilter] = useState<string>('all');
   
   // Form Visibility State
   const [visibleWidgets, setVisibleWidgets] = useState({
-    ledger: false,
-    sales: false,
-    expenses: false,
-    supply: false,
-    hr: false
+    ledger: true, // defaulted to true for immediate value visibility
+    sales: true,
+    expenses: true,
+    supply: true,
+    hr: true
   });
 
   // Document Upload Form State
@@ -69,8 +70,14 @@ export default function DispatchComptaPage() {
 
   // 1. FLEETOPS EXPENDITURES ANALYSIS
   const fleetExpenses = useMemo(() => {
-    // Filter by selected month
-    const filteredTickets = carburantTickets.filter(t => t.createdAt?.startsWith(filterMonth) || t.dateHeure?.startsWith(filterMonth));
+    // Filter by selected month and active company drivers
+    const filteredTickets = carburantTickets.filter(t => {
+      const driver = drivers.find(d => d.id === t.chauffeurId);
+      const companyMatches = driver ? driver.company === selectedCompany : true;
+      return (t.createdAt?.startsWith(filterMonth) || t.dateHeure?.startsWith(filterMonth)) && companyMatches;
+    });
+    
+    // For general charges variables, keep them or filter as appropriate
     const filteredCharges = variableCharges.filter(c => c.date?.startsWith(filterMonth));
 
     const totalCarburant = filteredTickets.reduce((sum, t) => sum + (t.coutTotal || 0), 0);
@@ -86,11 +93,11 @@ export default function DispatchComptaPage() {
       filteredTickets,
       filteredCharges
     };
-  }, [carburantTickets, variableCharges, filterMonth]);
+  }, [carburantTickets, variableCharges, filterMonth, selectedCompany, drivers]);
 
   // 2. DISPATCH DRIVER SALES & COUNTER (COMPTOIR) STOCK/SALES
   const salesAnalysis = useMemo(() => {
-    const filteredSales = sales.filter(s => s.date?.startsWith(filterMonth));
+    const filteredSales = sales.filter(s => s.date?.startsWith(filterMonth) && s.company === selectedCompany);
     
     // Distinguish comptoir (counter desk) sales vs driver deliveries.
     // Chauffeurs have IDs matching drivers database list, while comptoir salesperson id is not there or role is vendeur.
@@ -137,12 +144,15 @@ export default function DispatchComptaPage() {
       driverContributions: Object.values(driverBreakdown).sort((a,b) => b.amount - a.amount),
       filteredSales
     };
-  }, [sales, drivers, filterMonth]);
+  }, [sales, drivers, filterMonth, selectedCompany]);
 
   // 3. HR PAYROLL (SALARIES & COMMISSIONS)
   const salaryAnalysis = useMemo(() => {
-    // paySlips is filtered by the month (stored in month format YYYY-MM)
-    const filteredSlips = paySlips.filter(p => p.month === filterMonth);
+    // paySlips is filtered by the month and driver company
+    const filteredSlips = paySlips.filter(p => {
+      const driver = drivers.find(d => d.id === p.driverId);
+      return p.month === filterMonth && (driver?.company === selectedCompany);
+    });
     const totalPayrollPaid = filteredSlips.reduce((sum, p) => sum + (p.totalCommission || 0), 0);
 
     return {
@@ -150,11 +160,15 @@ export default function DispatchComptaPage() {
       slipsCount: filteredSlips.length,
       filteredSlips
     };
-  }, [paySlips, filterMonth]);
+  }, [paySlips, filterMonth, selectedCompany, drivers]);
 
   // 4. COMMANDE GAZ PURCHASE ORDERS (APPROVISIONNEMENTS FROM VIVO ENERGY)
   const supplyOrdersAnalysis = useMemo(() => {
-    const filteredCommandes = (commandes || []).filter(c => c.date?.startsWith(filterMonth));
+    // filter by company if specified
+    const filteredCommandes = (commandes || []).filter(c => 
+      c.date?.startsWith(filterMonth) && 
+      ((c as any).company === selectedCompany || !(c as any).company)
+    );
     const totalPurchaseCost = filteredCommandes.reduce((sum, c) => sum + (c.totalPrice || 0), 0);
     const paidPurchaseCost = filteredCommandes.filter(c => c.status === 'payé').reduce((sum, c) => sum + (c.totalPrice || 0), 0);
     const unpaidPurchaseCost = filteredCommandes.filter(c => c.status !== 'payé').reduce((sum, c) => sum + (c.totalPrice || 0), 0);
@@ -166,7 +180,7 @@ export default function DispatchComptaPage() {
       orderCount: filteredCommandes.length,
       filteredCommandes
     };
-  }, [commandes, filterMonth]);
+  }, [commandes, filterMonth, selectedCompany]);
 
   // GRAND LEDGER CONSOLIDATION
   const grandLedger = useMemo(() => {
@@ -240,8 +254,9 @@ export default function DispatchComptaPage() {
       fileName: uploadedFile ? uploadedFile.name : 'document_simule.pdf',
       fileData: uploadedFile?.data || '',
       notes: formNotes,
-      uploadedAt: new Date().toISOString()
-    };
+      uploadedAt: new Date().toISOString(),
+      company: selectedCompany
+    } as any;
 
     addComptaDocument(doc);
     toast.success('Document comptable déposé avec succès.');
@@ -269,9 +284,10 @@ export default function DispatchComptaPage() {
       const matchesSearch = doc.reference.toLowerCase().includes(docSearch.toLowerCase()) || 
                             (doc.notes || '').toLowerCase().includes(docSearch.toLowerCase());
       const matchesType = docTypeFilter === 'all' || doc.type === docTypeFilter;
-      return matchesSearch && matchesType;
+      const matchesCompany = (doc as any).company ? (doc as any).company === selectedCompany : true;
+      return matchesSearch && matchesType && matchesCompany;
     });
-  }, [comptaDocuments, docSearch, docTypeFilter]);
+  }, [comptaDocuments, docSearch, docTypeFilter, selectedCompany]);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-24">
@@ -279,7 +295,7 @@ export default function DispatchComptaPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
         <div>
           <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 shadow-sm mb-3">
-            <Scale className="w-3.5 h-3.5" /> Fiduciaire Afro Negoce
+            <Scale className="w-3.5 h-3.5" /> Fiduciaire {selectedCompany === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Afro Négoce'}
           </span>
           <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
             Comptabilité & Correspondance
@@ -289,16 +305,41 @@ export default function DispatchComptaPage() {
           </p>
         </div>
 
-        {/* Global Period Selector */}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 p-2.5 rounded-2xl shadow-sm">
-          <Calendar className="w-4 h-4 text-slate-500 ml-2" />
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Période:</span>
-          <input 
-            type="month"
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="bg-white border text-sm font-bold border-slate-200 text-slate-900 px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
-          />
+        {/* Global Period & Company Selector */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+            <button
+              onClick={() => setSelectedCompany('afro_negoce')}
+              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                selectedCompany === 'afro_negoce'
+                  ? 'bg-blue-650 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Afro Négoce
+            </button>
+            <button
+              onClick={() => setSelectedCompany('chakirine_gaz')}
+              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                selectedCompany === 'chakirine_gaz'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Chakirine Gaz
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 p-2 rounded-2xl shadow-sm">
+            <Calendar className="w-4 h-4 text-slate-500 ml-2" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Période:</span>
+            <input 
+              type="month"
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="bg-white border text-sm font-bold border-slate-200 text-slate-900 px-3 py-1.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+            />
+          </div>
         </div>
       </div>
 
