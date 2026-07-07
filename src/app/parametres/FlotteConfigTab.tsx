@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useVehiculeStore } from '../../stores/useVehiculeStore';
 import { useVidangeStore } from '../../stores/useVidangeStore';
-import { Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import { useMaintenanceStore } from '../../stores/useMaintenanceStore';
+import { Plus, Trash2, Edit2, Save, X, Wrench } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 export function FlotteConfigTab() {
   const { parcs, addParc, updateParc, deleteParc } = useVehiculeStore();
   const { oilTypes, addOilType, updateOilType, deleteOilType } = useVidangeStore();
+  const { spareParts, addSparePart, updateSparePart, deleteSparePart } = useMaintenanceStore();
 
   const [newParc, setNewParc] = useState('');
   const [editingParcId, setEditingParcId] = useState<string | null>(null);
@@ -18,6 +20,14 @@ export function FlotteConfigTab() {
   const [editingOilId, setEditingOilId] = useState<string | null>(null);
   const [editingOilName, setEditingOilName] = useState('');
   const [editingOilInterval, setEditingOilInterval] = useState('');
+
+  // Spare parts state
+  const [newPartName, setNewPartName] = useState('');
+  const [newPartPrice, setNewPartPrice] = useState('');
+
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
+  const [editingPartName, setEditingPartName] = useState('');
+  const [editingPartPrice, setEditingPartPrice] = useState('');
 
   const handleAddParc = () => {
     if (newParc.trim()) {
@@ -31,6 +41,14 @@ export function FlotteConfigTab() {
       addOilType({ name: newOilName.trim(), intervalKm: Number(newOilInterval) });
       setNewOilName('');
       setNewOilInterval('');
+    }
+  };
+
+  const handleAddPart = () => {
+    if (newPartName.trim() && newPartPrice) {
+      addSparePart({ nom: newPartName.trim(), prixDefaut: Number(newPartPrice) });
+      setNewPartName('');
+      setNewPartPrice('');
     }
   };
 
@@ -167,6 +185,84 @@ export function FlotteConfigTab() {
             </div>
           ))}
           {oilTypes.length === 0 && <p className="text-sm text-text-muted">Aucun type d'huile configuré.</p>}
+        </div>
+      </div>
+
+      {/* Configuration de la Base des Pièces de Rechange (NOUVEAU) */}
+      <div className="bg-surface rounded-xl border border-border p-6 shadow-sm">
+        <h3 className="text-lg font-bold text-text-primary mb-2 flex items-center gap-2">
+          <Wrench className="w-5 h-5 text-primary" />
+          Base de données des Pièces
+        </h3>
+        <p className="text-sm text-text-secondary mb-4">Enregistrez les pièces pouvant être changées sur un véhicule en maintenance curative.</p>
+        
+        <div className="flex gap-2 mb-6">
+          <input 
+            type="text" 
+            placeholder="Désignation de la pièce (ex: Plaquettes de frein)" 
+            value={newPartName}
+            onChange={(e) => setNewPartName(e.target.value)}
+            className="flex-1 h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
+          />
+          <input 
+            type="number" 
+            placeholder="Prix (MAD)" 
+            value={newPartPrice}
+            onChange={(e) => setNewPartPrice(e.target.value)}
+            className="w-32 h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
+          />
+          <button 
+            onClick={handleAddPart}
+            className="px-4 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium flex items-center justify-center gap-2 shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Ajouter
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {spareParts && spareParts.map(part => (
+            <div key={part.id} className="flex items-center justify-between p-3 bg-surface-2 rounded-lg border border-border">
+              {editingPartId === part.id ? (
+                <div className="flex-1 flex gap-2 mr-2">
+                  <input 
+                    type="text" 
+                    value={editingPartName}
+                    onChange={(e) => setEditingPartName(e.target.value)}
+                    className="flex-1 h-9 px-3 rounded text-sm border border-border outline-none focus:border-primary"
+                  />
+                  <input 
+                    type="number" 
+                    value={editingPartPrice}
+                    onChange={(e) => setEditingPartPrice(e.target.value)}
+                    className="w-24 h-9 px-3 rounded text-sm border border-border outline-none focus:border-primary"
+                  />
+                  <button onClick={() => { updateSparePart(part.id, { nom: editingPartName, prixDefaut: Number(editingPartPrice) }); setEditingPartId(null); }} className="p-1.5 bg-success/10 text-success rounded animate-none">
+                    <Save className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setEditingPartId(null)} className="p-1.5 bg-danger/10 text-danger rounded">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex-1 flex justify-between pr-4">
+                  <span className="font-medium text-text-primary">{part.nom}</span>
+                  <span className="text-sm text-text-secondary bg-surface border border-border px-2 py-0.5 rounded shadow-sm">{part.prixDefaut.toLocaleString()} MAD</span>
+                </div>
+              )}
+              
+              {!editingPartId && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setEditingPartId(part.id); setEditingPartName(part.nom); setEditingPartPrice(String(part.prixDefaut)); }} className="p-1.5 text-text-muted hover:text-primary transition-colors">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => deleteSparePart(part.id)} className="p-1.5 text-text-muted hover:text-danger transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+          {(!spareParts || spareParts.length === 0) && <p className="text-sm text-text-muted">Aucune pièce enregistrée.</p>}
         </div>
       </div>
     </div>

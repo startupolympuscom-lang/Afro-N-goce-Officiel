@@ -131,6 +131,7 @@ export interface ApprovisionnementStation {
   fournisseur: string
   prixParLitre: number
   coutTotal: number
+  stockAvant?: number
 }
 
 export type TypeMaintenance = 'preventive' | 'corrective' | 'urgence'

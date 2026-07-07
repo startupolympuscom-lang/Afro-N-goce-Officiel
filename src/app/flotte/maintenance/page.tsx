@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { useMaintenanceStore, MaintenanceType, MaintenanceStatus } from '../../../stores/useMaintenanceStore';
+import React, { useState, useMemo } from 'react';
+import { useMaintenanceStore, MaintenanceType, MaintenanceStatus, MaintenancePiece } from '../../../stores/useMaintenanceStore';
 import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { usePrestataireStore } from '../../../stores/usePrestataireStore';
 import { 
   Wrench, 
   Plus, 
@@ -13,16 +14,23 @@ import {
   CheckCircle,
   Clock,
   AlertTriangle,
-  Trash2
+  Trash2,
+  FileText,
+  Download,
+  PlusCircle,
+  ShoppingBag
 } from 'lucide-react';
 import { formatMAD, formatDate } from '../../../lib/formatters';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../../lib/utils';
 import { DatePicker } from '../../../components/ui/DatePicker';
+import { jsPDF } from 'jspdf';
+import { toast } from 'sonner';
 
 export default function MaintenancePage() {
-  const { maintenances, addMaintenance, deleteMaintenance } = useMaintenanceStore();
+  const { maintenances, spareParts, addMaintenance, deleteMaintenance } = useMaintenanceStore();
   const vehicules = useVehiculeStore(s => s.vehicules);
+  const prestataires = usePrestataireStore(s => s.prestataires);
   const user = useAuthStore(s => s.user);
   const canManage = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'chef_de_parc';
 
@@ -35,36 +43,267 @@ export default function MaintenancePage() {
   const [description, setDescription] = useState('');
   const [datePrevue, setDatePrevue] = useState('');
   const [kilometrage, setKilometrage] = useState(0);
-  const [coutEstime, setCoutEstime] = useState(0);
+  const [coutEstime, setCoutEstime] = useState(0); // This acts as base/labor cost
+
+  // Curative parts selection state
+  const [piecesList, setPiecesList] = useState<{ partId: string; nom: string; quantite: number; prixUnitaire: number }[]>([]);
+  const [selectedPartId, setSelectedPartId] = useState('');
+  const [partQty, setPartQty] = useState(1);
+  const [partPrice, setPartPrice] = useState(0);
+
+  // Suppliers state
+  const [fournisseurPieceId, setFournisseurPieceId] = useState('');
+  const [fournisseurMaintenanceId, setFournisseurMaintenanceId] = useState('');
 
   const filteredMaintenances = maintenances.filter(m => {
     const vehicule = vehicules.find(v => v.id === m.vehiculeId);
     if (!vehicule) return false;
     const searchString = `${vehicule.immatriculation} ${vehicule.marque} ${m.description}`.toLowerCase();
     return searchString.includes(search.toLowerCase());
-  });
+  }).sort((a, b) => new Date(b.datePrevue).getTime() - new Date(a.datePrevue).getTime());
+
+  // PDF Purchase Order generator
+  const handleDownloadBC = (m: any, typeBC: 'piece' | 'maintenance' | 'combine') => {
+    const vehicule = vehicules.find(v => v.id === m.vehiculeId);
+    const fPiece = prestataires.find(p => p.id === m.fournisseurPieceId);
+    const fMaint = prestataires.find(p => p.id === m.fournisseurMaintenanceId);
+    
+    const supplier = typeBC === 'piece' ? fPiece : fMaint;
+    const finalSupplier = supplier || fMaint || fPiece;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Dark slate banner
+    doc.setFillColor(11, 17, 32);
+    doc.rect(0, 0, 210, 35, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text('FLEETOPS - BON DE COMMANDE', 15, 18);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const bcRef = `BC-MAINT-${m.id.toUpperCase()}`;
+    doc.text(`Réf BC: ${bcRef}`, 15, 26);
+    doc.text(`Date: ${new Date(m.datePrevue).toLocaleDateString('fr-FR')}`, 150, 26);
+
+    doc.setTextColor(0, 0, 0);
+
+    // Supplier Box
+    doc.setDrawColor(220, 225, 230);
+    doc.setFillColor(245, 247, 250);
+    doc.rect(15, 45, 85, 40, 'FD');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('FOURNISSEUR :', 20, 52);
+    doc.setFont('helvetica', 'normal');
+    doc.text(finalSupplier?.nom || 'Non spécifié', 20, 58);
+    doc.setFontSize(9);
+    doc.text(`Tél: ${finalSupplier?.telephone || 'N/A'}`, 20, 64);
+    doc.text(`Email: ${finalSupplier?.email || 'N/A'}`, 20, 70);
+    doc.text(`Adresse: ${finalSupplier?.adresse || 'N/A'}`, 20, 76);
+
+    // Vehicle Box
+    doc.rect(110, 45, 85, 40, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('VÉHICULE & PARC :', 115, 52);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Immatriculation: ${vehicule?.immatriculation || 'N/A'}`, 115, 58);
+    doc.setFontSize(9);
+    doc.text(`Marque / Modèle: ${vehicule ? `${vehicule.marque} ${vehicule.modele}` : 'N/A'}`, 115, 64);
+    doc.text(`Kilométrage: ${m.kilometrage?.toLocaleString() || 'N/A'} km`, 115, 70);
+    doc.text(`Type: ${getTypeLabel(m.type)}`, 115, 76);
+
+    // Table Header
+    let y = 95;
+    doc.setFillColor(11, 17, 32);
+    doc.rect(15, y, 180, 8, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text('DÉSIGNATION / PRESTATION', 20, y + 5.5);
+    doc.text('QTÉ', 125, y + 5.5);
+    doc.text('P.U (MAD)', 145, y + 5.5);
+    doc.text('TOTAL (MAD)', 170, y + 5.5);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    y += 8;
+
+    let grandTotal = 0;
+
+    // Render Parts
+    if ((typeBC === 'piece' || typeBC === 'combine') && m.pieces && m.pieces.length > 0) {
+      m.pieces.forEach((p: any) => {
+        const lineTotal = p.quantite * p.prixUnitaire;
+        grandTotal += lineTotal;
+
+        doc.setDrawColor(230, 235, 240);
+        doc.line(15, y + 7, 195, y + 7);
+        
+        doc.text(p.nom, 20, y + 5);
+        doc.text(String(p.quantite), 125, y + 5);
+        doc.text(p.prixUnitaire.toFixed(2), 145, y + 5);
+        doc.text(lineTotal.toFixed(2), 170, y + 5);
+        
+        y += 8;
+      });
+    }
+
+    // Render Maintenance Service
+    if (typeBC === 'maintenance' || typeBC === 'combine') {
+      const serviceTotal = m.coutEstime;
+      grandTotal += serviceTotal;
+
+      doc.setDrawColor(230, 235, 240);
+      doc.line(15, y + 7, 195, y + 7);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Prestation de maintenance : ${m.description}`, 20, y + 5);
+      doc.setFont('helvetica', 'normal');
+      doc.text('1', 125, y + 5);
+      doc.text(m.coutEstime.toFixed(2), 145, y + 5);
+      doc.text(serviceTotal.toFixed(2), 170, y + 5);
+      
+      y += 8;
+    }
+
+    y += 5;
+    // Summary block
+    doc.setDrawColor(11, 17, 32);
+    doc.setLineWidth(0.5);
+    doc.line(130, y, 195, y);
+    
+    y += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('MONTANT TOTAL :', 130, y);
+    doc.text(`${grandTotal.toFixed(2)} MAD`, 165, y);
+
+    // Signatures
+    y += 30;
+    doc.setFontSize(9);
+    doc.text('Cachet et Signature Fournisseur', 25, y);
+    doc.text('Directeur Flotte FleetOps', 130, y);
+    
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.rect(20, y + 4, 60, 25);
+    doc.rect(125, y + 4, 60, 25);
+
+    const titlePrefix = typeBC === 'combine' ? 'BC_Combine' : typeBC === 'piece' ? 'BC_Pieces' : 'BC_Service_Maintenance';
+    doc.save(`${titlePrefix}_${vehicule?.immatriculation || 'camion'}_${m.id.substring(0,6)}.pdf`);
+  };
+
+  const handleAddPartToForm = () => {
+    if (!selectedPartId) return;
+    const part = spareParts.find(sp => sp.id === selectedPartId);
+    if (!part) return;
+
+    // Check if already exists, update quantity
+    const existingIdx = piecesList.findIndex(p => p.partId === selectedPartId);
+    if (existingIdx !== -1) {
+      const updated = [...piecesList];
+      updated[existingIdx].quantite += partQty;
+      setPiecesList(updated);
+    } else {
+      setPiecesList([
+        ...piecesList,
+        {
+          partId: part.id,
+          nom: part.nom,
+          quantite: partQty,
+          prixUnitaire: partPrice || part.prixDefaut
+        }
+      ]);
+    }
+
+    // Reset part inputs
+    setSelectedPartId('');
+    setPartQty(1);
+    setPartPrice(0);
+  };
+
+  const handleRemovePartFromForm = (idx: number) => {
+    setPiecesList(piecesList.filter((_, i) => i !== idx));
+  };
+
+  const totalPiecesCost = useMemo(() => {
+    return piecesList.reduce((acc, p) => acc + (p.quantite * p.prixUnitaire), 0);
+  }, [piecesList]);
+
+  const totalGlobalCost = useMemo(() => {
+    return coutEstime + totalPiecesCost;
+  }, [coutEstime, totalPiecesCost]);
 
   const handleAddMaintenance = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManage) return;
-    addMaintenance({
+
+    const finalPieces = type === 'curative' ? piecesList : [];
+    const finalTotalPieces = type === 'curative' ? totalPiecesCost : 0;
+    const finalTotalGlobal = type === 'curative' ? totalGlobalCost : coutEstime;
+
+    const maintenanceData = {
       vehiculeId,
       type,
       description,
       datePrevue: new Date(datePrevue).toISOString(),
       kilometrage,
-      coutEstime,
-      status: 'planifiee',
-      pieces: []
-    });
+      coutEstime, // Labor/base cost
+      coutTotalPieces: finalTotalPieces,
+      coutTotalGlobal: finalTotalGlobal,
+      fournisseurPieceId: type === 'curative' && finalPieces.length > 0 ? fournisseurPieceId : undefined,
+      fournisseurMaintenanceId: fournisseurMaintenanceId || undefined,
+      status: 'planifiee' as MaintenanceStatus,
+      pieces: finalPieces
+    };
+
+    const createdRecord = addMaintenance(maintenanceData);
     setIsModalOpen(false);
-    // Reset form
+
+    // Trigger Purchase Orders (Bons de commande)
+    if (type === 'curative') {
+      if (finalPieces.length > 0 && fournisseurPieceId === fournisseurMaintenanceId) {
+        // Combined Purchase Order
+        handleDownloadBC(createdRecord, 'combine');
+        toast.success('Bon de commande unique (Pièces + Prestation) généré et téléchargé !');
+      } else if (finalPieces.length > 0) {
+        // Two separate Purchase Orders
+        handleDownloadBC(createdRecord, 'piece');
+        handleDownloadBC(createdRecord, 'maintenance');
+        toast.success('Deux bons de commande distincts générés et téléchargés !');
+      } else {
+        // Service only
+        handleDownloadBC(createdRecord, 'maintenance');
+        toast.success('Bon de commande prestation généré et téléchargé !');
+      }
+    } else {
+      // Non curative (preventive, inspection), trigger standard labor PO if supplier is specified
+      if (fournisseurMaintenanceId) {
+        handleDownloadBC(createdRecord, 'maintenance');
+        toast.success('Bon de commande prestation généré et téléchargé !');
+      }
+    }
+
+    // Reset form states
     setVehiculeId('');
     setType('preventive');
     setDescription('');
     setDatePrevue('');
     setKilometrage(0);
     setCoutEstime(0);
+    setPiecesList([]);
+    setFournisseurPieceId('');
+    setFournisseurMaintenanceId('');
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -93,12 +332,24 @@ export default function MaintenancePage() {
     }
   };
 
-  const getTypeLabel = (type: MaintenanceType) => {
-    switch (type) {
+  const getTypeLabel = (mtype: MaintenanceType) => {
+    switch (mtype) {
       case 'preventive': return 'Préventive';
       case 'curative': return 'Curative';
       case 'inspection': return 'Inspection';
     }
+  };
+
+  const triggerDownloadForExisting = (m: any) => {
+    if (m.type === 'curative' && m.pieces && m.pieces.length > 0 && m.fournisseurPieceId === m.fournisseurMaintenanceId) {
+      handleDownloadBC(m, 'combine');
+    } else if (m.type === 'curative' && m.pieces && m.pieces.length > 0) {
+      handleDownloadBC(m, 'piece');
+      handleDownloadBC(m, 'maintenance');
+    } else {
+      handleDownloadBC(m, 'maintenance');
+    }
+    toast.success('Bons de commande téléchargés !');
   };
 
   return (
@@ -108,7 +359,7 @@ export default function MaintenancePage() {
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
             Maintenance
           </h1>
-          <p className="text-text-secondary mt-1">Suivi des entretiens et réparations</p>
+          <p className="text-text-secondary mt-1">Suivi des entretiens, pièces rechanges et réparations curatives</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -151,16 +402,23 @@ export default function MaintenancePage() {
               <tr className="bg-surface-2 border-b border-border text-sm text-text-secondary">
                 <th className="p-4 font-medium">Véhicule</th>
                 <th className="p-4 font-medium">Type</th>
-                <th className="p-4 font-medium">Description</th>
+                <th className="p-4 font-medium">Prestation / Pièces</th>
+                <th className="p-4 font-medium">Fournisseurs</th>
                 <th className="p-4 font-medium">Date Prévue</th>
-                <th className="p-4 font-medium">Coût Estimé</th>
+                <th className="p-4 font-medium">Coût Total</th>
                 <th className="p-4 font-medium">Statut</th>
-                <th className="p-4 font-medium w-10"></th>
+                <th className="p-4 font-medium w-24 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredMaintenances.map((m) => {
                 const vehicule = vehicules.find(v => v.id === m.vehiculeId);
+                const fPiece = prestataires.find(p => p.id === m.fournisseurPieceId);
+                const fMaint = prestataires.find(p => p.id === m.fournisseurMaintenanceId);
+                
+                // Calculate display total cost
+                const displayTotal = m.coutTotalGlobal || (m.coutEstime + (m.pieces?.reduce((a, b) => a + (b.quantite * b.prixUnitaire), 0) || 0));
+
                 return (
                   <tr key={m.id} className="hover:bg-surface-2/50 transition-colors group">
                     <td className="p-4">
@@ -169,54 +427,89 @@ export default function MaintenancePage() {
                           <Truck className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-medium text-text-primary">{vehicule?.immatriculation}</div>
+                          <div className="font-bold text-text-primary">{vehicule?.immatriculation}</div>
                           <div className="text-xs text-text-secondary">{vehicule?.marque} {vehicule?.modele}</div>
                         </div>
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-surface-2 border border-border text-text-secondary">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        m.type === 'curative' ? 'bg-red-500/10 text-red-600 border border-red-500/20' : 'bg-surface-2 border border-border text-text-secondary'
+                      }`}>
                         {getTypeLabel(m.type)}
                       </span>
                     </td>
                     <td className="p-4">
-                      <div className="text-sm text-text-primary max-w-xs truncate" title={m.description}>
+                      <div className="text-sm font-semibold text-text-primary max-w-xs truncate" title={m.description}>
                         {m.description}
+                      </div>
+                      {m.pieces && m.pieces.length > 0 && (
+                        <div className="text-xs text-text-muted mt-1 flex flex-wrap gap-1">
+                          {m.pieces.map((p, pi) => (
+                            <span key={pi} className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px]">
+                              {p.nom} (x{p.quantite})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <div className="text-xs space-y-0.5 text-text-primary">
+                        {fMaint && (
+                          <div>
+                            <span className="text-text-secondary font-medium">Main-d'oeuvre:</span> <span className="font-bold">{fMaint.nom}</span>
+                          </div>
+                        )}
+                        {fPiece && (
+                          <div>
+                            <span className="text-text-secondary font-medium">Pièces:</span> <span className="font-bold">{fPiece.nom}</span>
+                          </div>
+                        )}
+                        {!fMaint && !fPiece && <span className="text-text-muted italic">Non spécifié</span>}
                       </div>
                     </td>
                     <td className="p-4">
-                      <div className="flex items-center gap-2 text-sm text-text-primary">
+                      <div className="flex items-center gap-2 text-sm text-text-primary font-medium">
                         <Calendar className="w-4 h-4 text-text-muted" />
                         {formatDate(m.datePrevue)}
                       </div>
                     </td>
                     <td className="p-4">
-                      <div className="font-medium text-text-primary">
-                        {formatMAD(m.coutEstime)}
+                      <div className="font-bold text-text-primary">
+                        {formatMAD(displayTotal)}
                       </div>
+                      {m.type === 'curative' && m.pieces && m.pieces.length > 0 && (
+                        <div className="text-[10px] text-text-muted">
+                          (Svc: {formatMAD(m.coutEstime)} | Pièces: {formatMAD(displayTotal - m.coutEstime)})
+                        </div>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(m.status)}
-                        <span className="text-sm font-medium text-text-primary">
+                        <span className="text-sm font-semibold text-text-primary">
                           {getStatusLabel(m.status)}
                         </span>
                       </div>
                     </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => triggerDownloadForExisting(m)}
+                          className="p-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded transition-colors"
+                          title="Télécharger Bon de Commande (PDF)"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
                         {canManage && (
                           <button 
                             onClick={(e) => handleDelete(e, m.id)}
-                            className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded transition-colors"
                             title="Supprimer"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button className="p-2 text-text-muted hover:text-text-primary hover:bg-surface rounded-md transition-colors opacity-0 group-hover:opacity-100">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -224,8 +517,10 @@ export default function MaintenancePage() {
               })}
               {filteredMaintenances.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-text-secondary">
-                    Aucune maintenance trouvée.
+                  <td colSpan={8} className="p-8 text-center text-text-secondary">
+                    <Wrench className="w-12 h-12 mx-auto text-border-strong mb-4" />
+                    <p className="text-lg font-bold text-text-primary">Aucune maintenance planifiée</p>
+                    <p className="text-sm">Cliquez sur nouvelle maintenance pour enregistrer un entretien.</p>
                   </td>
                 </tr>
               )}
@@ -249,7 +544,7 @@ export default function MaintenancePage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-surface rounded-2xl shadow-2xl z-50 border border-border overflow-hidden"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl bg-surface rounded-2xl shadow-2xl z-50 border border-border overflow-hidden"
             >
               <div className="p-6 border-b border-border flex items-center justify-between bg-surface">
                 <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
@@ -264,37 +559,45 @@ export default function MaintenancePage() {
                 </button>
               </div>
               
-              <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5">
                 <form id="add-maintenance-form" onSubmit={handleAddMaintenance} className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-1">Véhicule</label>
-                    <select 
-                      required
-                      value={vehiculeId}
-                      onChange={e => setVehiculeId(e.target.value)}
-                      className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                    >
-                      <option value="">Sélectionner un véhicule...</option>
-                      {vehicules.map(v => (
-                        <option key={v.id} value={v.id}>{v.immatriculation} - {v.marque} {v.modele}</option>
-                      ))}
-                    </select>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-text-primary mb-1">Type</label>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Véhicule</label>
+                      <select 
+                        required
+                        value={vehiculeId}
+                        onChange={e => setVehiculeId(e.target.value)}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none"
+                      >
+                        <option value="">Sélectionner...</option>
+                        {vehicules.map(v => (
+                          <option key={v.id} value={v.id}>{v.immatriculation} - {v.marque}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Type d'entretien</label>
                       <select 
                         required
                         value={type}
-                        onChange={e => setType(e.target.value as MaintenanceType)}
-                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        onChange={e => {
+                          setType(e.target.value as MaintenanceType);
+                          if (e.target.value !== 'curative') {
+                            setPiecesList([]);
+                          }
+                        }}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none"
                       >
                         <option value="preventive">Préventive</option>
-                        <option value="curative">Curative</option>
+                        <option value="curative">Curative (Corrective)</option>
                         <option value="inspection">Inspection</option>
                       </select>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-text-primary mb-1">Date Prévue</label>
                       <DatePicker
@@ -303,45 +606,204 @@ export default function MaintenancePage() {
                         required
                       />
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-1">Description</label>
-                    <textarea 
-                      required
-                      rows={3}
-                      value={description}
-                      onChange={e => setDescription(e.target.value)}
-                      placeholder="Ex: Vidange, changement de pneus..."
-                      className="w-full p-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-text-primary mb-1">Kilométrage actuel</label>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Kilométrage actuel (km)</label>
                       <input 
                         type="number" 
                         required
                         min="0"
                         value={kilometrage}
-                        onChange={e => setKilometrage(parseInt(e.target.value))}
+                        onChange={e => setKilometrage(parseInt(e.target.value) || 0)}
                         placeholder="Ex: 145000" 
-                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none" 
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-1">Description / Motif</label>
+                    <textarea 
+                      required
+                      rows={2}
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      placeholder="Ex: Réparation alternateur, Changement des freins..."
+                      className="w-full p-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none resize-none text-sm"
+                    />
+                  </div>
+
+                  {/* Section: MAIN D'OEUVRE / PRESTATION LABOR */}
+                  <div className="p-4 bg-surface-2 rounded-xl border border-border space-y-4">
+                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-primary" />
+                      Prestation & Labor
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-text-secondary mb-1">Coût Estimé Service (MAD)</label>
+                        <input 
+                          type="number" 
+                          required
+                          min="0"
+                          step="0.01"
+                          value={coutEstime}
+                          onChange={e => setCoutEstime(parseFloat(e.target.value) || 0)}
+                          placeholder="Coût MO" 
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none text-sm font-semibold" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-text-secondary mb-1">Fournisseur Service</label>
+                        <select 
+                          required
+                          value={fournisseurMaintenanceId}
+                          onChange={e => setFournisseurMaintenanceId(e.target.value)}
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                        >
+                          <option value="">Sélectionner un garage...</option>
+                          {prestataires.map(p => (
+                            <option key={p.id} value={p.id}>{p.nom} ({p.type})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CURATIVE: SPARE PARTS SECTION */}
+                  {type === 'curative' && (
+                    <div className="p-4 bg-red-500/5 rounded-xl border border-red-500/10 space-y-4">
+                      <h3 className="text-sm font-bold text-red-600 flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4" />
+                        Pièces de Rechange Changées
+                      </h3>
+                      
+                      {/* Form inputs to add a part to the list */}
+                      <div className="grid grid-cols-12 gap-2 items-end">
+                        <div className="col-span-6">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">Type de Pièce</label>
+                          <select
+                            value={selectedPartId}
+                            onChange={e => {
+                              setSelectedPartId(e.target.value);
+                              const part = spareParts.find(sp => sp.id === e.target.value);
+                              if (part) setPartPrice(part.prixDefaut);
+                            }}
+                            className="w-full h-10 px-2 rounded border border-border bg-surface text-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                          >
+                            <option value="">Sélectionner une pièce...</option>
+                            {spareParts.map(sp => (
+                              <option key={sp.id} value={sp.id}>{sp.nom} (défaut: {sp.prixDefaut} MAD)</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">Qté</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={partQty}
+                            onChange={e => setPartQty(parseInt(e.target.value) || 1)}
+                            className="w-full h-10 px-2 rounded border border-border bg-surface text-xs font-bold text-center outline-none"
+                          />
+                        </div>
+                        <div className="col-span-3">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">Prix (MAD)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={partPrice || ''}
+                            onChange={e => setPartPrice(parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            className="w-full h-10 px-2 rounded border border-border bg-surface text-xs font-bold outline-none"
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <button
+                            type="button"
+                            disabled={!selectedPartId}
+                            onClick={handleAddPartToForm}
+                            className="w-full h-10 bg-primary hover:bg-primary-hover text-white rounded flex items-center justify-center transition-colors disabled:opacity-50"
+                          >
+                            <PlusCircle className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Display added pieces */}
+                      {piecesList.length > 0 ? (
+                        <div className="border border-border rounded-lg bg-surface overflow-hidden">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-surface-2 text-text-secondary border-b border-border">
+                              <tr>
+                                <th className="p-2">Pièce</th>
+                                <th className="p-2 text-center">Qté</th>
+                                <th className="p-2 text-right">P.U</th>
+                                <th className="p-2 text-right">Sous-total</th>
+                                <th className="p-2 w-8 text-center"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {piecesList.map((p, idx) => (
+                                <tr key={idx} className="hover:bg-surface-2/20">
+                                  <td className="p-2 font-semibold text-text-primary">{p.nom}</td>
+                                  <td className="p-2 text-center font-bold">{p.quantite}</td>
+                                  <td className="p-2 text-right">{p.prixUnitaire.toLocaleString()} MAD</td>
+                                  <td className="p-2 text-right font-bold text-primary">{(p.quantite * p.prixUnitaire).toLocaleString()} MAD</td>
+                                  <td className="p-2 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePartFromForm(idx)}
+                                      className="text-text-muted hover:text-danger p-1"
+                                    >
+                                      ✕
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <div className="p-2 bg-surface-2 border-t border-border flex justify-between items-center text-xs">
+                            <span className="font-semibold text-text-secondary">Somme prix des pièces:</span>
+                            <span className="font-bold text-primary">{totalPiecesCost.toLocaleString()} MAD</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-text-muted italic text-center py-2">Aucune pièce sélectionnée pour cet entretien curative.</p>
+                      )}
+
+                      {/* Supplier for Parts */}
+                      {piecesList.length > 0 && (
+                        <div>
+                          <label className="block text-xs font-semibold text-text-primary mb-1">Fournisseur d'achat des pièces</label>
+                          <select 
+                            required
+                            value={fournisseurPieceId}
+                            onChange={e => setFournisseurPieceId(e.target.value)}
+                            className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none text-xs"
+                          >
+                            <option value="">Sélectionner le fournisseur de pièces...</option>
+                            {prestataires.map(p => (
+                              <option key={p.id} value={p.id}>{p.nom} ({p.type})</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Summary Cost Block */}
+                  <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex justify-between items-center">
                     <div>
-                      <label className="block text-sm font-medium text-text-primary mb-1">Coût Estimé (MAD)</label>
-                      <input 
-                        type="number" 
-                        required
-                        min="0"
-                        step="0.01"
-                        value={coutEstime}
-                        onChange={e => setCoutEstime(parseFloat(e.target.value))}
-                        placeholder="Ex: 1500" 
-                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
-                      />
+                      <div className="text-xs font-semibold text-text-secondary uppercase">Coût Estimé Maintenance</div>
+                      <div className="text-xs text-text-muted mt-0.5">
+                        Labor ({coutEstime.toLocaleString()} MAD) + Pièces ({type === 'curative' ? totalPiecesCost.toLocaleString() : '0'} MAD)
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl font-bold text-primary">
+                        {type === 'curative' ? totalGlobalCost.toLocaleString() : coutEstime.toLocaleString()} MAD
+                      </div>
                     </div>
                   </div>
                 </form>
@@ -359,7 +821,7 @@ export default function MaintenancePage() {
                   form="add-maintenance-form"
                   className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium transition-colors shadow-sm"
                 >
-                  Créer
+                  Créer & Générer Bons de Commande
                 </button>
               </div>
             </motion.div>

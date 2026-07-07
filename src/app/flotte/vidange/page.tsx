@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useVidangeStore, Vidange } from '../../../stores/useVidangeStore';
 import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -9,11 +9,142 @@ import {
   Trash2,
   Calendar,
   AlertTriangle,
-  Edit2
+  Edit2,
+  Download
 } from 'lucide-react';
 import { formatMAD, formatDate } from '../../../lib/formatters';
 import { motion, AnimatePresence } from 'motion/react';
 import { DatePicker } from '../../../components/ui/DatePicker';
+import { jsPDF } from 'jspdf';
+
+// PDF Ticket Generator for Vidange
+function generateVidangePDF(v: Vidange, vehicule: any, oilTypeName: string) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [80, 160] // receipt roll format
+  });
+
+  // Header background
+  doc.setFillColor(11, 17, 32);
+  doc.rect(0, 0, 80, 25, 'F');
+
+  // Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('FLEETOPS - VIDANGE', 40, 10, { align: 'center' });
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('TICKET D\'ENTRETIEN TECHNIQUE', 40, 16, { align: 'center' });
+
+  // Reset text color to dark
+  doc.setTextColor(33, 33, 33);
+  doc.setFontSize(8);
+
+  let y = 35;
+  const lineSpacing = 5.5;
+
+  // Vehicle Info Section
+  doc.setFont('helvetica', 'bold');
+  doc.text('DÉTAILS DU VÉHICULE', 5, y);
+  doc.line(5, y + 1, 75, y + 1);
+  y += 6;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Immatriculation :`, 5, y);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${vehicule?.immatriculation || 'N/A'}`, 35, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Marque / Modèle :`, 5, y);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${vehicule?.marque || ''} ${vehicule?.modele || ''}`, 35, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Parc :`, 5, y);
+  doc.text(`${vehicule?.parc || 'N/A'}`, 35, y);
+  y += lineSpacing + 2;
+
+  // Vidange Details Section
+  doc.setFont('helvetica', 'bold');
+  doc.text('DÉTAILS DE LA VIDANGE', 5, y);
+  doc.line(5, y + 1, 75, y + 1);
+  y += 6;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Date d'exécution :`, 5, y);
+  doc.text(`${new Date(v.date).toLocaleDateString('fr-FR')}`, 35, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Type d'huile :`, 5, y);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${oilTypeName}`, 35, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Kilométrage actuel :`, 5, y);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${v.kilometrage.toLocaleString()} km`, 35, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Prochaine vidange :`, 5, y);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(220, 38, 38);
+  doc.text(`${v.prochainKilometrage.toLocaleString()} km`, 35, y);
+  doc.setTextColor(33, 33, 33);
+  y += lineSpacing + 2;
+
+  // Filters Section
+  doc.setFont('helvetica', 'bold');
+  doc.text('FILTRES REMPLACÉS', 5, y);
+  doc.line(5, y + 1, 75, y + 1);
+  y += 6;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Filtre à Huile :`, 5, y);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${v.filtreHuile ? `OUI (${v.coutFiltreHuile} MAD)` : 'NON'}`, 35, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Filtre à Gasoil :`, 5, y);
+  doc.text(`${v.filtreGasoil ? `OUI (${v.coutFiltreGasoil} MAD)` : 'NON'}`, 35, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Filtre à Air :`, 5, y);
+  doc.text(`${v.filtreAir ? `OUI (${v.coutFiltreAir} MAD)` : 'NON'}`, 35, y);
+  y += lineSpacing + 4;
+
+  // Cost total
+  doc.setFillColor(243, 244, 246);
+  doc.rect(4, y - 2, 72, 8, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.text('COÛT TOTAL :', 6, y + 3.5);
+  doc.text(`${v.cout.toLocaleString()} MAD`, 35, y + 3.5);
+  y += 12;
+
+  // Signatures
+  doc.setFontSize(7);
+  doc.text('Signature Technicien', 10, y);
+  doc.text('Signature Chef de Parc', 50, y);
+  doc.line(10, y + 6, 30, y + 6);
+  doc.line(50, y + 6, 70, y + 6);
+
+  // Footer
+  doc.setFontSize(6);
+  doc.setTextColor(156, 163, 175);
+  doc.text('Document généré par FleetOps. Conserver dans le véhicule.', 40, y + 11, { align: 'center' });
+
+  // Save PDF
+  doc.save(`Ticket_Vidange_${vehicule?.immatriculation || 'vehicule'}_${v.kilometrage}km.pdf`);
+}
 
 export default function VidangePage() {
   const { vidanges, oilTypes, addVidange, updateVidange, deleteVidange } = useVidangeStore();
@@ -39,6 +170,21 @@ export default function VidangePage() {
   const [coutFiltreAir, setCoutFiltreAir] = useState<string>('');
   const [notes, setNotes] = useState('');
 
+  // Checkbox Selection for Filters
+  const [hasFiltreHuile, setHasFiltreHuile] = useState(false);
+  const [hasFiltreGasoil, setHasFiltreGasoil] = useState(false);
+  const [hasFiltreAir, setHasFiltreAir] = useState(false);
+
+  // Alarms: List of vehicles whose current kilometrage exceeds recommended prochainKilometrage
+  const exceededVidangeVehicules = useMemo(() => {
+    return vehicules.filter(v => {
+      const vVidanges = vidanges.filter(vid => vid.vehiculeId === v.id);
+      if (vVidanges.length === 0) return false;
+      const latest = [...vVidanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      return v.kilometrageActuel >= latest.prochainKilometrage;
+    });
+  }, [vehicules, vidanges]);
+
   useEffect(() => {
     if (typeHuileId && kilometrage) {
       const oil = oilTypes.find(o => o.id === typeHuileId);
@@ -60,6 +206,9 @@ export default function VidangePage() {
     setCoutFiltreGasoil('');
     setCoutFiltreAir('');
     setNotes('');
+    setHasFiltreHuile(false);
+    setHasFiltreGasoil(false);
+    setHasFiltreAir(false);
   }
 
   const openAddForm = () => {
@@ -79,15 +228,18 @@ export default function VidangePage() {
     setCoutFiltreGasoil(v.coutFiltreGasoil ? String(v.coutFiltreGasoil) : '');
     setCoutFiltreAir(v.coutFiltreAir ? String(v.coutFiltreAir) : '');
     setNotes(v.notes || '');
+    setHasFiltreHuile(!!v.filtreHuile);
+    setHasFiltreGasoil(!!v.filtreGasoil);
+    setHasFiltreAir(!!v.filtreAir);
     setIsDrawerOpen(true);
   }
 
   const handleSaveVidange = (e: React.FormEvent) => {
     e.preventDefault();
     const ch = parseFloat(coutHuile) || 0;
-    const cfh = parseFloat(coutFiltreHuile) || 0;
-    const cfg = parseFloat(coutFiltreGasoil) || 0;
-    const cfa = parseFloat(coutFiltreAir) || 0;
+    const cfh = hasFiltreHuile ? (parseFloat(coutFiltreHuile) || 0) : 0;
+    const cfg = hasFiltreGasoil ? (parseFloat(coutFiltreGasoil) || 0) : 0;
+    const cfa = hasFiltreAir ? (parseFloat(coutFiltreAir) || 0) : 0;
     
     const totalCout = ch + cfh + cfg + cfa;
 
@@ -98,11 +250,11 @@ export default function VidangePage() {
       prochainKilometrage,
       typeHuileId,
       coutHuile: ch,
-      filtreHuile: cfh > 0,
+      filtreHuile: hasFiltreHuile,
       coutFiltreHuile: cfh,
-      filtreGasoil: cfg > 0,
+      filtreGasoil: hasFiltreGasoil,
       coutFiltreGasoil: cfg,
-      filtreAir: cfa > 0,
+      filtreAir: hasFiltreAir,
       coutFiltreAir: cfa,
       cout: totalCout,
       notes
@@ -112,6 +264,8 @@ export default function VidangePage() {
       updateVidange(editingId, data);
     } else {
       addVidange(data);
+      // Automatically update the vehicle's kilometrageActuel on new vidange
+      useVehiculeStore.getState().updateVehicule(vehiculeId, { kilometrageActuel: kilometrage });
     }
     
     setIsDrawerOpen(false);
@@ -160,6 +314,32 @@ export default function VidangePage() {
           )}
         </div>
       </div>
+
+      {/* ALERTE VIDANGE DÉPASSÉ */}
+      {exceededVidangeVehicules.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-600 rounded-xl p-4 flex items-start gap-4 animate-in slide-in-from-top duration-500 shadow-sm">
+          <div className="p-2 bg-red-500/20 rounded-lg text-red-600 shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-red-600 uppercase tracking-widest leading-none mb-1.5">🚨 Alerte Vidange Dépassé</h3>
+            <p className="text-xs text-text-primary font-bold mb-1.5">
+              Les véhicules suivants ont dépassé le kilométrage recommandé pour leur prochaine vidange :
+            </p>
+            <ul className="text-xs list-disc pl-4 space-y-1 text-text-secondary font-medium">
+              {exceededVidangeVehicules.map(v => {
+                const vVidanges = vidanges.filter(vid => vid.vehiculeId === v.id);
+                const latest = [...vVidanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                return (
+                  <li key={v.id}>
+                    Le camion <span className="font-bold text-red-600">{v.immatriculation}</span> ({v.marque} {v.modele}) - Kilométrage actuel: <span className="font-bold">{v.kilometrageActuel.toLocaleString()} km</span> (Vidange conseillée à: <span className="font-bold text-red-600">{latest?.prochainKilometrage.toLocaleString()} km</span>)
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {canManage && (
         <div className="bg-surface border border-border rounded-xl shadow-sm p-6 flex flex-col sm:flex-row items-center gap-6">
@@ -268,6 +448,13 @@ export default function VidangePage() {
                       {canManage && (
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => generateVidangePDF(v, vehicule, oilType?.name || 'Standard')}
+                              className="p-2 text-text-muted hover:text-success hover:bg-success/10 rounded-lg transition-colors"
+                              title="Télécharger Ticket PDF"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
                              <button
                               onClick={() => openEditForm(v)}
                               className="p-2 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
@@ -391,7 +578,95 @@ export default function VidangePage() {
                   </div>
 
                   <div className="pt-4 border-t border-border">
-                     <h3 className="text-sm font-bold text-text-primary mb-3">Détails des Coûts (Exact)</h3>
+                     <h3 className="text-sm font-bold text-text-primary mb-3">Sélection des Filtres à Remplacer</h3>
+                     
+                     <div className="space-y-4 mb-4">
+                       {/* Preset buttons: Filtre Huile Uniquement OR Tous les Filtres */}
+                       <div className="grid grid-cols-2 gap-2">
+                         <button
+                           type="button"
+                           onClick={() => {
+                             setHasFiltreHuile(true);
+                             setHasFiltreGasoil(false);
+                             setHasFiltreAir(false);
+                             setCoutFiltreGasoil('');
+                             setCoutFiltreAir('');
+                           }}
+                           className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                             hasFiltreHuile && !hasFiltreGasoil && !hasFiltreAir
+                               ? 'border-primary bg-primary/10 text-primary'
+                               : 'border-border bg-surface text-text-secondary hover:bg-surface-2'
+                           }`}
+                         >
+                           Filtre Huile Uniquement
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => {
+                             setHasFiltreHuile(true);
+                             setHasFiltreGasoil(true);
+                             setHasFiltreAir(true);
+                           }}
+                           className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                             hasFiltreHuile && hasFiltreGasoil && hasFiltreAir
+                               ? 'border-primary bg-primary/10 text-primary'
+                               : 'border-border bg-surface text-text-secondary hover:bg-surface-2'
+                           }`}
+                         >
+                           Tous les Filtres
+                         </button>
+                       </div>
+
+                       {/* Individual Checkbox Grid */}
+                       <div className="grid grid-cols-3 gap-2">
+                         <label className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                           hasFiltreHuile ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface hover:bg-surface-2 text-text-secondary'
+                         }`}>
+                           <input 
+                             type="checkbox" 
+                             checked={hasFiltreHuile} 
+                             onChange={e => {
+                               setHasFiltreHuile(e.target.checked);
+                               if (!e.target.checked) setCoutFiltreHuile('');
+                             }}
+                             className="sr-only" 
+                           />
+                           <span className="text-[11px] font-bold text-center">Filtre Huile</span>
+                         </label>
+                         
+                         <label className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                           hasFiltreGasoil ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface hover:bg-surface-2 text-text-secondary'
+                         }`}>
+                           <input 
+                             type="checkbox" 
+                             checked={hasFiltreGasoil} 
+                             onChange={e => {
+                               setHasFiltreGasoil(e.target.checked);
+                               if (!e.target.checked) setCoutFiltreGasoil('');
+                             }}
+                             className="sr-only" 
+                           />
+                           <span className="text-[11px] font-bold text-center">Filtre Gasoil</span>
+                         </label>
+                         
+                         <label className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                           hasFiltreAir ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface hover:bg-surface-2 text-text-secondary'
+                         }`}>
+                           <input 
+                             type="checkbox" 
+                             checked={hasFiltreAir} 
+                             onChange={e => {
+                               setHasFiltreAir(e.target.checked);
+                               if (!e.target.checked) setCoutFiltreAir('');
+                             }}
+                             className="sr-only" 
+                           />
+                           <span className="text-[11px] font-bold text-center">Filtre Air</span>
+                         </label>
+                       </div>
+                     </div>
+
+                     <h3 className="text-sm font-bold text-text-primary mb-3 pt-2 border-t border-border/50">Saisie des Coûts</h3>
                      <div className="space-y-3">
                         <div>
                           <label className="block text-xs font-medium text-text-secondary mb-1">Huile Vidange (MAD)</label>
@@ -404,41 +679,75 @@ export default function VidangePage() {
                             className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                           <div>
-                            <label className="block text-xs font-medium text-text-secondary mb-1">Filtre Huile (MAD)</label>
-                            <input 
-                              type="number" 
-                              step="any"
-                              value={coutFiltreHuile}
-                              onChange={e => setCoutFiltreHuile(e.target.value)}
-                              placeholder="0.00" 
-                              className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-text-secondary mb-1">Filtre Gasoil (MAD)</label>
-                            <input 
-                              type="number" 
-                              step="any"
-                              value={coutFiltreGasoil}
-                              onChange={e => setCoutFiltreGasoil(e.target.value)}
-                              placeholder="0.00" 
-                              className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">Filtre Air (MAD)</label>
-                          <input 
-                            type="number" 
-                            step="any"
-                            value={coutFiltreAir}
-                            onChange={e => setCoutFiltreAir(e.target.value)}
-                            placeholder="0.00" 
-                            className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
-                          />
-                        </div>
+
+                        {/* Conditional Price Inputs based on checked filters */}
+                        <AnimatePresence>
+                          {hasFiltreHuile && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pb-1">
+                                <label className="block text-xs font-medium text-text-secondary mb-1">Coût Filtre Huile (MAD)</label>
+                                <input 
+                                  type="number" 
+                                  step="any"
+                                  required
+                                  value={coutFiltreHuile}
+                                  onChange={e => setCoutFiltreHuile(e.target.value)}
+                                  placeholder="0.00" 
+                                  className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {hasFiltreGasoil && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pb-1">
+                                <label className="block text-xs font-medium text-text-secondary mb-1">Coût Filtre Gasoil (MAD)</label>
+                                <input 
+                                  type="number" 
+                                  step="any"
+                                  required
+                                  value={coutFiltreGasoil}
+                                  onChange={e => setCoutFiltreGasoil(e.target.value)}
+                                  placeholder="0.00" 
+                                  className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {hasFiltreAir && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pb-1">
+                                <label className="block text-xs font-medium text-text-secondary mb-1">Coût Filtre Air (MAD)</label>
+                                <input 
+                                  type="number" 
+                                  step="any"
+                                  required
+                                  value={coutFiltreAir}
+                                  onChange={e => setCoutFiltreAir(e.target.value)}
+                                  placeholder="0.00" 
+                                  className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                      </div>
                   </div>
 
@@ -456,7 +765,12 @@ export default function VidangePage() {
                   <div className="p-3 bg-surface-2 rounded-lg border border-border flex justify-between items-center">
                     <span className="text-sm font-medium text-text-secondary">Total Estimé</span>
                     <span className="text-lg font-bold text-primary">
-                      {formatMAD((parseFloat(coutHuile)||0) + (parseFloat(coutFiltreHuile)||0) + (parseFloat(coutFiltreGasoil)||0) + (parseFloat(coutFiltreAir)||0))}
+                      {formatMAD(
+                        (parseFloat(coutHuile) || 0) + 
+                        (hasFiltreHuile ? (parseFloat(coutFiltreHuile) || 0) : 0) + 
+                        (hasFiltreGasoil ? (parseFloat(coutFiltreGasoil) || 0) : 0) + 
+                        (hasFiltreAir ? (parseFloat(coutFiltreAir) || 0) : 0)
+                      )}
                     </span>
                   </div>
                 </form>

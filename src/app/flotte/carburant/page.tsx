@@ -4,6 +4,8 @@ import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useChauffeurStore } from '../../../stores/useChauffeurStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { usePrestataireStore } from '../../../stores/usePrestataireStore';
+import { useVidangeStore } from '../../../stores/useVidangeStore';
+import { toast } from 'sonner';
 import { 
   Plus, 
   Search, 
@@ -85,6 +87,16 @@ export default function CarburantPage() {
   const parsedKm = parseFloat(km) || 0;
 
   const pctStock = stationInterne.capacite > 0 ? (stationInterne.stockActuel / stationInterne.capacite) * 100 : 0;
+
+  const exceededVidangeVehicules = useMemo(() => {
+    const allVidanges = useVidangeStore.getState().vidanges;
+    return vehicules.filter(v => {
+      const vVidanges = allVidanges.filter(vid => vid.vehiculeId === v.id);
+      if (vVidanges.length === 0) return false;
+      const latest = [...vVidanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      return v.kilometrageActuel >= latest.prochainKilometrage;
+    });
+  }, [vehicules, useVidangeStore.getState().vidanges]);
 
   const consumptionStats = useMemo(() => {
     const now = new Date();
@@ -257,6 +269,23 @@ export default function CarburantPage() {
       notes
     };
     const addedTicket = addTicket(newTicket);
+
+    // Record latest kilometrage on fuel refill in vehicle store
+    useVehiculeStore.getState().updateVehicule(vehiculeId, { kilometrageActuel: parsedKm });
+
+    // Check if the truck has surpassed the kilometrage for vidange
+    const allVidanges = useVidangeStore.getState().vidanges;
+    const vVidanges = allVidanges.filter(vid => vid.vehiculeId === vehiculeId);
+    if (vVidanges.length > 0) {
+      const latestVid = [...vVidanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      if (parsedKm >= latestVid.prochainKilometrage) {
+        const vehObj = vehicules.find(v => v.id === vehiculeId);
+        toast.error(`🚨 ALERTE VIDANGE : Le véhicule ${vehObj?.immatriculation || ''} a dépassé son kilométrage de vidange ! (Actuel: ${parsedKm.toLocaleString()} km, Prochain vidange à: ${latestVid.prochainKilometrage.toLocaleString()} km)`, {
+          duration: 12000
+        });
+      }
+    }
+
     setIsDrawerOpen(false);
     
     // Trigger print
@@ -306,6 +335,32 @@ export default function CarburantPage() {
 
   return (
     <div className="space-y-6 relative h-full">
+      {/* ALERTE VIDANGE DÉPASSÉ */}
+      {exceededVidangeVehicules.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-600 rounded-xl p-4 flex items-start gap-4 animate-in slide-in-from-top duration-500 shadow-sm">
+          <div className="p-2 bg-red-500/20 rounded-lg text-red-600 shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-red-600 uppercase tracking-widest leading-none mb-1.5">🚨 Alerte Vidange Dépassé</h3>
+            <p className="text-xs text-text-primary font-bold mb-1.5">
+              Les véhicules suivants ont dépassé le kilométrage recommandé pour leur prochaine vidange :
+            </p>
+            <ul className="text-xs list-disc pl-4 space-y-1 text-text-secondary font-medium">
+              {exceededVidangeVehicules.map(v => {
+                const vVidanges = useVidangeStore.getState().vidanges.filter(vid => vid.vehiculeId === v.id);
+                const latest = [...vVidanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                return (
+                  <li key={v.id}>
+                    Le camion <span className="font-bold text-red-600">{v.immatriculation}</span> ({v.marque} {v.modele}) - Kilométrage actuel: <span className="font-bold">{v.kilometrageActuel.toLocaleString()} km</span> (Vidange conseillée à: <span className="font-bold text-red-600">{latest?.prochainKilometrage.toLocaleString()} km</span>)
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {consumptionStats.alerts.length > 0 && (
         <div className="bg-error/10 border border-error/20 rounded-xl p-4 flex items-center gap-4 animate-in slide-in-from-top duration-500">
           <div className="p-2 bg-error/20 rounded-lg">
@@ -1198,6 +1253,7 @@ export default function CarburantPage() {
                     <tr>
                       <th className="px-4 py-3">Date</th>
                       <th className="px-4 py-3">Fournisseur</th>
+                      <th className="px-4 py-3 text-right">Stock Avant</th>
                       <th className="px-4 py-3 text-right">Volume (L)</th>
                       <th className="px-4 py-3 text-right">Prix/L</th>
                       <th className="px-4 py-3 text-right">Total</th>
@@ -1206,7 +1262,7 @@ export default function CarburantPage() {
                   <tbody className="divide-y divide-border">
                     {stationInterne.historique.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
+                        <td colSpan={6} className="px-4 py-8 text-center text-text-muted">
                           Aucun historique disponible
                         </td>
                       </tr>
@@ -1215,6 +1271,7 @@ export default function CarburantPage() {
                         <tr key={h.id}>
                           <td className="px-4 py-3 text-text-primary">{formatDate(h.date)}</td>
                           <td className="px-4 py-3 font-medium text-text-primary">{h.fournisseur}</td>
+                          <td className="px-4 py-3 text-right font-bold text-amber-600">{h.stockAvant !== undefined ? `${h.stockAvant.toLocaleString()} L` : 'N/A'}</td>
                           <td className="px-4 py-3 text-right font-bold text-text-primary border-l border-border bg-primary/5">+{h.volume.toLocaleString()} L</td>
                           <td className="px-4 py-3 text-right font-medium text-text-secondary">{formatMAD(h.prixParLitre)}</td>
                           <td className="px-4 py-3 text-right font-bold text-text-primary">{formatMAD(h.coutTotal)}</td>

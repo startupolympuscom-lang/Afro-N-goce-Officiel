@@ -6,6 +6,19 @@ import { immer } from 'zustand/middleware/immer';
 export type MaintenanceType = 'preventive' | 'curative' | 'inspection';
 export type MaintenanceStatus = 'planifiee' | 'en_cours' | 'terminee' | 'annulee';
 
+export interface SparePart {
+  id: string;
+  nom: string;
+  prixDefaut: number;
+}
+
+export interface MaintenancePiece {
+  partId: string;
+  nom: string;
+  quantite: number;
+  prixUnitaire: number;
+}
+
 export interface Maintenance {
   id: string;
   vehiculeId: string;
@@ -14,33 +27,57 @@ export interface Maintenance {
   datePrevue: string;
   dateRealisation?: string;
   kilometrage: number;
-  coutEstime: number;
+  coutEstime: number; // base maintenance / labor cost
   coutReel?: number;
-  prestataireId?: string;
+  prestataireId?: string; // kept for compatibility
+  fournisseurPieceId?: string;
+  fournisseurMaintenanceId?: string;
   status: MaintenanceStatus;
   notes?: string;
-  pieces: { nom: string; quantite: number; prixUnitaire: number }[];
+  pieces: MaintenancePiece[];
+  coutTotalPieces?: number;
+  coutTotalGlobal?: number;
 }
 
 interface MaintenanceState {
   maintenances: Maintenance[];
-  addMaintenance: (maintenance: Omit<Maintenance, 'id'>) => void;
+  spareParts: SparePart[];
+  addMaintenance: (maintenance: Omit<Maintenance, 'id'>) => Maintenance;
   updateMaintenance: (id: string, maintenance: Partial<Maintenance>) => void;
   deleteMaintenance: (id: string) => void;
   getMaintenanceById: (id: string) => Maintenance | undefined;
+  
+  // Spare Parts Database actions
+  addSparePart: (part: Omit<SparePart, 'id'>) => void;
+  updateSparePart: (id: string, part: Partial<SparePart>) => void;
+  deleteSparePart: (id: string) => void;
 }
 
 export const useMaintenanceStore = create<MaintenanceState>()(
   persist(
     immer((set, get) => ({
       maintenances: [],
-      addMaintenance: (maintenance) =>
+      spareParts: [
+        { id: 'part-1', nom: 'Plaquettes de frein', prixDefaut: 450 },
+        { id: 'part-2', nom: 'Filtre à air moteur', prixDefaut: 180 },
+        { id: 'part-3', nom: 'Batterie 12V 100Ah', prixDefaut: 1200 },
+        { id: 'part-4', nom: 'Courroie de distribution', prixDefaut: 950 },
+        { id: 'part-5', nom: 'Alternateur', prixDefaut: 1800 },
+        { id: 'part-6', nom: 'Disque de frein', prixDefaut: 800 },
+        { id: 'part-7', nom: 'Démarreur', prixDefaut: 1500 },
+        { id: 'part-8', nom: 'Amortisseur avant', prixDefaut: 1100 }
+      ],
+      addMaintenance: (maintenance) => {
+        const id = Math.random().toString(36).substring(2, 9);
+        const newRecord = {
+          ...maintenance,
+          id,
+        };
         set((state) => {
-          state.maintenances.push({
-            ...maintenance,
-            id: Math.random().toString(36).substring(2, 9),
-          });
-        }),
+          state.maintenances.push(newRecord);
+        });
+        return newRecord;
+      },
       updateMaintenance: (id, updatedMaintenance) =>
         set((state) => {
           const index = state.maintenances.findIndex((m) => m.id === id);
@@ -53,6 +90,26 @@ export const useMaintenanceStore = create<MaintenanceState>()(
           state.maintenances = state.maintenances.filter((m) => m.id !== id);
         }),
       getMaintenanceById: (id) => get().maintenances.find((m) => m.id === id),
+      
+      // Spare Parts actions
+      addSparePart: (part) =>
+        set((state) => {
+          state.spareParts.push({
+            ...part,
+            id: Math.random().toString(36).substring(2, 9),
+          });
+        }),
+      updateSparePart: (id, updatedPart) =>
+        set((state) => {
+          const index = state.spareParts.findIndex((p) => p.id === id);
+          if (index !== -1) {
+            state.spareParts[index] = { ...state.spareParts[index], ...updatedPart };
+          }
+        }),
+      deleteSparePart: (id) =>
+        set((state) => {
+          state.spareParts = state.spareParts.filter((p) => p.id !== id);
+        }),
     })),
     {
       name: 'maintenance-storage',

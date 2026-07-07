@@ -49,6 +49,7 @@ export const useCarburantStore = create<CarburantStore>()(
       }),
       updateStationStock: (volume, type, details) => set(state => {
         if (type === 'add') {
+          const currentStockBefore = state.stationInterne.stockActuel;
           state.stationInterne.stockActuel += volume;
           state.stationInterne.historique.push({
             id: nanoid(),
@@ -56,7 +57,8 @@ export const useCarburantStore = create<CarburantStore>()(
             volume,
             fournisseur: details?.fournisseur || 'N/A',
             prixParLitre: details?.prixParLitre || 0,
-            coutTotal: details?.coutTotal || 0
+            coutTotal: details?.coutTotal || 0,
+            stockAvant: currentStockBefore
           });
         } else {
           state.stationInterne.stockActuel -= volume;
