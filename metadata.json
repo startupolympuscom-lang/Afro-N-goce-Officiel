@@ -1,8 +1,8 @@
 {
-  "name": "FleetOps",
-  "description": "Système de gestion de flotte avec suivi intelligent des vidanges, filtres, consommation de carburant et alarmes de dépassement.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  "name": "Remix: AFRO Négoce",
+  "description": "Spécialiste de la distribution de gaz (Butagaz \u0026 Air Liquide) et solutions énergétiques au Maroc.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
   ]
 }
