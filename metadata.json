@@ -1,8 +1,6 @@
 {
-  "name": "Remix: AFRO Négoce",
-  "description": "Spécialiste de la distribution de gaz (Butagaz \u0026 Air Liquide) et solutions énergétiques au Maroc.",
-  "requestFramePermissions": [
-    "geolocation",
-    "camera"
-  ]
+  "name": "FleetOps",
+  "description": "Gestion de flotte de camions, vidanges, carburant et maintenance curative et préventive",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
