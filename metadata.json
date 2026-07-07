@@ -1,6 +1,8 @@
 {
   "name": "FleetOps",
-  "description": "Gestion de flotte de camions, vidanges, carburant et maintenance curative et préventive",
+  "description": "Système de gestion de flotte avec suivi intelligent des vidanges, filtres, consommation de carburant et alarmes de dépassement.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
