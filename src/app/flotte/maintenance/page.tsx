@@ -51,6 +51,11 @@ export default function MaintenancePage() {
   const [partQty, setPartQty] = useState(1);
   const [partPrice, setPartPrice] = useState(0);
 
+  // Documents state
+  const [documentsList, setDocumentsList] = useState<{ id: string; nom: string; reference: string }[]>([]);
+  const [docName, setDocName] = useState('');
+  const [docRef, setDocRef] = useState('');
+
   // Suppliers state
   const [fournisseurPieceId, setFournisseurPieceId] = useState('');
   const [fournisseurMaintenanceId, setFournisseurMaintenanceId] = useState('');
@@ -236,6 +241,24 @@ export default function MaintenancePage() {
     setPiecesList(piecesList.filter((_, i) => i !== idx));
   };
 
+  const handleAddDocumentToForm = () => {
+    if (!docName.trim() || !docRef.trim()) return;
+    setDocumentsList([
+      ...documentsList,
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        nom: docName.trim(),
+        reference: docRef.trim()
+      }
+    ]);
+    setDocName('');
+    setDocRef('');
+  };
+
+  const handleRemoveDocumentFromForm = (idx: number) => {
+    setDocumentsList(documentsList.filter((_, i) => i !== idx));
+  };
+
   const totalPiecesCost = useMemo(() => {
     return piecesList.reduce((acc, p) => acc + (p.quantite * p.prixUnitaire), 0);
   }, [piecesList]);
@@ -264,7 +287,8 @@ export default function MaintenancePage() {
       fournisseurPieceId: type === 'curative' && finalPieces.length > 0 ? fournisseurPieceId : undefined,
       fournisseurMaintenanceId: fournisseurMaintenanceId || undefined,
       status: 'planifiee' as MaintenanceStatus,
-      pieces: finalPieces
+      pieces: finalPieces,
+      documents: documentsList
     };
 
     const createdRecord = addMaintenance(maintenanceData);
@@ -302,6 +326,9 @@ export default function MaintenancePage() {
     setKilometrage(0);
     setCoutEstime(0);
     setPiecesList([]);
+    setDocumentsList([]);
+    setDocName('');
+    setDocRef('');
     setFournisseurPieceId('');
     setFournisseurMaintenanceId('');
   };
@@ -448,6 +475,16 @@ export default function MaintenancePage() {
                           {m.pieces.map((p, pi) => (
                             <span key={pi} className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px]">
                               {p.nom} (x{p.quantite})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {m.documents && m.documents.length > 0 && (
+                        <div className="text-xs text-text-muted mt-1 flex flex-col gap-0.5">
+                          {m.documents.map((doc, di) => (
+                            <span key={di} className="flex items-center gap-1 text-[10px] text-primary">
+                              <FileText className="w-3 h-3" />
+                              {doc.nom}: {doc.reference}
                             </span>
                           ))}
                         </div>
@@ -791,6 +828,77 @@ export default function MaintenancePage() {
                       )}
                     </div>
                   )}
+
+                  {/* ADDITIONAL DOCUMENTS SECTION */}
+                  <div className="p-4 bg-surface-2 rounded-xl border border-border space-y-4">
+                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      Documents Additionnels
+                    </h3>
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-5">
+                        <label className="block text-xs font-medium text-text-secondary mb-1">Type de Document</label>
+                        <input
+                          type="text"
+                          value={docName}
+                          onChange={e => setDocName(e.target.value)}
+                          placeholder="Ex: Facture, Devis..."
+                          className="w-full h-10 px-2 rounded border border-border bg-surface text-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                      <div className="col-span-5">
+                        <label className="block text-xs font-medium text-text-secondary mb-1">Référence</label>
+                        <input
+                          type="text"
+                          value={docRef}
+                          onChange={e => setDocRef(e.target.value)}
+                          placeholder="Ex: FAC-2023-145"
+                          className="w-full h-10 px-2 rounded border border-border bg-surface text-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <button
+                          type="button"
+                          disabled={!docName.trim() || !docRef.trim()}
+                          onClick={handleAddDocumentToForm}
+                          className="w-full h-10 bg-primary hover:bg-primary-hover text-white rounded flex items-center justify-center transition-colors disabled:opacity-50"
+                        >
+                          <PlusCircle className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {documentsList.length > 0 && (
+                      <div className="border border-border rounded-lg bg-surface overflow-hidden">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-surface-2 text-text-secondary border-b border-border">
+                            <tr>
+                              <th className="p-2">Type</th>
+                              <th className="p-2">Référence</th>
+                              <th className="p-2 w-8 text-center"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {documentsList.map((doc, idx) => (
+                              <tr key={idx} className="hover:bg-surface-2/20">
+                                <td className="p-2 font-semibold text-text-primary">{doc.nom}</td>
+                                <td className="p-2 text-text-secondary">{doc.reference}</td>
+                                <td className="p-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveDocumentFromForm(idx)}
+                                    className="text-text-muted hover:text-danger p-1"
+                                  >
+                                    ✕
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Summary Cost Block */}
                   <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex justify-between items-center">

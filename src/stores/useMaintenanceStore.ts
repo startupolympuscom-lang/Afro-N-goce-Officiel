@@ -19,6 +19,12 @@ export interface MaintenancePiece {
   prixUnitaire: number;
 }
 
+export interface MaintenanceDocument {
+  id: string;
+  nom: string;
+  reference: string;
+}
+
 export interface Maintenance {
   id: string;
   vehiculeId: string;
@@ -37,6 +43,7 @@ export interface Maintenance {
   pieces: MaintenancePiece[];
   coutTotalPieces?: number;
   coutTotalGlobal?: number;
+  documents?: MaintenanceDocument[];
 }
 
 interface MaintenanceState {

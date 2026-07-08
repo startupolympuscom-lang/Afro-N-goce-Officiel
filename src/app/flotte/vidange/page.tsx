@@ -368,7 +368,7 @@ export default function VidangePage() {
         </div>
       )}
 
-      <div className="bg-surface border border-border rounded-xl shadow-sm flex flex-col h-[calc(100vh-17rem)]">
+      <div className="bg-surface border border-border rounded-xl shadow-sm">
         <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4 justify-between items-center bg-surface-2/50 rounded-t-xl">
           <div className="relative w-full sm:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
@@ -382,7 +382,7 @@ export default function VidangePage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto flex-1">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-surface-2 text-text-secondary font-medium border-b border-border">
               <tr>

@@ -205,7 +205,7 @@ export default function LeasingPage() {
         </div>
       </div>
 
-      <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex-1 flex flex-col">
+      <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
         <div className="p-4 border-b border-border flex gap-4">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -219,7 +219,7 @@ export default function LeasingPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto flex-1">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-surface-2 text-text-secondary font-medium border-b border-border">
               <tr>

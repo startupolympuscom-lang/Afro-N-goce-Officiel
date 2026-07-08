@@ -404,7 +404,7 @@ export default function CarburantPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left Column - 3/5 */}
-        <div className="lg:col-span-3 space-y-6 flex flex-col">
+        <div className="lg:col-span-3 space-y-6">
           <div className="bg-surface p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
             <div className="flex items-center gap-4">
               <div className="relative flex-1">
@@ -473,8 +473,8 @@ export default function CarburantPage() {
             )}
           </div>
 
-          <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex-1 flex flex-col">
-            <div className="overflow-x-auto flex-1">
+          <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-surface-2 text-text-secondary font-medium border-b border-border">
                   <tr>
