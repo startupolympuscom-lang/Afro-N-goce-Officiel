@@ -44,6 +44,7 @@ export default function MaintenancePage() {
   const [datePrevue, setDatePrevue] = useState('');
   const [kilometrage, setKilometrage] = useState(0);
   const [coutEstime, setCoutEstime] = useState(0); // This acts as base/labor cost
+  const [numeroCommande, setNumeroCommande] = useState('');
 
   // Curative parts selection state
   const [piecesList, setPiecesList] = useState<{ partId: string; nom: string; quantite: number; prixUnitaire: number }[]>([]);
@@ -93,7 +94,7 @@ export default function MaintenancePage() {
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const bcRef = `BC-MAINT-${m.id.toUpperCase()}`;
+    const bcRef = m.numeroCommande || `BC-MAINT-${m.id.toUpperCase()}`;
     doc.text(`Réf BC: ${bcRef}`, 15, 26);
     doc.text(`Date: ${new Date(m.datePrevue).toLocaleDateString('fr-FR')}`, 150, 26);
 
@@ -288,7 +289,8 @@ export default function MaintenancePage() {
       fournisseurMaintenanceId: fournisseurMaintenanceId || undefined,
       status: 'planifiee' as MaintenanceStatus,
       pieces: finalPieces,
-      documents: documentsList
+      documents: documentsList,
+      numeroCommande: numeroCommande || undefined
     };
 
     const createdRecord = addMaintenance(maintenanceData);
@@ -325,6 +327,7 @@ export default function MaintenancePage() {
     setDatePrevue('');
     setKilometrage(0);
     setCoutEstime(0);
+    setNumeroCommande('');
     setPiecesList([]);
     setDocumentsList([]);
     setDocName('');
@@ -666,6 +669,17 @@ export default function MaintenancePage() {
                       onChange={e => setDescription(e.target.value)}
                       placeholder="Ex: Réparation alternateur, Changement des freins..."
                       className="w-full p-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none resize-none text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-1">Numéro Bon de Commande (Optionnel)</label>
+                    <input 
+                      type="text" 
+                      value={numeroCommande}
+                      onChange={e => setNumeroCommande(e.target.value)}
+                      placeholder="Ex: BC-2023-08-001 (Laisser vide pour auto-générer)" 
+                      className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none" 
                     />
                   </div>
 

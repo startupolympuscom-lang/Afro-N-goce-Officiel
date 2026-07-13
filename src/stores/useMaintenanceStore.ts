@@ -44,6 +44,7 @@ export interface Maintenance {
   coutTotalPieces?: number;
   coutTotalGlobal?: number;
   documents?: MaintenanceDocument[];
+  numeroCommande?: string;
 }
 
 interface MaintenanceState {
