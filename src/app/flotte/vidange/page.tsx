@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useVidangeStore, Vidange } from '../../../stores/useVidangeStore';
 import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { useChauffeurStore } from '../../../stores/useChauffeurStore';
 import { 
   Plus, 
   Search, 
@@ -149,9 +150,14 @@ function generateVidangePDF(v: Vidange, vehicule: any, oilTypeName: string) {
 export default function VidangePage() {
   const { vidanges, oilTypes, addVidange, updateVidange, deleteVidange } = useVidangeStore();
   const vehicules = useVehiculeStore(s => s.vehicules);
+  const chauffeurs = useChauffeurStore(s => s.chauffeurs);
   const user = useAuthStore(s => s.user);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterVehicule, setFilterVehicule] = useState('');
+  const [filterChauffeur, setFilterChauffeur] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
   
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -278,12 +284,41 @@ export default function VidangePage() {
     }
   };
 
-  const filteredVidanges = vidanges.filter(v => {
-    const vehicule = vehicules.find(veh => veh.id === v.vehiculeId);
-    const searchLower = search.toLowerCase();
-    return vehicule?.immatriculation.toLowerCase().includes(searchLower) ||
-           vehicule?.marque.toLowerCase().includes(searchLower);
-  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filteredVidanges = useMemo(() => {
+    return vidanges.filter(v => {
+      const vehicule = vehicules.find(veh => veh.id === v.vehiculeId);
+      
+      const searchLower = search.toLowerCase();
+      const matchesSearch = !search || 
+        vehicule?.immatriculation.toLowerCase().includes(searchLower) ||
+        vehicule?.marque.toLowerCase().includes(searchLower) ||
+        vehicule?.modele.toLowerCase().includes(searchLower);
+        
+      if (!matchesSearch) return false;
+
+      if (filterVehicule && v.vehiculeId !== filterVehicule) return false;
+
+      if (filterChauffeur) {
+        const hasChauffeur = vehicule?.chauffeurAssigneId === filterChauffeur;
+        if (!hasChauffeur) return false;
+      }
+
+      if (filterStartDate) {
+        const vDate = new Date(v.date);
+        const startDate = new Date(filterStartDate);
+        startDate.setHours(0, 0, 0, 0);
+        if (vDate < startDate) return false;
+      }
+      if (filterEndDate) {
+        const vDate = new Date(v.date);
+        const endDate = new Date(filterEndDate);
+        endDate.setHours(23, 59, 59, 999);
+        if (vDate > endDate) return false;
+      }
+
+      return true;
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [vidanges, vehicules, search, filterVehicule, filterChauffeur, filterStartDate, filterEndDate]);
 
   const [capaciteMoyenne, setCapaciteMoyenne] = useState<number>(30); // Default 30L per truck
   const [litersHuileBrulee, setLitersHuileBrulee] = useState<number>(filteredVidanges.length * capaciteMoyenne);
@@ -369,17 +404,88 @@ export default function VidangePage() {
       )}
 
       <div className="bg-surface border border-border rounded-xl shadow-sm">
-        <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4 justify-between items-center bg-surface-2/50 rounded-t-xl">
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Rechercher par immatriculation..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            />
+        <div className="p-4 border-b border-border flex flex-col gap-4 bg-surface-2/50 rounded-t-xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+            {/* Search Input */}
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Immatriculation, marque..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 h-10 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              />
+            </div>
+
+            {/* Vehicle Select */}
+            <div>
+              <select
+                value={filterVehicule}
+                onChange={(e) => setFilterVehicule(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              >
+                <option value="">Tous les véhicules</option>
+                {vehicules.map(v => (
+                  <option key={v.id} value={v.id}>{v.immatriculation} - {v.marque} {v.modele}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Driver Select */}
+            <div>
+              <select
+                value={filterChauffeur}
+                onChange={(e) => setFilterChauffeur(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              >
+                <option value="">Tous les chauffeurs</option>
+                {chauffeurs.map(c => (
+                  <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date range - Start */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-text-secondary font-medium shrink-0">Du</span>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="w-full h-10 px-2 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              />
+            </div>
+
+            {/* Date range - End */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-text-secondary font-medium shrink-0">Au</span>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="w-full h-10 px-2 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              />
+            </div>
           </div>
+
+          {/* Reset Filters action */}
+          {(search || filterVehicule || filterChauffeur || filterStartDate || filterEndDate) && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setFilterVehicule('');
+                  setFilterChauffeur('');
+                  setFilterStartDate('');
+                  setFilterEndDate('');
+                }}
+                className="text-xs text-primary hover:underline font-bold"
+              >
+                Réinitialiser tous les filtres
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -409,10 +515,15 @@ export default function VidangePage() {
                   const vehicule = vehicules.find(veh => veh.id === v.vehiculeId);
                   const oilType = oilTypes.find(o => o.id === v.typeHuileId);
                   
+                  // Only check for exceedance if this is the absolute latest vidange for this vehicle
+                  const vVidanges = vidanges.filter(vid => vid.vehiculeId === v.vehiculeId);
+                  const latestVidange = [...vVidanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                  const isLatest = latestVidange && latestVidange.id === v.id;
+
                   // Check if close to next vidange (less than 1000km away)
-                  const isCloseToNext = vehicule && v.prochainKilometrage && 
+                  const isCloseToNext = isLatest && vehicule && v.prochainKilometrage && 
                     (vehicule.kilometrageActuel >= v.prochainKilometrage - 1000);
-                  const isOverdue = vehicule && v.prochainKilometrage && 
+                  const isOverdue = isLatest && vehicule && v.prochainKilometrage && 
                     (vehicule.kilometrageActuel >= v.prochainKilometrage);
 
                   return (

@@ -22,6 +22,7 @@ export type DispatchPage =
   | 'facturation'
   | 'standard'
   | 'team'
+  | 'rapports'
   | 'driver_history';
 
 export interface RolePermissions {
@@ -88,6 +89,7 @@ const defaultPages = (): PagePermissions => ({
   facturation: { ...emptyPermissions },
   standard: { ...emptyPermissions },
   team: { ...emptyPermissions },
+  rapports: { ...emptyPermissions },
 });
 
 const adminPages = (): PagePermissions => {
@@ -111,7 +113,7 @@ export const useRbacStore = create<RbacState>()(
         admin: adminPages(),
         driver: { ...defaultPages(), driver_pointage: { ...defaultPermissions }, driver_sale: { ...defaultPermissions }, driver_history: { ...defaultPermissions } },
         vendeur_comptoir: { ...defaultPages(), comptoir_sale: { ...defaultPermissions }, driver_history: { ...defaultPermissions } },
-        comptable: { ...defaultPages(), compta: { ...defaultPermissions, modify: true }, caisse: { ...defaultPermissions }, commande: { ...defaultPermissions }, stock: { ...defaultPermissions }, hr: { ...defaultPermissions }, dashboard: { ...defaultPermissions } },
+        comptable: { ...defaultPages(), compta: { ...defaultPermissions, modify: true }, caisse: { ...defaultPermissions }, commande: { ...defaultPermissions }, stock: { ...defaultPermissions }, hr: { ...defaultPermissions }, dashboard: { ...defaultPermissions }, rapports: { ...defaultPermissions } },
         stock_superviseur: { ...defaultPages(), stock: { ...defaultPermissions, modify: true, addEdit: true }, manual_sale: { ...defaultPermissions }, commande: { ...defaultPermissions } },
         caissier: { ...defaultPages(), caisse: { ...defaultPermissions, modify: true, addEdit: true } },
       },

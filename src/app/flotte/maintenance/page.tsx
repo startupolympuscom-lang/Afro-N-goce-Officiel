@@ -28,8 +28,9 @@ import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 
 export default function MaintenancePage() {
-  const { maintenances, spareParts, addMaintenance, deleteMaintenance } = useMaintenanceStore();
+  const { maintenances, spareParts, addMaintenance, deleteMaintenance, updateMaintenance } = useMaintenanceStore();
   const vehicules = useVehiculeStore(s => s.vehicules);
+  const updateVehicule = useVehiculeStore(s => s.updateVehicule);
   const prestataires = usePrestataireStore(s => s.prestataires);
   const user = useAuthStore(s => s.user);
   const canManage = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'chef_de_parc';
@@ -294,6 +295,8 @@ export default function MaintenancePage() {
     };
 
     const createdRecord = addMaintenance(maintenanceData);
+    // Automatically update the vehicle's status to 'immobilise'
+    updateVehicule(vehiculeId, { status: 'immobilise' });
     setIsModalOpen(false);
 
     // Trigger Purchase Orders (Bons de commande)
@@ -342,6 +345,12 @@ export default function MaintenancePage() {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette maintenance ?')) {
       deleteMaintenance(id);
     }
+  };
+
+  const handleReturnToPark = (mId: string, vId: string) => {
+    updateMaintenance(mId, { status: 'terminee', dateRealisation: new Date().toISOString() });
+    updateVehicule(vId, { status: 'disponible' });
+    toast.success("Véhicule retourné au parc et prêt à travailler !");
   };
 
   const getStatusIcon = (status: MaintenanceStatus) => {
@@ -534,6 +543,16 @@ export default function MaintenancePage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {canManage && m.status !== 'terminee' && m.status !== 'annulee' && (
+                          <button
+                            onClick={() => handleReturnToPark(m.id, m.vehiculeId)}
+                            className="px-2 py-1 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded text-xs font-bold transition-all flex items-center gap-1 shadow-sm"
+                            title="Retourner au parc (Prêt à travailler)"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            <span>Retour au parc</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => triggerDownloadForExisting(m)}
                           className="p-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded transition-colors"

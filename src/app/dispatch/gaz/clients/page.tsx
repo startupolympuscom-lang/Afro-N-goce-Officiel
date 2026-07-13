@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore, GazClient, GazSale } from '../../../../stores/useDispatchGazStore';
-import { Plus, Trash2, MapPin, Edit2, Search, X, RefreshCw, History, Calendar, Truck } from 'lucide-react';
+import { Plus, Trash2, MapPin, Edit2, Search, X, RefreshCw, History, Calendar, Truck, Coins, DollarSign, CheckCircle2, XCircle, FileCheck2, Building2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -23,7 +23,7 @@ function LocationPicker({ position, setPosition }: { position: [number, number],
 }
 
 export default function DispatchClientsPage() {
-  const { clients, addClient, updateClient, deleteClient, zones, reloadInitialClients, setClients, brands, sales, drivers } = useDispatchGazStore();
+  const { clients, addClient, updateClient, deleteClient, zones, reloadInitialClients, setClients, brands, sales, drivers, updateSaleStatus, updateSaleFactured } = useDispatchGazStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   const [historyClientId, setHistoryClientId] = useState<string | null>(null);
@@ -112,6 +112,71 @@ export default function DispatchClientsPage() {
     setFormData(client);
     setIsFormOpen(true);
   };
+
+  const clientSituation = useMemo(() => {
+    if (!historyClientId) return null;
+    
+    const clientSales = sales.filter(s => s.clientId === historyClientId);
+    
+    let totalAfro = 0;
+    let totalChakirine = 0;
+    let paidAfro = 0;
+    let paidChakirine = 0;
+    let creditAfro = 0;
+    let creditChakirine = 0;
+    let invoicedTotal = 0;
+    let nonInvoicedTotal = 0;
+    let totalQty = 0;
+
+    clientSales.forEach(s => {
+      totalQty += s.quantity;
+      const isAfro = !s.company || s.company === 'afro_negoce';
+      const isPaid = s.paymentMethod !== 'credit' || s.status === 'payé';
+      const amount = s.totalPrice;
+
+      if (isAfro) {
+        totalAfro += amount;
+        if (isPaid) {
+          paidAfro += amount;
+        } else {
+          creditAfro += amount;
+        }
+      } else {
+        totalChakirine += amount;
+        if (isPaid) {
+          paidChakirine += amount;
+        } else {
+          creditChakirine += amount;
+        }
+      }
+
+      if (s.isFactured) {
+        invoicedTotal += amount;
+      } else {
+        nonInvoicedTotal += amount;
+      }
+    });
+
+    const grandTotal = totalAfro + totalChakirine;
+    const grandPaid = paidAfro + paidChakirine;
+    const grandCredit = creditAfro + creditChakirine;
+
+    return {
+      totalAfro,
+      totalChakirine,
+      paidAfro,
+      paidChakirine,
+      creditAfro,
+      creditChakirine,
+      invoicedTotal,
+      nonInvoicedTotal,
+      grandTotal,
+      grandPaid,
+      grandCredit,
+      totalQty,
+      count: clientSales.length
+    };
+  }, [sales, historyClientId]);
 
   const clientHistory = useMemo(() => {
     if (!historyClientId) return [];
@@ -377,12 +442,17 @@ export default function DispatchClientsPage() {
 
       {historyClientId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <History className="w-6 h-6 text-indigo-600" />
-                Historique des Ventes: {clients.find(c => c.id === historyClientId)?.name}
-              </h2>
+              <div className="flex flex-col">
+                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <History className="w-6 h-6 text-indigo-600" />
+                  Situation Globale & Historique Client
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Client: <span className="font-bold text-slate-700">{clients.find(c => c.id === historyClientId)?.name}</span>
+                </p>
+              </div>
               <button 
                 onClick={() => setHistoryClientId(null)}
                 className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -390,6 +460,64 @@ export default function DispatchClientsPage() {
                 <X className="w-6 h-6" />
               </button>
             </div>
+
+            {/* Situation overview cards */}
+            {clientSituation && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 border-b border-slate-200 shrink-0">
+                {/* Global Situation Card */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Situation Globale</span>
+                    <span className="text-lg font-black text-slate-900 block mt-1">{clientSituation.grandTotal.toFixed(2)} MAD</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className="text-[9px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded border border-green-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-2.5 h-2.5" /> {clientSituation.grandPaid.toFixed(0)} Payé
+                    </span>
+                    <span className="text-[9px] font-bold bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-200 flex items-center gap-1">
+                      <XCircle className="w-2.5 h-2.5" /> {clientSituation.grandCredit.toFixed(0)} Crédit
+                    </span>
+                  </div>
+                </div>
+
+                {/* Afro Negoce Card */}
+                <div className="bg-orange-50/40 p-4 rounded-2xl border border-orange-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-wider block">AFRO NÉGOCE</span>
+                    <span className="text-lg font-black text-slate-950 block mt-1">{clientSituation.totalAfro.toFixed(2)} MAD</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 pt-1 border-t border-orange-100/50">
+                    <span className="text-[10px] font-medium text-slate-500">Payé: <strong className="text-slate-700">{clientSituation.paidAfro.toFixed(0)}</strong></span>
+                    <span className="text-[10px] font-bold text-red-700">Crédit: {clientSituation.creditAfro.toFixed(0)}</span>
+                  </div>
+                </div>
+
+                {/* Chakirine Gaz Card */}
+                <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">CHAKIRINE GAZ</span>
+                    <span className="text-lg font-black text-slate-950 block mt-1">{clientSituation.totalChakirine.toFixed(2)} MAD</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 pt-1 border-t border-emerald-100/50">
+                    <span className="text-[10px] font-medium text-slate-500">Payé: <strong className="text-slate-700">{clientSituation.paidChakirine.toFixed(0)}</strong></span>
+                    <span className="text-[10px] font-bold text-red-700">Crédit: {clientSituation.creditChakirine.toFixed(0)}</span>
+                  </div>
+                </div>
+
+                {/* Billing Card */}
+                <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wider block">STATUT FACTURATION</span>
+                    <span className="text-lg font-black text-indigo-950 block mt-1">{clientSituation.invoicedTotal.toFixed(2)} MAD</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 pt-1 border-t border-indigo-100/50">
+                    <span className="text-[10px] font-medium text-slate-500">Facturé: <strong className="text-slate-700">{clientSituation.invoicedTotal.toFixed(0)}</strong></span>
+                    <span className="text-[10px] font-semibold text-slate-500">Non: {clientSituation.nonInvoicedTotal.toFixed(0)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="p-6 shrink-0 bg-white border-b border-slate-100">
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="flex-1 w-full">
@@ -422,12 +550,15 @@ export default function DispatchClientsPage() {
             </div>
             
             <div className="overflow-y-auto p-0 flex-1">
-              <table className="w-full text-left border-collapse min-w-[600px]">
+              <table className="w-full text-left border-collapse min-w-[850px]">
                 <thead className="sticky top-0 bg-slate-50 shadow-sm z-10">
                   <tr className="border-b border-slate-200">
                     <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Date</th>
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Société</th>
                     <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Chauffeur</th>
                     <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Article</th>
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Règlement</th>
+                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Facturé</th>
                     <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Qté</th>
                     <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Total</th>
                   </tr>
@@ -435,7 +566,7 @@ export default function DispatchClientsPage() {
                 <tbody className="divide-y divide-slate-100">
                   {clientHistory.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-500">
+                      <td colSpan={8} className="p-8 text-center text-slate-500">
                         Aucun historique trouvé pour cette période.
                       </td>
                     </tr>
@@ -443,10 +574,25 @@ export default function DispatchClientsPage() {
                     clientHistory.map(sale => {
                       const driver = drivers.find(d => d.id === sale.driverId);
                       const brand = brands.find(b => b.id === sale.brandId);
+                      const saleCompany = sale.company || driver?.company || 'afro_negoce';
+                      const isPaid = sale.paymentMethod !== 'credit' || sale.status === 'payé';
+
                       return (
-                        <tr key={sale.id} className="hover:bg-slate-50">
+                        <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
                           <td className="p-4">
                             <span className="font-bold text-slate-700">{new Date(sale.date).toLocaleDateString('fr-FR')}</span>
+                            <span className="block text-[10px] text-slate-400">{new Date(sale.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</span>
+                          </td>
+                          <td className="p-4">
+                            {saleCompany === 'afro_negoce' ? (
+                              <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-orange-100 text-orange-700 border border-orange-200">
+                                AFRO
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                CHAKIRINE
+                              </span>
+                            )}
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -458,7 +604,57 @@ export default function DispatchClientsPage() {
                             <div className="font-bold text-slate-900">{brand?.name || sale.brandId}</div>
                             <div className="text-xs text-slate-500">{sale.category}</div>
                           </td>
-                          <td className="p-4 text-right font-bold text-indigo-600">
+                          <td className="p-4">
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                sale.paymentMethod === 'espece' ? 'bg-slate-100 text-slate-800' :
+                                sale.paymentMethod === 'cheque' ? 'bg-blue-50 text-blue-800' :
+                                'bg-purple-50 text-purple-800'
+                              }`}>
+                                {sale.paymentMethod === 'espece' ? 'Espèce' : sale.paymentMethod === 'cheque' ? 'Chèque' : 'Crédit'}
+                              </span>
+                              
+                              {sale.paymentMethod === 'credit' && (
+                                <button
+                                  onClick={() => {
+                                    const nextStatus = sale.status === 'payé' ? 'non payé' : 'payé';
+                                    updateSaleStatus(sale.id, nextStatus);
+                                  }}
+                                  className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border transition-colors flex items-center gap-1 ${
+                                    isPaid 
+                                      ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' 
+                                      : 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200'
+                                  }`}
+                                  title="Cliquer pour changer le statut de paiement"
+                                >
+                                  {isPaid ? (
+                                    <>
+                                      <CheckCircle2 className="w-2.5 h-2.5" /> Payé
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="w-2.5 h-2.5" /> Non Payé
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <button
+                              onClick={() => updateSaleFactured(sale.id, !sale.isFactured)}
+                              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                                sale.isFactured 
+                                  ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                              }`}
+                              title="Cliquer pour basculer le statut de facturation"
+                            >
+                              <FileCheck2 className={`w-3.5 h-3.5 ${sale.isFactured ? 'text-indigo-600' : 'text-slate-400'}`} />
+                              {sale.isFactured ? 'Facturé' : 'À Facturer'}
+                            </button>
+                          </td>
+                          <td className="p-4 text-right font-bold text-slate-700">
                             {sale.quantity}
                           </td>
                           <td className="p-4 text-right font-black text-slate-900">

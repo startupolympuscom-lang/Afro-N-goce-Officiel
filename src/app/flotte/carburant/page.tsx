@@ -42,6 +42,18 @@ export default function CarburantPage() {
   const [ticketToPrint, setTicketToPrint] = useState<any>(null);
   const [expandedVehicule, setExpandedVehicule] = useState<string | null>(null);
 
+  const [filterParc, setFilterParc] = useState('');
+  const [filterChauffeur, setFilterChauffeur] = useState('');
+  const [filterLieu, setFilterLieu] = useState('');
+
+  const uniqueParcs = useMemo(() => {
+    const set = new Set<string>();
+    vehicules.forEach(v => {
+      if (v.parc) set.add(v.parc);
+    });
+    return Array.from(set).sort();
+  }, [vehicules]);
+
   const canManage = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'chef_de_parc';
 
   // Helper to calculate L/100km for a ticket
@@ -195,24 +207,37 @@ export default function CarburantPage() {
       const searchMatch = !search || 
         t.reference.toLowerCase().includes(search.toLowerCase()) ||
         v?.immatriculation.toLowerCase().includes(search.toLowerCase()) ||
+        v?.marque.toLowerCase().includes(search.toLowerCase()) ||
+        v?.modele.toLowerCase().includes(search.toLowerCase()) ||
         c?.nom.toLowerCase().includes(search.toLowerCase()) ||
         c?.prenom.toLowerCase().includes(search.toLowerCase()) ||
         v?.parc.toLowerCase().includes(search.toLowerCase());
+
+      if (!searchMatch) return false;
+
+      // Filter by Parc
+      if (filterParc && v?.parc !== filterParc) return false;
+
+      // Filter by Chauffeur
+      if (filterChauffeur && t.chauffeurId !== filterChauffeur) return false;
+
+      // Filter by Lieu (Station interne/externe)
+      if (filterLieu && t.lieu !== filterLieu) return false;
 
       const ticketDate = new Date(t.dateHeure);
       
       if (filterType === 'month') {
         const now = new Date();
-        return searchMatch && ticketDate.getMonth() === now.getMonth() && ticketDate.getFullYear() === now.getFullYear();
+        return ticketDate.getMonth() === now.getMonth() && ticketDate.getFullYear() === now.getFullYear();
       } else if (filterType === 'range') {
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
-        return searchMatch && ticketDate >= start && ticketDate <= end;
+        return ticketDate >= start && ticketDate <= end;
       }
       
-      return searchMatch;
+      return true;
     });
 
     const groups = new Map<string, typeof raw>();
@@ -250,7 +275,7 @@ export default function CarburantPage() {
         tickets: sorted.reverse()
       };
     }).sort((a, b) => b.totalVolume - a.totalVolume);
-  }, [tickets, vehicules, chauffeurs, search, filterType, startDate, endDate]);
+  }, [tickets, vehicules, chauffeurs, search, filterType, startDate, endDate, filterParc, filterChauffeur, filterLieu]);
 
   const handleAddTicket = (e: React.FormEvent) => {
     e.preventDefault();
@@ -470,6 +495,68 @@ export default function CarburantPage() {
                   />
                 </div>
               </motion.div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-border/50">
+              {/* Filter Parc */}
+              <div>
+                <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Filtrer par Parc</label>
+                <select
+                  value={filterParc}
+                  onChange={(e) => setFilterParc(e.target.value)}
+                  className="w-full h-9 px-2 rounded-lg border border-border bg-surface-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Tous les parcs</option>
+                  {uniqueParcs.map(parc => (
+                    <option key={parc} value={parc}>{parc}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter Chauffeur */}
+              <div>
+                <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Filtrer par Chauffeur</label>
+                <select
+                  value={filterChauffeur}
+                  onChange={(e) => setFilterChauffeur(e.target.value)}
+                  className="w-full h-9 px-2 rounded-lg border border-border bg-surface-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Tous les chauffeurs</option>
+                  {chauffeurs.map(c => (
+                    <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter Station/Lieu */}
+              <div>
+                <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Filtrer par Station / Lieu</label>
+                <select
+                  value={filterLieu}
+                  onChange={(e) => setFilterLieu(e.target.value)}
+                  className="w-full h-9 px-2 rounded-lg border border-border bg-surface-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Toutes les stations</option>
+                  <option value="interne">Station Interne</option>
+                  <option value="externe">Station Externe</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Clear Filters option */}
+            {(filterParc || filterChauffeur || filterLieu) && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setFilterParc('');
+                    setFilterChauffeur('');
+                    setFilterLieu('');
+                  }}
+                  className="text-xs text-primary hover:underline font-bold"
+                >
+                  Réinitialiser les filtres carburant
+                </button>
+              </div>
             )}
           </div>
 

@@ -77,6 +77,7 @@ export interface GazSale {
   lat?: number;
   lng?: number;
   company?: 'afro_negoce' | 'chakirine_gaz';
+  isFactured?: boolean;
 }
 
 export interface Convoyeur {
@@ -390,6 +391,7 @@ interface DispatchGazState {
   addSale: (sale: GazSale & { isConsignment?: boolean }) => void;
   addComptoirSale: (sale: GazSale & { isConsignment?: boolean, company?: 'afro_negoce' | 'chakirine_gaz' }) => void;
   updateSaleStatus: (id: string, status: 'payé' | 'non payé') => void;
+  updateSaleFactured: (id: string, isFactured: boolean) => void;
   addExpense: (expense: GazExpense) => void;
 
   setCommission: (commission: GazCommission) => void;
@@ -660,6 +662,9 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       }),
       updateSaleStatus: (id, status) => set((state) => ({
         sales: state.sales.map(s => s.id === id ? { ...s, status } : s)
+      })),
+      updateSaleFactured: (id, isFactured) => set((state) => ({
+        sales: state.sales.map(s => s.id === id ? { ...s, isFactured } : s)
       })),
       addExpense: (expense) => set((state) => ({ expenses: [...state.expenses, expense] })),
 

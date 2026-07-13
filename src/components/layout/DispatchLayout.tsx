@@ -19,7 +19,8 @@ import {
   Lock,
   MapPin,
   Navigation,
-  Phone
+  Phone,
+  BarChart3
 } from 'lucide-react';
 import { useDispatchAuthStore } from '../../stores/useDispatchAuthStore';
 import { useDispatchGazStore } from '../../stores/useDispatchGazStore';
@@ -235,6 +236,7 @@ export function DispatchLayout() {
 
   const allNavItems = [
     { name: 'Dashboard', href: '/dispatch/gaz/dashboard', icon: LayoutDashboard, pageId: 'dashboard' },
+    { name: 'Rapports', href: '/dispatch/gaz/rapports', icon: BarChart3, pageId: 'rapports' },
     { name: 'Live Dispatch', href: '/dispatch/gaz/live', icon: Map, pageId: 'live' },
     { name: 'Stock Chauffeurs', href: '/dispatch/gaz/stock', icon: Package, pageId: 'stock' },
     { name: 'Vente Manuelle', href: '/dispatch/gaz/stock/manual-sale', icon: Flame, pageId: 'manual_sale' },
@@ -257,7 +259,7 @@ export function DispatchLayout() {
 
   const adminNavItems = allNavItems;
 
-  const comptaNavItems = allNavItems.filter(i => ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard', 'facturation'].includes(i.pageId));
+  const comptaNavItems = allNavItems.filter(i => ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard', 'facturation', 'rapports'].includes(i.pageId));
   const stockNavItems = allNavItems.filter(i => ['stock', 'manual_sale', 'commande'].includes(i.pageId));
   const comptoirNavItems = allNavItems.filter(i => ['comptoir_sale', 'driver_history'].includes(i.pageId));
   
