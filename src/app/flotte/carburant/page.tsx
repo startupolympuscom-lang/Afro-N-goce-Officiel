@@ -295,6 +295,12 @@ export default function CarburantPage() {
 
   const handleAddTicket = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (lieu === 'interne' && parsedVolume > stationInterne.stockActuel) {
+      toast.error(`Erreur: Stock insuffisant dans la station interne ! (Disponible: ${stationInterne.stockActuel.toLocaleString()} L, Demandé: ${parsedVolume.toLocaleString()} L)`);
+      return;
+    }
+
     const newTicket = {
       vehiculeId,
       chauffeurId,
@@ -1079,7 +1085,7 @@ export default function CarburantPage() {
                         value={volume}
                         onChange={e => setVolume(e.target.value)}
                         placeholder="Ex: 450.50" 
-                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-lg font-bold" 
+                        className={`w-full h-11 px-4 rounded-lg border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-lg font-bold ${lieu === 'interne' && parsedVolume > stationInterne.stockActuel ? 'border-red-500 text-red-600 focus:ring-red-200 focus:border-red-500' : 'border-border text-text-primary'}`} 
                       />
                     </div>
                     <div>
@@ -1095,6 +1101,13 @@ export default function CarburantPage() {
                       />
                     </div>
                   </div>
+
+                  {lieu === 'interne' && parsedVolume > stationInterne.stockActuel && (
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-600 p-4 rounded-xl text-xs font-semibold flex flex-col gap-1">
+                      <span className="font-bold text-sm">⚠️ Stock de station insuffisant</span>
+                      <span>Le stock de la citerne interne ({stationInterne.stockActuel.toLocaleString()} L) est insuffisant pour délivrer {parsedVolume.toLocaleString()} L.</span>
+                    </div>
+                  )}
 
                   <div className="bg-surface-2 p-4 rounded-xl border border-border flex items-center justify-between">
                     <span className="text-text-secondary font-medium">Coût Total</span>
@@ -1225,7 +1238,8 @@ export default function CarburantPage() {
                 <button 
                   type="submit"
                   form="add-ticket-form"
-                  className="flex-1 h-11 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium transition-colors"
+                  disabled={lieu === 'interne' && parsedVolume > stationInterne.stockActuel}
+                  className="flex-1 h-11 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Créer le ticket
                 </button>

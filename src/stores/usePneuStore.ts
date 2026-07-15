@@ -18,6 +18,8 @@ export interface Pneu {
   usureActuelle: number; // Percentage 0-100
   status: PneuStatus;
   cout: number;
+  fournisseurId?: string;
+  numeroCommande?: string;
 }
 
 interface PneuState {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usePneuStore, PneuPosition, PneuStatus } from '../../../stores/usePneuStore';
 import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { usePrestataireStore } from '../../../stores/usePrestataireStore';
 import { 
   CircleDot, 
   Plus, 
@@ -11,16 +12,20 @@ import {
   Truck,
   Calendar,
   AlertTriangle,
-  Trash2
+  Trash2,
+  FileText
 } from 'lucide-react';
 import { formatMAD, formatDate, formatKm } from '../../../lib/formatters';
 import { motion, AnimatePresence } from 'motion/react';
 import { DatePicker } from '../../../components/ui/DatePicker';
 import { TruckTiresGraphic } from './TruckTiresGraphic';
+import { jsPDF } from 'jspdf';
+import { toast } from 'sonner';
 
 export default function PneusPage() {
   const { pneus, addPneu, deletePneu } = usePneuStore();
   const vehicules = useVehiculeStore(s => s.vehicules);
+  const prestataires = usePrestataireStore(s => s.prestataires);
   const user = useAuthStore(s => s.user);
   const [search, setSearch] = useState('');
   const [selectedFilterVehiculeId, setSelectedFilterVehiculeId] = useState<string>('');
@@ -37,6 +42,8 @@ export default function PneusPage() {
   const [dateMontage, setDateMontage] = useState('');
   const [kilometrageMontage, setKilometrageMontage] = useState(0);
   const [cout, setCout] = useState(0); // cout total
+  const [fournisseurId, setFournisseurId] = useState('');
+  const [numeroCommande, setNumeroCommande] = useState('');
 
   const filteredPneus = pneus.filter(p => {
     if (selectedFilterVehiculeId && p.vehiculeId !== selectedFilterVehiculeId) return false;
@@ -51,6 +58,8 @@ export default function PneusPage() {
     if (positions.length === 0) return;
     const coutPerTire = cout / positions.length;
 
+    const generatedBcNum = numeroCommande.trim() || `BC-PNEU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
     positions.forEach(pos => {
       addPneu({
         vehiculeId,
@@ -62,10 +71,13 @@ export default function PneusPage() {
         kilometrageMontage,
         cout: coutPerTire,
         usureActuelle: 0,
-        status: 'neuf'
+        status: 'neuf',
+        fournisseurId: fournisseurId || undefined,
+        numeroCommande: generatedBcNum
       });
     });
     
+    toast.success(`Montage(s) ajouté(s) et Bon de commande ${generatedBcNum} généré !`);
     setIsModalOpen(false);
     // Reset form
     setVehiculeId('');
@@ -76,6 +88,117 @@ export default function PneusPage() {
     setDateMontage('');
     setKilometrageMontage(0);
     setCout(0);
+    setFournisseurId('');
+    setNumeroCommande('');
+  };
+
+  const handleDownloadPneuBC = (pneu: any) => {
+    const vehicule = vehicules.find(v => v.id === pneu.vehiculeId);
+    const finalSupplier = prestataires.find(pr => pr.id === pneu.fournisseurId);
+    
+    // Group all tires with the same order number
+    const relatedTires = pneus.filter(p => p.numeroCommande && p.numeroCommande === pneu.numeroCommande);
+    const tiresToRender = relatedTires.length > 0 ? relatedTires : [pneu];
+    
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Dark slate banner
+    doc.setFillColor(11, 17, 32);
+    doc.rect(0, 0, 210, 35, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255);
+    doc.text('FLEETOPS - BON DE COMMANDE (PNEU)', 15, 18);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const bcRef = pneu.numeroCommande || `BC-PNEU-${pneu.id.toUpperCase()}`;
+    doc.text(`Réf BC: ${bcRef}`, 15, 26);
+    doc.text(`Date: ${new Date(pneu.dateMontage).toLocaleDateString('fr-FR')}`, 150, 26);
+
+    doc.setTextColor(0, 0, 0);
+
+    // Supplier Box
+    doc.setDrawColor(220, 225, 230);
+    doc.setFillColor(245, 247, 250);
+    doc.rect(15, 45, 85, 40, 'FD');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('FOURNISSEUR :', 20, 52);
+    doc.setFont('helvetica', 'normal');
+    doc.text(finalSupplier?.nom || 'Non spécifié', 20, 58);
+    doc.setFontSize(9);
+    doc.text(`Contact: ${finalSupplier?.contact || 'N/A'}`, 20, 64);
+    doc.text(`Tél: ${finalSupplier?.telephone || 'N/A'}`, 20, 70);
+    doc.text(`Email: ${finalSupplier?.email || 'N/A'}`, 20, 76);
+
+    // Vehicle Box
+    doc.rect(110, 45, 85, 40, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('VÉHICULE & PARC :', 115, 52);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Immatriculation: ${vehicule?.immatriculation || 'N/A'}`, 115, 58);
+    doc.setFontSize(9);
+    doc.text(`Marque / Modèle: ${vehicule ? `${vehicule.marque} ${vehicule.modele}` : 'N/A'}`, 115, 64);
+    doc.text(`Kilométrage: ${pneu.kilometrageMontage?.toLocaleString() || 'N/A'} km`, 115, 70);
+    doc.text(`Parc: ${vehicule?.parc || 'N/A'}`, 115, 76);
+
+    // Table Header
+    let y = 95;
+    doc.setFillColor(11, 17, 32);
+    doc.rect(15, y, 180, 8, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text('DÉSIGNATION / COMPOSANT', 20, y + 5.5);
+    doc.text('QTÉ', 125, y + 5.5);
+    doc.text('P.U (MAD)', 145, y + 5.5);
+    doc.text('TOTAL (MAD)', 170, y + 5.5);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    y += 8;
+
+    let grandTotal = 0;
+
+    // Render tires
+    tiresToRender.forEach((t: any) => {
+      const qty = 1;
+      const lineTotal = t.cout;
+      grandTotal += lineTotal;
+
+      doc.setDrawColor(230, 235, 240);
+      doc.line(15, y + 7, 195, y + 7);
+      
+      doc.text(`Pneu ${t.marque} ${t.modele} ${t.dimensions} (${getPositionLabel(t.position)})`, 20, y + 5);
+      doc.text(String(qty), 125, y + 5);
+      doc.text(t.cout.toFixed(2), 145, y + 5);
+      doc.text(lineTotal.toFixed(2), 170, y + 5);
+      
+      y += 8;
+    });
+
+    y += 5;
+    // Summary block
+    doc.setDrawColor(11, 17, 32);
+    doc.setLineWidth(0.5);
+    doc.line(130, y, 195, y);
+    
+    y += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('MONTANT TOTAL :', 130, y);
+    doc.text(formatMAD(grandTotal), 170, y);
+
+    doc.save(`BC_${bcRef}.pdf`);
   };
 
   const getPositionLabel = (position: string) => {
@@ -203,6 +326,11 @@ export default function PneusPage() {
                     <td className="p-4">
                       <div className="font-medium text-text-primary">{p.marque} {p.modele}</div>
                       <div className="text-xs text-text-secondary">{p.dimensions}</div>
+                      {p.fournisseurId && (
+                        <div className="text-xs text-primary font-semibold mt-1">
+                          Fournisseur: {prestataires.find(pr => pr.id === p.fournisseurId)?.nom || p.fournisseurId}
+                        </div>
+                      )}
                     </td>
                     <td className="p-4">
                       <span className="text-sm text-text-primary">
@@ -217,6 +345,16 @@ export default function PneusPage() {
                       <div className="text-xs text-text-secondary mt-1">
                         à {formatKm(p.kilometrageMontage)}
                       </div>
+                      {p.numeroCommande && (
+                        <button
+                          onClick={() => handleDownloadPneuBC(p)}
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-bold mt-2 bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded transition-all"
+                          title="Télécharger le Bon de Commande"
+                        >
+                          <FileText className="w-3 h-3 text-primary" />
+                          {p.numeroCommande}
+                        </button>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
@@ -344,6 +482,32 @@ export default function PneusPage() {
                         className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Fournisseur / Prestataire</label>
+                      <select 
+                        required
+                        value={fournisseurId}
+                        onChange={e => setFournisseurId(e.target.value)}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm font-medium"
+                      >
+                        <option value="">Sélectionner un fournisseur...</option>
+                        {prestataires.map(p => (
+                          <option key={p.id} value={p.id}>{p.nom} {p.type === 'pneus' ? '(Pneus)' : `(${p.type})`}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-text-primary mb-1">Bon de Commande (Optionnel)</label>
+                      <input 
+                        type="text" 
+                        value={numeroCommande}
+                        onChange={e => setNumeroCommande(e.target.value)}
+                        placeholder="Laisser vide pour auto-générer (Ex: BC-PNEU-XXXX)" 
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                      />
+                    </div>
+
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-text-primary mb-2">Positions changées</label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
