@@ -21,14 +21,23 @@ import {
   ChevronRight,
   ChevronDown,
   Clock,
-  Filter
+  Filter,
+  Pencil
 } from 'lucide-react';
 import { formatMAD, formatDate, formatDatetime } from '../../../lib/formatters';
 import { motion, AnimatePresence } from 'motion/react';
 import { AfroNegoceLogo } from '../../../components/Logo';
 
 export default function CarburantPage() {
-  const { tickets, stationInterne, addTicket, deleteTicket, resetStationStock } = useCarburantStore();
+  const { 
+    tickets, 
+    stationInterne, 
+    addTicket, 
+    deleteTicket, 
+    resetStationStock,
+    updateStationSupply,
+    deleteStationSupply
+  } = useCarburantStore();
   const vehicules = useVehiculeStore(s => s.vehicules);
   const chauffeurs = useChauffeurStore(s => s.chauffeurs);
   const prestataires = usePrestataireStore(s => s.prestataires);
@@ -91,6 +100,13 @@ export default function CarburantPage() {
   const [approvDate, setApprovDate] = useState(new Date().toISOString().split('T')[0]);
   const [approvFournisseur, setApprovFournisseur] = useState('');
   const [approvPrixLitre, setApprovPrixLitre] = useState<string>('');
+
+  // Editing cistern supply state
+  const [editingSupply, setEditingSupply] = useState<any>(null);
+  const [editApprovDate, setEditApprovDate] = useState('');
+  const [editApprovFournisseur, setEditApprovFournisseur] = useState('');
+  const [editApprovVolume, setEditApprovVolume] = useState('');
+  const [editApprovPrixLitre, setEditApprovPrixLitre] = useState('');
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
@@ -355,6 +371,52 @@ export default function CarburantPage() {
       setApprovFournisseur('');
       setApprovPrixLitre('');
       setApprovDate(new Date().toISOString().split('T')[0]);
+    }
+  };
+
+  const handleStartEditSupply = (item: any) => {
+    setEditingSupply(item);
+    setEditApprovDate(item.date.slice(0, 10));
+    setEditApprovFournisseur(item.fournisseur);
+    setEditApprovVolume(item.volume.toString());
+    setEditApprovPrixLitre(item.prixParLitre.toString());
+  };
+
+  const handleUpdateSupply = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSupply) return;
+    
+    const parsedVolume = parseFloat(editApprovVolume);
+    const parsedPrixLitre = parseFloat(editApprovPrixLitre);
+    
+    if (isNaN(parsedVolume) || parsedVolume <= 0) {
+      toast.error("Veuillez saisir un volume valide.");
+      return;
+    }
+    
+    // Check if we exceed capacity
+    const diff = parsedVolume - editingSupply.volume;
+    if (stationInterne.stockActuel + diff > stationInterne.capacite) {
+      toast.error("Erreur: Le volume modifié dépasse la capacité maximale de la citerne !");
+      return;
+    }
+    
+    updateStationSupply(editingSupply.id, {
+      date: new Date(editApprovDate).toISOString(),
+      volume: parsedVolume,
+      fournisseur: editApprovFournisseur,
+      prixParLitre: parsedPrixLitre,
+      coutTotal: parsedVolume * parsedPrixLitre
+    });
+    
+    toast.success("Approvisionnement mis à jour avec succès !");
+    setEditingSupply(null);
+  };
+
+  const handleDeleteSupply = (id: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cet approvisionnement ? Le stock de la citerne sera diminué d'autant.")) {
+      deleteStationSupply(id);
+      toast.success("Approvisionnement supprimé avec succès !");
     }
   };
 
@@ -1344,12 +1406,13 @@ export default function CarburantPage() {
                       <th className="px-4 py-3 text-right">Volume (L)</th>
                       <th className="px-4 py-3 text-right">Prix/L</th>
                       <th className="px-4 py-3 text-right">Total</th>
+                      {canManage && <th className="px-4 py-3 text-center">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {stationInterne.historique.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-text-muted">
+                        <td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-text-muted">
                           Aucun historique disponible
                         </td>
                       </tr>
@@ -1362,11 +1425,149 @@ export default function CarburantPage() {
                           <td className="px-4 py-3 text-right font-bold text-text-primary border-l border-border bg-primary/5">+{h.volume.toLocaleString()} L</td>
                           <td className="px-4 py-3 text-right font-medium text-text-secondary">{formatMAD(h.prixParLitre)}</td>
                           <td className="px-4 py-3 text-right font-bold text-text-primary">{formatMAD(h.coutTotal)}</td>
+                          {canManage && (
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleStartEditSupply(h)}
+                                  className="p-1 text-primary hover:bg-primary/10 rounded transition-colors"
+                                  title="Modifier"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSupply(h.id)}
+                                  className="p-1 text-error hover:bg-error/10 rounded transition-colors"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))
                     )}
                   </tbody>
                 </table>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Approvisionnement Modal */}
+      <AnimatePresence>
+        {editingSupply && canManage && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingSupply(null)}
+              className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-surface rounded-xl shadow-2xl z-[70] overflow-hidden"
+            >
+              <div className="p-6 border-b border-border flex items-center justify-between bg-surface">
+                <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+                  <Pencil className="w-5 h-5 text-primary" />
+                  Modifier l'approvisionnement
+                </h2>
+                <button 
+                  onClick={() => setEditingSupply(null)}
+                  className="p-2 text-text-muted hover:text-text-primary hover:bg-surface-2 rounded-md transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <form id="edit-approvisionnement-form" onSubmit={handleUpdateSupply} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Date</label>
+                      <input 
+                        type="date"
+                        required
+                        value={editApprovDate}
+                        onChange={e => setEditApprovDate(e.target.value)}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Fournisseur (Prestataire)</label>
+                      <select 
+                        required
+                        value={editApprovFournisseur}
+                        onChange={e => setEditApprovFournisseur(e.target.value)}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" 
+                      >
+                        <option value="">Sélectionner un fournisseur...</option>
+                        {prestataires.filter(p => p.type === 'carburant' || p.type === 'autre').map(p => (
+                          <option key={p.id} value={p.nom}>{p.nom} ({p.type})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Volume (L)</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        required
+                        min="1"
+                        value={editApprovVolume}
+                        onChange={e => setEditApprovVolume(e.target.value)}
+                        placeholder="Ex: 5000" 
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-lg font-bold" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Prix par Litre (MAD)</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        required
+                        min="0"
+                        value={editApprovPrixLitre}
+                        onChange={e => setEditApprovPrixLitre(e.target.value)}
+                        placeholder="Ex: 14.50" 
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 bg-surface-2 rounded-lg border border-border flex justify-between items-center mt-4">
+                    <span className="text-sm font-medium text-text-secondary">Coût Total</span>
+                    <span className="text-lg font-bold text-primary">
+                      {formatMAD((parseFloat(editApprovVolume) || 0) * (parseFloat(editApprovPrixLitre) || 0))}
+                    </span>
+                  </div>
+                </form>
+              </div>
+
+              <div className="p-6 border-t border-border bg-surface-2 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setEditingSupply(null)}
+                  className="flex-1 h-11 bg-surface border border-border hover:bg-surface-2 text-text-primary rounded-lg font-medium transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit"
+                  form="edit-approvisionnement-form"
+                  className="flex-1 h-11 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium transition-colors"
+                >
+                  Sauvegarder
+                </button>
               </div>
             </motion.div>
           </>

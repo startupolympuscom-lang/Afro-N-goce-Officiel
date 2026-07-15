@@ -12,6 +12,8 @@ interface CarburantStore {
   deleteTicket: (id: string) => void;
   updateStationStock: (volume: number, type: 'add' | 'remove', details?: { fournisseur: string, prixParLitre: number, coutTotal: number, date?: string }) => void;
   resetStationStock: () => void;
+  updateStationSupply: (id: string, updatedData: { date: string; volume: number; fournisseur: string; prixParLitre: number; coutTotal: number }) => void;
+  deleteStationSupply: (id: string) => void;
 }
 
 export const useCarburantStore = create<CarburantStore>()(
@@ -67,6 +69,25 @@ export const useCarburantStore = create<CarburantStore>()(
       resetStationStock: () => set(state => {
         state.stationInterne.stockActuel = 0;
         state.stationInterne.historique = [];
+      }),
+      updateStationSupply: (id, updatedData) => set(state => {
+        const item = state.stationInterne.historique.find(h => h.id === id);
+        if (item) {
+          const diff = updatedData.volume - item.volume;
+          state.stationInterne.stockActuel += diff;
+          item.date = updatedData.date;
+          item.volume = updatedData.volume;
+          item.fournisseur = updatedData.fournisseur;
+          item.prixParLitre = updatedData.prixParLitre;
+          item.coutTotal = updatedData.coutTotal;
+        }
+      }),
+      deleteStationSupply: (id) => set(state => {
+        const item = state.stationInterne.historique.find(h => h.id === id);
+        if (item) {
+          state.stationInterne.stockActuel -= item.volume;
+        }
+        state.stationInterne.historique = state.stationInterne.historique.filter(h => h.id !== id);
       }),
     })),
     { name: 'fleetops-carburant', storage: createJSONStorage(() => postgresStorage) }
