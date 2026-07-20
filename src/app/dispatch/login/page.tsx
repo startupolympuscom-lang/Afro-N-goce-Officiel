@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Lock, Mail, ArrowRight } from 'lucide-react';
 import { useDispatchAuthStore } from '../../../stores/useDispatchAuthStore';
@@ -8,8 +8,15 @@ export default function DispatchLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const user = useDispatchAuthStore(s => s.user);
   const login = useDispatchAuthStore(s => s.login);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dispatch/select');
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
 import { 
   BarChart3, 
@@ -50,12 +50,12 @@ export default function DispatchRapportsPage() {
   const [timeRange, setTimeRange] = useState<'7days' | '30days' | 'all'>('30days');
 
   // Filter helper based on selected time range
-  const filterByTimeRange = (items: any[]): any[] => {
+  const filterByTimeRange = useCallback((items: any[]): any[] => {
     if (timeRange === 'all') return items;
     const days = timeRange === '7days' ? 7 : 30;
     const limitDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     return items.filter(item => item && item.date && new Date(item.date) >= limitDate);
-  };
+  }, [timeRange]);
 
   // Dynamic Sales Metrics & Visuals
   const salesMetrics = useMemo(() => {
@@ -247,16 +247,32 @@ export default function DispatchRapportsPage() {
       Montant: value
     })).sort((a, b) => b.Montant - a.Montant);
 
+    const totalSecuritaireSpent = (expenses || [])
+      .filter(e => e.sourceAccount === 'securitaire')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const totalSecuritaireTransferred = (caisseTransfers || [])
+      .filter(t => t.toAccount === 'securitaire')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const calculatedSecuritaire = Math.max(0, totalSecuritaireTransferred - totalSecuritaireSpent);
+
+    const totalNoirSpent = (expenses || [])
+      .filter(e => e.sourceAccount === 'noir')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const totalNoirTransferred = (caisseTransfers || [])
+      .filter(t => t.toAccount === 'noir')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const calculatedNoir = Math.max(0, totalNoirTransferred - totalNoirSpent);
+
     return {
-      caisseSecuritaire,
-      caisseNoir,
+      caisseSecuritaire: calculatedSecuritaire,
+      caisseNoir: calculatedNoir,
       totalInflows,
       totalOutflows,
       netCashFlow,
       flowData,
       expenseBreakdown
     };
-  }, [sales, expenses, caisseAlimentations, caisseTransfers, caisseSecuritaire, caisseNoir, filterByTimeRange]);
+  }, [sales, expenses, caisseAlimentations, caisseTransfers, filterByTimeRange]);
 
   // Dynamic Clients & Credit Metrics
   const clientsMetrics = useMemo(() => {
@@ -357,41 +373,45 @@ export default function DispatchRapportsPage() {
   }, [salesMetrics, caisseMetrics, clientsMetrics, sales]);
 
   return (
-    <div className="p-6 bg-slate-950 min-h-screen text-slate-100 flex flex-col gap-6" id="dispatch-reports-container">
+    <div className="space-y-8 pb-20 font-sans" id="dispatch-reports-container">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl" id="reports-header-section">
-        <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-blue-500" />
-            Rapports Analytiques & KPIs
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Visualisez les performances commerciales, la comptabilité, les RH et la situation client de Afro Négoce & Chakirine.
-          </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]" id="reports-header-section">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shrink-0">
+            <BarChart3 className="w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              Rapports Analytiques & KPIs
+            </h1>
+            <p className="text-slate-500 text-sm mt-1 font-medium">
+              Suivi consolidé des performances commerciales, de la caisse, des RH et des clients de Afro Négoce & Chakirine.
+            </p>
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800" id="reports-time-filters">
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50" id="reports-time-filters">
           <button
             onClick={() => setTimeRange('7days')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
-              timeRange === '7days' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white'
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+              timeRange === '7days' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             7 Jours
           </button>
           <button
             onClick={() => setTimeRange('30days')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
-              timeRange === '30days' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white'
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+              timeRange === '30days' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             30 Jours
           </button>
           <button
             onClick={() => setTimeRange('all')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
-              timeRange === 'all' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white'
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+              timeRange === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Tout
@@ -400,13 +420,13 @@ export default function DispatchRapportsPage() {
       </div>
 
       {/* Tabs / Sub pages */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3" id="reports-subpages-tabs">
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2" id="reports-subpages-tabs">
         <button
           onClick={() => setActiveTab('global')}
-          className={`px-5 py-3 rounded-2xl text-sm font-bold flex items-center gap-2.5 transition-all ${
+          className={`px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all border cursor-pointer ${
             activeTab === 'global' 
-              ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              ? 'bg-blue-50 text-blue-600 border-blue-200/60 shadow-sm' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent'
           }`}
         >
           <Layers className="w-4 h-4" />
@@ -414,10 +434,10 @@ export default function DispatchRapportsPage() {
         </button>
         <button
           onClick={() => setActiveTab('sales')}
-          className={`px-5 py-3 rounded-2xl text-sm font-bold flex items-center gap-2.5 transition-all ${
+          className={`px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all border cursor-pointer ${
             activeTab === 'sales' 
-              ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              ? 'bg-blue-50 text-blue-600 border-blue-200/60 shadow-sm' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent'
           }`}
         >
           <TrendingUp className="w-4 h-4" />
@@ -425,10 +445,10 @@ export default function DispatchRapportsPage() {
         </button>
         <button
           onClick={() => setActiveTab('rh')}
-          className={`px-5 py-3 rounded-2xl text-sm font-bold flex items-center gap-2.5 transition-all ${
+          className={`px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all border cursor-pointer ${
             activeTab === 'rh' 
-              ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              ? 'bg-blue-50 text-blue-600 border-blue-200/60 shadow-sm' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -436,10 +456,10 @@ export default function DispatchRapportsPage() {
         </button>
         <button
           onClick={() => setActiveTab('caisse')}
-          className={`px-5 py-3 rounded-2xl text-sm font-bold flex items-center gap-2.5 transition-all ${
+          className={`px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all border cursor-pointer ${
             activeTab === 'caisse' 
-              ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              ? 'bg-blue-50 text-blue-600 border-blue-200/60 shadow-sm' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent'
           }`}
         >
           <Wallet className="w-4 h-4" />
@@ -447,10 +467,10 @@ export default function DispatchRapportsPage() {
         </button>
         <button
           onClick={() => setActiveTab('clients')}
-          className={`px-5 py-3 rounded-2xl text-sm font-bold flex items-center gap-2.5 transition-all ${
+          className={`px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all border cursor-pointer ${
             activeTab === 'clients' 
-              ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              ? 'bg-blue-50 text-blue-600 border-blue-200/60 shadow-sm' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent'
           }`}
         >
           <Building2 className="w-4 h-4" />
@@ -462,52 +482,52 @@ export default function DispatchRapportsPage() {
       {activeTab === 'global' && (
         <div className="flex flex-col gap-6 animate-in fade-in duration-200" id="global-report-tab">
           {/* Global KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="global-kpis-grid">
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 border border-blue-500/20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="global-kpis-grid">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
                 <TrendingUp className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Chiffre d'Affaires</span>
-                <span className="text-xl font-black text-white block mt-1">{globalMetrics.salesTotal.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-green-400 font-bold flex items-center gap-0.5 mt-0.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Chiffre d'Affaires</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{globalMetrics.salesTotal.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-green-600 font-bold flex items-center gap-0.5 mt-1 italic">
                   <ArrowUpRight className="w-3 h-3" /> Activité Commerciale
                 </span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-400 border border-red-500/20">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center shrink-0">
                 <ArrowDownRight className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Dépenses & Flux Sortants</span>
-                <span className="text-xl font-black text-white block mt-1">{globalMetrics.expensesTotal.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Frais et virements caisse</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Dépenses & Flux Sortants</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{globalMetrics.expensesTotal.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-slate-400 font-medium block mt-1">Frais et virements caisse</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
                 <Award className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Résultat Net Restant</span>
-                <span className={`text-xl font-black block mt-1 ${globalMetrics.netResult >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Résultat Net Restant</span>
+                <span className={`text-xl font-black block mt-1 ${globalMetrics.netResult >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                   {globalMetrics.netResult.toLocaleString('fr-FR')} MAD
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Rentabilité théorique</span>
+                <span className="text-[10px] text-slate-400 font-medium block mt-1">Rentabilité théorique</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-400 border border-orange-500/20">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center shrink-0">
                 <Wallet className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Crédits Clients Actuels</span>
-                <span className="text-xl font-black text-white block mt-1">{globalMetrics.outstandingCredit.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-orange-400 font-bold block mt-0.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Crédits Clients Actuels</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{globalMetrics.outstandingCredit.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-orange-600 font-bold block mt-1">
                   Reste à recouvrer ({((globalMetrics.outstandingCredit / (globalMetrics.salesTotal || 1)) * 100).toFixed(1)}%)
                 </span>
               </div>
@@ -516,24 +536,24 @@ export default function DispatchRapportsPage() {
 
           {/* Visual Histogram comparison: AFRO vs CHAKIRINE */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="global-charts-grid">
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-indigo-400" />
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-indigo-500" />
                     Comparatif Corporate: AFRO vs CHAKIRINE
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Situation des ventes, crédit et volume comparés</p>
+                  <p className="text-xs text-slate-500 mt-0.5 font-medium">Situation des ventes, crédit et volume comparés</p>
                 </div>
               </div>
               
               <div className="h-80" id="global-corporate-comparison-chart">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={globalMetrics.comparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="name" stroke="#64748b" fontSize={11} fontWeight="bold" />
-                    <YAxis stroke="#64748b" fontSize={10} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} fontWeight="bold" />
+                    <YAxis stroke="#94a3b8" fontSize={10} />
+                    <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.05)', color: '#0f172a' }} />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
                     <Bar dataKey="Ventes" name="Chiffre d'Affaires (MAD)" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                     <Bar dataKey="Crédit" name="Crédit Client (MAD)" fill="#f97316" radius={[6, 6, 0, 0]} />
@@ -544,121 +564,120 @@ export default function DispatchRapportsPage() {
             </div>
 
             {/* Quick Department Summary Cards */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex flex-col justify-between">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between">
               <div>
-                <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 mb-6 flex items-center gap-2">
                   <Layers className="w-5 h-5 text-blue-500" />
                   Performances par Département
                 </h3>
                 <div className="space-y-4">
                   {/* Sales summary line */}
-                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20">
-                        <ShoppingBag className="w-4 h-4" />
+                      <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                        <ShoppingBag className="w-4.5 h-4.5" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-white block">Commercial / Vente</span>
-                        <span className="text-[10px] text-slate-400">{salesMetrics.transactionsCount} transactions enregistrées</span>
+                        <span className="text-xs font-extrabold text-slate-800 block">Commercial / Vente</span>
+                        <span className="text-[10px] text-slate-500 font-medium">{salesMetrics.transactionsCount} transactions</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-white block">{salesMetrics.totalQty} bouteilles</span>
-                      <span className="text-[10px] font-bold text-blue-400">{salesMetrics.totalRevenue.toLocaleString('fr-FR')} MAD</span>
+                      <span className="text-xs font-black text-slate-900 block">{salesMetrics.totalQty} unités</span>
+                      <span className="text-[10px] font-extrabold text-blue-600">{salesMetrics.totalRevenue.toLocaleString('fr-FR')} MAD</span>
                     </div>
                   </div>
 
                   {/* HR summary line */}
-                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-purple-500/10 rounded-xl text-purple-400 border border-purple-500/20">
-                        <Users className="w-4 h-4" />
+                      <div className="p-2 bg-purple-100 text-purple-600 rounded-xl">
+                        <Users className="w-4.5 h-4.5" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-white block">Equipes & RH</span>
-                        <span className="text-[10px] text-slate-400">{rhMetrics.activeDrivers} chauffeurs actifs</span>
+                        <span className="text-xs font-extrabold text-slate-800 block">Equipes & RH</span>
+                        <span className="text-[10px] text-slate-500 font-medium">{rhMetrics.activeDrivers} chauffeurs actifs</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-white block">Top: {rhMetrics.topDriver?.name || 'N/A'}</span>
-                      <span className="text-[10px] text-purple-400 font-bold">{rhMetrics.topDriver?.revenue.toLocaleString('fr-FR') || '0'} MAD</span>
+                      <span className="text-xs font-black text-slate-900 block truncate max-w-[120px]">Top: {rhMetrics.topDriver?.name || 'N/A'}</span>
+                      <span className="text-[10px] text-purple-600 font-extrabold">{rhMetrics.topDriver?.revenue.toLocaleString('fr-FR') || '0'} MAD</span>
                     </div>
                   </div>
 
                   {/* Treasury summary line */}
-                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
-                        <Wallet className="w-4 h-4" />
+                      <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
+                        <Wallet className="w-4.5 h-4.5" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-white block">Caisse & Trésorerie</span>
-                        <span className="text-[10px] text-slate-400">Total entrées caisse</span>
+                        <span className="text-xs font-extrabold text-slate-800 block">Caisse & Trésorerie</span>
+                        <span className="text-[10px] text-slate-500 font-medium">Sécuritaire & Noir</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-white block">Solde: {(caisseSecuritaire + caisseNoir).toLocaleString('fr-FR')} MAD</span>
-                      <span className="text-[10px] text-emerald-400 font-bold">+{caisseMetrics.totalInflows.toLocaleString('fr-FR')} MAD</span>
+                      <span className="text-xs font-black text-slate-900 block">{(caisseMetrics.caisseSecuritaire + caisseMetrics.caisseNoir).toLocaleString('fr-FR')} MAD</span>
+                      <span className="text-[10px] text-emerald-600 font-extrabold">+{caisseMetrics.totalInflows.toLocaleString('fr-FR')} MAD</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center">
-                <span className="text-xs text-slate-400 font-medium">Situation consolidée pour les derniers {timeRange === '7days' ? '7 jours' : timeRange === '30days' ? '30 jours' : 'enregistrements'}</span>
-                <span className="text-xs text-blue-400 font-bold cursor-pointer hover:underline" onClick={() => setActiveTab('sales')}>Voir détails →</span>
+              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
+                <span className="text-[11px] text-slate-400 font-medium">Situation consolidée pour les derniers {timeRange === '7days' ? '7 jours' : timeRange === '30days' ? '30 jours' : 'enregistrements'}</span>
+                <span className="text-xs text-blue-600 font-extrabold cursor-pointer hover:underline" onClick={() => setActiveTab('sales')}>Voir détails →</span>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* ==================== 2. SALES REPORT ==================== */}
+        {/* ==================== 2. SALES REPORT ==================== */}
       {activeTab === 'sales' && (
         <div className="flex flex-col gap-6 animate-in fade-in duration-200" id="sales-report-tab">
           {/* Sales KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="sales-kpis-grid">
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 border border-blue-500/20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="sales-kpis-grid">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
                 <TrendingUp className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Chiffre d'Affaires</span>
-                <span className="text-xl font-black text-white block mt-1">{salesMetrics.totalRevenue.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Revenu cumulé</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Chiffre d'Affaires</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{salesMetrics.totalRevenue.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block font-medium">Revenu cumulé</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
                 <ShoppingBag className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Volume de Bouteilles</span>
-                <span className="text-xl font-black text-white block mt-1">{salesMetrics.totalQty} Unités</span>
-                <span className="text-[10px] text-indigo-400 font-bold mt-0.5 block">Ventes de gaz</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Volume de Bouteilles</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{salesMetrics.totalQty} Unités</span>
+                <span className="text-[10px] text-indigo-600 font-bold mt-0.5 block italic font-medium">Ventes de gaz</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 border border-amber-500/20">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
                 <Award className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Panier Moyen</span>
-                <span className="text-xl font-black text-white block mt-1">{salesMetrics.avgBasket.toFixed(2)} MAD</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Par transaction</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Panier Moyen</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{salesMetrics.avgBasket.toFixed(2)} MAD</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block font-medium">Par transaction</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-400 border border-purple-500/20">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] flex items-center gap-4 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shrink-0">
                 <Calendar className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Transactions</span>
-                <span className="text-xl font-black text-white block mt-1">{salesMetrics.transactionsCount} Ventes</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Bons émis</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Transactions</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{salesMetrics.transactionsCount} Ventes</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block font-medium">Bons émis</span>
               </div>
             </div>
           </div>
@@ -666,21 +685,21 @@ export default function DispatchRapportsPage() {
           {/* Charts Histogram */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="sales-charts-grid">
             {/* Sales Trend Histogram */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-500" />
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
+              <h3 className="text-base font-black text-slate-900 mb-6 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
                 Évolution Temporelle des Ventes
               </h3>
               <div className="h-80" id="sales-trend-recharts">
                 {salesMetrics.salesTrend.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-slate-500">Aucune donnée disponible</div>
+                  <div className="h-full flex items-center justify-center text-slate-400 font-medium text-sm">Aucune donnée disponible</div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={salesMetrics.salesTrend} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                      <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
-                      <YAxis stroke="#64748b" fontSize={10} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
+                      <YAxis stroke="#94a3b8" fontSize={10} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.05)', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
                       <Bar dataKey="Afro" name="Afro Négoce (MAD)" fill="#f97316" stackId="a" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="Chakirine" name="Chakirine Gaz (MAD)" fill="#10b981" stackId="a" radius={[4, 4, 0, 0]} />
@@ -691,21 +710,21 @@ export default function DispatchRapportsPage() {
             </div>
 
             {/* Product breakdown chart */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-indigo-400" />
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
+              <h3 className="text-base font-black text-slate-900 mb-6 flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-indigo-600" />
                 Ventes par Marque & Catégorie de Bouteille
               </h3>
               <div className="h-80" id="sales-product-recharts">
                 {salesMetrics.productBreakdown.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-slate-500">Aucune donnée disponible</div>
+                  <div className="h-full flex items-center justify-center text-slate-400 font-medium text-sm">Aucune donnée disponible</div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={salesMetrics.productBreakdown} layout="vertical" margin={{ top: 20, right: 30, left: 50, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                      <XAxis type="number" stroke="#64748b" fontSize={10} />
-                      <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={11} width={100} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis type="number" stroke="#94a3b8" fontSize={10} />
+                      <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={100} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.05)', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
                       <Bar dataKey="Revenue" name="Chiffre d'Affaires (MAD)" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                     </BarChart>

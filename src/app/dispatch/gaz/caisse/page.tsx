@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 export default function DispatchCaissePage() {
   const { 
     sales, 
-    expenses, 
+    expenses = [], 
     drivers, 
     addExpense, 
     brands, 
@@ -23,13 +23,25 @@ export default function DispatchCaissePage() {
     addCaisseTransfer,
     caisseAlimentations = [],
     addCaisseAlimentation,
-    deleteCaisseAlimentation
+    deleteCaisseAlimentation,
+    sortieCaisseLimit = 2000,
+    setSortieCaisseLimit
   } = useDispatchGazStore();
   
   const [isAddingExpense, setIsAddingExpense] = useState(false);
-  const [expenseData, setExpenseData] = useState({ amount: '', reasonMode: 'Avance sur salaire', reasonCustom: '', driverId: '' });
+  const [expenseData, setExpenseData] = useState({ 
+    amount: '', 
+    reasonMode: 'Avance sur salaire', 
+    reasonCustom: '', 
+    driverId: '',
+    sourceAccount: 'principale' as 'principale' | 'securitaire' | 'noir'
+  });
   const [isAddingTransfer, setIsAddingTransfer] = useState(false);
   const [transferData, setTransferData] = useState({ amount: '', toAccount: 'securitaire' as 'securitaire' | 'noir', reason: '' });
+  
+  const [isUpdatingLimit, setIsUpdatingLimit] = useState(false);
+  const [limitCode, setLimitCode] = useState('');
+  const [newLimitValue, setNewLimitValue] = useState('');
   const [ticketToPrint, setTicketToPrint] = useState<any>(null);
   const [isAddingAlimentation, setIsAddingAlimentation] = useState(false);
   const [alimentationData, setAlimentationData] = useState({ amount: '', byWhom: '', reason: '', date: new Date().toISOString().split('T')[0], type: 'normal' as 'normal' | 'pret' });
@@ -173,7 +185,11 @@ export default function DispatchCaissePage() {
   }, [alimentationsTodayCompany]);
 
   const totalEntreesCompany = totalSalesEntreesCompany + totalAlimentationsCompany;
-  const totalSortiesCompany = expensesTodayCompany.reduce((sum, e) => sum + e.amount, 0);
+  const totalSortiesCompany = useMemo(() => {
+    return expensesTodayCompany
+      .filter(e => !e.sourceAccount || e.sourceAccount === 'principale')
+      .reduce((sum, e) => sum + e.amount, 0);
+  }, [expensesTodayCompany]);
   const soldeCompany = totalEntreesCompany - totalSortiesCompany;
 
   const totalTransferredSecuritaireTodayCompany = useMemo(() => {
@@ -188,16 +204,24 @@ export default function DispatchCaissePage() {
   const soldeDisponibleCompany = soldeCompany - totalTransferredTodayCompany;
 
   const caisseSecuritaireCompany = useMemo(() => {
-    return (caisseTransfers || [])
+    const transfers = (caisseTransfers || [])
       .filter(t => (t.company || 'afro_negoce') === selectedCompany && t.toAccount === 'securitaire')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [caisseTransfers, selectedCompany]);
+    const spent = (expenses || [])
+      .filter(e => e.sourceAccount === 'securitaire' && (e.company || drivers.find(d => d.id === e.driverId)?.company || 'afro_negoce') === selectedCompany)
+      .reduce((sum, e) => sum + e.amount, 0);
+    return Math.max(0, transfers - spent);
+  }, [caisseTransfers, expenses, drivers, selectedCompany]);
 
   const caisseNoirCompany = useMemo(() => {
-    return (caisseTransfers || [])
+    const transfers = (caisseTransfers || [])
       .filter(t => (t.company || 'afro_negoce') === selectedCompany && t.toAccount === 'noir')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [caisseTransfers, selectedCompany]);
+    const spent = (expenses || [])
+      .filter(e => e.sourceAccount === 'noir' && (e.company || drivers.find(d => d.id === e.driverId)?.company || 'afro_negoce') === selectedCompany)
+      .reduce((sum, e) => sum + e.amount, 0);
+    return Math.max(0, transfers - spent);
+  }, [caisseTransfers, expenses, drivers, selectedCompany]);
 
   // Group sales by driver
   const salesByDriver = useMemo(() => {
@@ -376,16 +400,52 @@ export default function DispatchCaissePage() {
       ? expenseData.reasonCustom 
       : expenseData.reasonMode;
 
-    if (expenseData.amount && finalReason && expenseData.driverId) {
+    const amountVal = parseFloat(expenseData.amount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      toast.error("Veuillez saisir un montant de sortie valide.");
+      return;
+    }
+
+    // Sortie de caisse limit validation
+    const currentLimit = sortieCaisseLimit || 2000;
+    if (amountVal > currentLimit) {
+      toast.error(`Le montant de la sortie (${amountVal.toLocaleString()} MAD) dépasse la limite de sortie de caisse autorisée (${currentLimit.toLocaleString()} MAD). Veuillez demander à l'administrateur d'augmenter ou de redéfinir la limite.`);
+      return;
+    }
+
+    // Fund source validation
+    const source = expenseData.sourceAccount || 'principale';
+    if (source === 'principale' && amountVal > soldeDisponibleCompany) {
+      toast.error(`Fonds insuffisants dans la caisse principale. Disponible: ${soldeDisponibleCompany.toLocaleString()} MAD.`);
+      return;
+    }
+    if (source === 'securitaire' && amountVal > caisseSecuritaireCompany) {
+      toast.error(`Fonds insuffisants dans la caisse sécuritaire. Disponible: ${caisseSecuritaireCompany.toLocaleString()} MAD.`);
+      return;
+    }
+    if (source === 'noir' && amountVal > caisseNoirCompany) {
+      toast.error(`Fonds insuffisants dans la caisse noire. Disponible: ${caisseNoirCompany.toLocaleString()} MAD.`);
+      return;
+    }
+
+    if (amountVal && finalReason && expenseData.driverId) {
       addExpense({
         id: Date.now().toString(),
         date: new Date().toISOString(),
         driverId: expenseData.driverId,
-        amount: parseFloat(expenseData.amount),
-        reason: finalReason
+        amount: amountVal,
+        reason: finalReason,
+        sourceAccount: source,
+        company: selectedCompany
       });
       setIsAddingExpense(false);
-      setExpenseData({ amount: '', reasonMode: 'Avance sur salaire', reasonCustom: '', driverId: '' });
+      setExpenseData({ 
+        amount: '', 
+        reasonMode: 'Avance sur salaire', 
+        reasonCustom: '', 
+        driverId: '',
+        sourceAccount: 'principale'
+      });
       toast.success("Sortie de caisse enregistrée.");
     }
   };
@@ -538,6 +598,120 @@ export default function DispatchCaissePage() {
         </button>
       </div>
 
+      {/* Caisse Limit Admin Control Info Banner */}
+      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-red-50 text-red-600 rounded-2xl shrink-0">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+              Contrôle de Sécurité : Limite de Sortie de Caisse
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 font-medium">
+              Le montant maximum autorisé par sortie de caisse est actuellement fixé à <span className="font-extrabold text-red-600">{(sortieCaisseLimit || 2000).toLocaleString()} MAD</span>.
+              Toute sortie dépassant cette limite nécessite l'augmentation de la limite avec le code d'autorisation administrateur.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setLimitCode('');
+            setNewLimitValue((sortieCaisseLimit || 2000).toString());
+            setIsUpdatingLimit(true);
+          }}
+          className="bg-slate-900 hover:bg-slate-850 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-slate-900/10 shrink-0 cursor-pointer"
+        >
+          <Lock className="w-4 h-4 text-slate-400" />
+          Définir / Modifier la limite
+        </button>
+      </div>
+
+      {isUpdatingLimit && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 text-red-600 rounded-xl">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <h3 className="font-black text-slate-900 text-base uppercase tracking-tight">Sécurité Administrateur</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsUpdatingLimit(false)} 
+                className="p-2 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const trimmedCode = limitCode.trim().toLowerCase();
+              if (trimmedCode !== "alpha zulu india zulu" && trimmedCode !== "aziz") {
+                toast.error("Code d'autorisation incorrect ! Modification refusée.");
+                return;
+              }
+              const val = parseFloat(newLimitValue);
+              if (isNaN(val) || val < 0) {
+                toast.error("Veuillez saisir une limite valide.");
+                return;
+              }
+              setSortieCaisseLimit(val);
+              setIsUpdatingLimit(false);
+              setLimitCode('');
+              toast.success(`La limite de sortie de caisse a été redéfinie à ${val.toLocaleString()} MAD.`);
+            }} className="p-6 space-y-4 font-sans">
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                Pour modifier la limite maximale par sortie de caisse, veuillez saisir le code d'autorisation administrateur requis et le nouveau montant limite.
+              </p>
+              
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Code d'autorisation</label>
+                <input 
+                  type="password" 
+                  required 
+                  placeholder="Entrez le code requis..." 
+                  value={limitCode}
+                  onChange={(e) => setLimitCode(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-mono text-center text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Nouvelle limite (MAD)</label>
+                <input 
+                  type="number" 
+                  required 
+                  placeholder="ex: 3000" 
+                  value={newLimitValue}
+                  onChange={(e) => setNewLimitValue(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-bold text-center text-lg"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-slate-100 font-medium">
+                <button 
+                  type="button" 
+                  onClick={() => setIsUpdatingLimit(false)} 
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 bg-red-650 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-900/15 cursor-pointer"
+                >
+                  Valider la limite
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
@@ -642,7 +816,20 @@ export default function DispatchCaissePage() {
       {isAddingExpense && (
         <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-4">
           <h2 className="text-xl font-black text-slate-900 mb-6 font-display uppercase tracking-tight">Nouvelle Sortie de Caisse</h2>
-          <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+              <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Source des fonds</label>
+              <select 
+                required 
+                value={expenseData.sourceAccount || 'principale'} 
+                onChange={e => setExpenseData({...expenseData, sourceAccount: e.target.value as 'principale' | 'securitaire' | 'noir'})} 
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium"
+              >
+                <option value="principale">Caisse Principale ({soldeDisponibleCompany.toLocaleString()} MAD)</option>
+                <option value="securitaire">Caisse Sécuritaire ({caisseSecuritaireCompany.toLocaleString()} MAD)</option>
+                <option value="noir">Caisse Noir ({caisseNoirCompany.toLocaleString()} MAD)</option>
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Chauffeur concerné</label>
               <select required value={expenseData.driverId} onChange={e => setExpenseData({...expenseData, driverId: e.target.value})} className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium">
@@ -669,16 +856,16 @@ export default function DispatchCaissePage() {
               </select>
               {expenseData.reasonMode === 'Autre' && (
                 <input 
-                  type="text" 
-                  required 
-                  value={expenseData.reasonCustom} 
-                  onChange={e => setExpenseData({...expenseData, reasonCustom: e.target.value})} 
-                  placeholder="Précisez le motif..." 
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium animate-in fade-in slide-in-from-top-2" 
+                   type="text" 
+                   required 
+                   value={expenseData.reasonCustom} 
+                   onChange={e => setExpenseData({...expenseData, reasonCustom: e.target.value})} 
+                   placeholder="Précisez le motif..." 
+                   className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium animate-in fade-in slide-in-from-top-2" 
                 />
               )}
             </div>
-            <div className="md:col-span-3 flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="md:col-span-4 flex justify-end gap-3 pt-4 border-t border-slate-100">
               <button type="button" onClick={() => setIsAddingExpense(false)} className="px-6 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-all">Annuler</button>
               <button type="submit" className="px-8 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/10">Enregistrer la sortie</button>
             </div>
@@ -983,8 +1170,22 @@ export default function DispatchCaissePage() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-black text-sm text-slate-900 mb-0.5 truncate">{expense.reason}</p>
-                      <p className="text-[10px] text-slate-500 font-bold truncate">
-                        {driver?.prenom} {driver?.nom} • {new Date(expense.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      <p className="text-[10px] text-slate-500 font-bold truncate flex flex-wrap items-center gap-1.5 mt-1">
+                        <span>{driver?.prenom} {driver?.nom}</span>
+                        <span>•</span>
+                        <span>{new Date(expense.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        {expense.sourceAccount && expense.sourceAccount !== 'principale' && (
+                          <>
+                            <span>•</span>
+                            <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                              expense.sourceAccount === 'securitaire' 
+                                ? 'bg-indigo-100 text-indigo-700' 
+                                : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              Caisse {expense.sourceAccount === 'securitaire' ? 'Sécuritaire' : 'Noir'}
+                            </span>
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>

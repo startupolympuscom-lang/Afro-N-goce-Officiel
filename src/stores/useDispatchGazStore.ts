@@ -104,6 +104,8 @@ export interface GazExpense {
   driverId: string;
   amount: number;
   reason: string;
+  sourceAccount?: 'principale' | 'securitaire' | 'noir';
+  company?: 'afro_negoce' | 'chakirine_gaz';
 }
 
 export interface CaisseTransfer {
@@ -340,6 +342,7 @@ interface DispatchGazState {
   caisseNoir: number;
   caisseTransfers: CaisseTransfer[];
   caisseAlimentations?: CaisseAlimentation[];
+  sortieCaisseLimit?: number;
   gplConfig: GPLConfig;
   gpsStatus: 'idle' | 'tracking' | 'error';
   commandePrices?: GazCommandePrice[];
@@ -417,6 +420,7 @@ interface DispatchGazState {
   addCaisseTransfer: (transfer: CaisseTransfer) => void;
   addCaisseAlimentation: (alimentation: CaisseAlimentation) => void;
   deleteCaisseAlimentation: (id: string) => void;
+  setSortieCaisseLimit: (limit: number) => void;
   addPaySlip: (paySlip: GazPaySlip) => void;
   deletePaySlip: (id: string) => void;
   setCommandePrice: (brandId: string, category: string, price: number) => void;
@@ -508,6 +512,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       caisseNoir: 0,
       caisseTransfers: [],
       caisseAlimentations: [],
+      sortieCaisseLimit: 2000,
       comptaDocuments: [],
       commandePrices: [
         { brandId: 'b1', category: '3Kg', price: 15 },
@@ -1023,6 +1028,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
       deleteCaisseAlimentation: (id) => set((state) => ({
         caisseAlimentations: (state.caisseAlimentations || []).filter(a => a.id !== id)
       })),
+      setSortieCaisseLimit: (limit) => set({ sortieCaisseLimit: limit }),
       addStockActivity: (activity) => set((state) => ({
         stockActivities: [{ ...activity, id: Date.now().toString(), date: new Date().toISOString() }, ...(state.stockActivities || [])]
       })),

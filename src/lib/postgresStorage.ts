@@ -1,7 +1,14 @@
 import { StateStorage } from 'zustand/middleware';
 
 export const postgresStorage: StateStorage = {
-  getItem: async (name: string): Promise<string | null> => {
+  getItem: (name: string): string | null | Promise<string | null> => {
+    // 1. Try to load from localStorage synchronously to prevent async lag during refresh
+    const localValue = typeof window !== 'undefined' ? localStorage.getItem(name) : null;
+    if (localValue) {
+      return localValue;
+    }
+
+    // 2. Fallback to async Postgres fetch if not in localStorage
     let attempts = 0;
     const maxAttempts = 3;
     const delay = 1000;
@@ -11,7 +18,11 @@ export const postgresStorage: StateStorage = {
         const response = await fetch(`/api/zustand/${name}`, { cache: 'no-store' });
         if (response.ok) {
           const state = await response.json();
-          return JSON.stringify(state);
+          const str = JSON.stringify(state);
+          try {
+            localStorage.setItem(name, str);
+          } catch (e) {}
+          return str;
         }
         
         if (response.status === 404) {
@@ -25,13 +36,6 @@ export const postgresStorage: StateStorage = {
           return tryFetch();
         }
 
-        // Safety fallback to localStorage
-        const localValue = localStorage.getItem(name);
-        if (localValue) {
-          console.warn(`Postgres fetch failed for ${name} after ${maxAttempts} attempts, falling back to localStorage`);
-          return localValue;
-        }
-        
         return null;
       } catch (error) {
         if (attempts < maxAttempts) {
@@ -40,8 +44,8 @@ export const postgresStorage: StateStorage = {
           await new Promise(resolve => setTimeout(resolve, delay * attempts));
           return tryFetch();
         }
-        console.error('Error reading from Postgres eventually, falling back to localStorage:', error);
-        return localStorage.getItem(name);
+        console.error('Error reading from Postgres eventually:', error);
+        return null;
       }
     };
 
