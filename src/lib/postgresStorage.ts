@@ -1,14 +1,7 @@
 import { StateStorage } from 'zustand/middleware';
 
 export const postgresStorage: StateStorage = {
-  getItem: (name: string): string | null | Promise<string | null> => {
-    // 1. Try to load from localStorage synchronously to prevent async lag during refresh
-    const localValue = typeof window !== 'undefined' ? localStorage.getItem(name) : null;
-    if (localValue) {
-      return localValue;
-    }
-
-    // 2. Fallback to async Postgres fetch if not in localStorage
+  getItem: async (name: string): Promise<string | null> => {
     let attempts = 0;
     const maxAttempts = 3;
     const delay = 1000;
@@ -26,26 +19,25 @@ export const postgresStorage: StateStorage = {
         }
         
         if (response.status === 404) {
-          return null;
+          // If not found in DB yet, check localStorage fallback
+          return typeof window !== 'undefined' ? localStorage.getItem(name) : null;
         }
 
-        // Potential transient server error
         if (attempts < maxAttempts) {
           attempts++;
           await new Promise(resolve => setTimeout(resolve, delay * attempts));
           return tryFetch();
         }
 
-        return null;
+        return typeof window !== 'undefined' ? localStorage.getItem(name) : null;
       } catch (error) {
         if (attempts < maxAttempts) {
           attempts++;
-          console.warn(`Fetch error for ${name}, attempt ${attempts}/${maxAttempts}. Retrying...`);
           await new Promise(resolve => setTimeout(resolve, delay * attempts));
           return tryFetch();
         }
-        console.error('Error reading from Postgres eventually:', error);
-        return null;
+        console.error('Error reading from Postgres, falling back to localStorage:', error);
+        return typeof window !== 'undefined' ? localStorage.getItem(name) : null;
       }
     };
 
