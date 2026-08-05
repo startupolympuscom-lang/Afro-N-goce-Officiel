@@ -52,6 +52,7 @@ const navItems: NavItem[] = [
       { name: 'Carburant', path: '/flotte/carburant', icon: Fuel, roles: ['super_admin', 'admin', 'chef_de_parc'] },
       { name: 'Leasing', path: '/flotte/leasing', icon: CreditCard, roles: ['super_admin', 'admin', 'chef_de_parc'] },
       { name: 'Vidange', path: '/flotte/vidange', icon: Droplet, roles: ['super_admin', 'admin', 'chef_de_parc'] },
+      { name: 'Magasin & Stock', path: '/flotte/magasin', icon: Store, roles: ['super_admin', 'admin', 'chef_de_parc'] },
       { name: 'Charges Variables', path: '/flotte/charges-variables', icon: Wallet, roles: ['super_admin', 'admin', 'chef_de_parc'] },
       { name: 'Missions', path: '/flotte/missions', icon: MapPin, roles: ['super_admin', 'admin', 'chef_de_parc'] },
       { name: 'Maintenance', path: '/flotte/maintenance', icon: Wrench, roles: ['super_admin', 'admin', 'chef_de_parc'] },

@@ -17,6 +17,8 @@ export interface MaintenancePiece {
   nom: string;
   quantite: number;
   prixUnitaire: number;
+  source?: 'magasin' | 'externe';
+  magasinItemId?: string;
 }
 
 export interface MaintenanceDocument {

@@ -3,6 +3,7 @@ import { useMaintenanceStore, MaintenanceType, MaintenanceStatus, MaintenancePie
 import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { usePrestataireStore } from '../../../stores/usePrestataireStore';
+import { useMagasinStore } from '../../../stores/useMagasinStore';
 import { 
   Wrench, 
   Plus, 
@@ -32,6 +33,8 @@ export default function MaintenancePage() {
   const vehicules = useVehiculeStore(s => s.vehicules);
   const updateVehicule = useVehiculeStore(s => s.updateVehicule);
   const prestataires = usePrestataireStore(s => s.prestataires);
+  const magasinItems = useMagasinStore(s => s.items);
+  const removeStock = useMagasinStore(s => s.removeStock);
   const user = useAuthStore(s => s.user);
   const canManage = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'chef_de_parc';
 
@@ -48,7 +51,8 @@ export default function MaintenancePage() {
   const [numeroCommande, setNumeroCommande] = useState('');
 
   // Curative parts selection state
-  const [piecesList, setPiecesList] = useState<{ partId: string; nom: string; quantite: number; prixUnitaire: number }[]>([]);
+  const [piecesList, setPiecesList] = useState<{ partId: string; nom: string; quantite: number; prixUnitaire: number; source: 'magasin' | 'externe'; magasinItemId?: string }[]>([]);
+  const [partSource, setPartSource] = useState<'magasin' | 'externe'>('externe');
   const [selectedPartId, setSelectedPartId] = useState('');
   const [partQty, setPartQty] = useState(1);
   const [partPrice, setPartPrice] = useState(0);
@@ -211,29 +215,36 @@ export default function MaintenancePage() {
   };
 
   const handleAddPartToForm = () => {
-    if (!selectedPartId) return;
-    const part = spareParts.find(sp => sp.id === selectedPartId);
-    if (!part) return;
+    if (!selectedPartId && partSource === 'externe') return;
+    if (partSource === 'magasin' && !selectedPartId) return;
 
-    // Check if already exists, update quantity
-    const existingIdx = piecesList.findIndex(p => p.partId === selectedPartId);
-    if (existingIdx !== -1) {
-      const updated = [...piecesList];
-      updated[existingIdx].quantite += partQty;
-      setPiecesList(updated);
+    let nom = '';
+    let prix = partPrice;
+    let magasinItemId = undefined;
+
+    if (partSource === 'magasin') {
+      const item = magasinItems.find(i => i.id === selectedPartId);
+      if (!item) return;
+      nom = item.name;
+      prix = item.unitPrice;
+      magasinItemId = item.id;
     } else {
-      setPiecesList([
-        ...piecesList,
-        {
-          partId: part.id,
-          nom: part.nom,
-          quantite: partQty,
-          prixUnitaire: partPrice || part.prixDefaut
-        }
-      ]);
+      const part = spareParts.find(sp => sp.id === selectedPartId);
+      nom = part ? part.nom : selectedPartId; // allow custom names if not found
     }
 
-    // Reset part inputs
+    setPiecesList([
+      ...piecesList,
+      {
+        partId: partSource === 'magasin' ? `magasin-${selectedPartId}` : selectedPartId,
+        nom,
+        quantite: partQty,
+        prixUnitaire: prix,
+        source: partSource,
+        magasinItemId
+      }
+    ]);
+
     setSelectedPartId('');
     setPartQty(1);
     setPartPrice(0);
@@ -297,6 +308,16 @@ export default function MaintenancePage() {
     const createdRecord = addMaintenance(maintenanceData);
     // Automatically update the vehicle's status to 'immobilise'
     updateVehicule(vehiculeId, { status: 'immobilise' });
+    
+    // Deduct stock
+    if (type === 'curative') {
+      finalPieces.forEach(p => {
+        if (p.source === 'magasin' && p.magasinItemId) {
+           removeStock(p.magasinItemId, p.quantite, `Maintenance ${createdRecord.description} sur ${vehicules.find(v => v.id === vehiculeId)?.immatriculation}`, vehiculeId);
+        }
+      });
+    }
+
     setIsModalOpen(false);
 
     // Trigger Purchase Orders (Bons de commande)
@@ -748,23 +769,53 @@ export default function MaintenancePage() {
                       </h3>
                       
                       {/* Form inputs to add a part to the list */}
-                      <div className="grid grid-cols-12 gap-2 items-end">
-                        <div className="col-span-6">
-                          <label className="block text-xs font-medium text-text-secondary mb-1">Type de Pièce</label>
+                      <div className="grid grid-cols-12 gap-2 items-end mb-4">
+                        <div className="col-span-3">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">Source</label>
                           <select
-                            value={selectedPartId}
+                            value={partSource}
                             onChange={e => {
-                              setSelectedPartId(e.target.value);
-                              const part = spareParts.find(sp => sp.id === e.target.value);
-                              if (part) setPartPrice(part.prixDefaut);
+                               setPartSource(e.target.value as 'magasin' | 'externe');
+                               setSelectedPartId('');
                             }}
                             className="w-full h-10 px-2 rounded border border-border bg-surface text-xs focus:ring-2 focus:ring-primary/20 outline-none"
                           >
-                            <option value="">Sélectionner une pièce...</option>
-                            {spareParts.map(sp => (
-                              <option key={sp.id} value={sp.id}>{sp.nom} (défaut: {sp.prixDefaut} MAD)</option>
-                            ))}
+                            <option value="externe">Achat Externe</option>
+                            <option value="magasin">Depuis Magasin</option>
                           </select>
+                        </div>
+                        <div className="col-span-4">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">Pièce</label>
+                          {partSource === 'externe' ? (
+                            <input
+                               type="text"
+                               list="spare-parts-list"
+                               value={selectedPartId}
+                               onChange={e => {
+                                 setSelectedPartId(e.target.value);
+                                 const part = spareParts.find(sp => sp.nom === e.target.value);
+                                 if (part) setPartPrice(part.prixDefaut);
+                               }}
+                               placeholder="Saisir ou choisir..."
+                               className="w-full h-10 px-2 rounded border border-border bg-surface text-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                            />
+                          ) : (
+                            <select
+                               value={selectedPartId}
+                               onChange={e => setSelectedPartId(e.target.value)}
+                               className="w-full h-10 px-2 rounded border border-border bg-surface text-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                            >
+                               <option value="">Sélectionner en stock...</option>
+                               {magasinItems.map(item => (
+                                 <option key={item.id} value={item.id}>{item.name} ({item.quantity} en stock) - {item.unitPrice} MAD</option>
+                               ))}
+                            </select>
+                          )}
+                          <datalist id="spare-parts-list">
+                             {spareParts.map(sp => (
+                               <option key={sp.id} value={sp.nom}>{sp.prixDefaut} MAD</option>
+                             ))}
+                          </datalist>
                         </div>
                         <div className="col-span-2">
                           <label className="block text-xs font-medium text-text-secondary mb-1">Qté</label>
@@ -776,16 +827,17 @@ export default function MaintenancePage() {
                             className="w-full h-10 px-2 rounded border border-border bg-surface text-xs font-bold text-center outline-none"
                           />
                         </div>
-                        <div className="col-span-3">
-                          <label className="block text-xs font-medium text-text-secondary mb-1">Prix (MAD)</label>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">Prix</label>
                           <input
                             type="number"
                             min="0"
                             step="any"
-                            value={partPrice || ''}
+                            value={partSource === 'magasin' ? magasinItems.find(i => i.id === selectedPartId)?.unitPrice || 0 : partPrice}
                             onChange={e => setPartPrice(parseFloat(e.target.value) || 0)}
                             placeholder="0"
-                            className="w-full h-10 px-2 rounded border border-border bg-surface text-xs font-bold outline-none"
+                            disabled={partSource === 'magasin'}
+                            className="w-full h-10 px-2 rounded border border-border bg-surface text-xs font-bold outline-none disabled:opacity-50"
                           />
                         </div>
                         <div className="col-span-1">

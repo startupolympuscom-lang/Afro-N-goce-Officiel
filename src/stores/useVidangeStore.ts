@@ -10,6 +10,15 @@ export interface OilType {
   intervalKm: number;
 }
 
+export interface VidangeFilter {
+  id: string;
+  type: 'air' | 'gasoil' | 'huile' | 'habitacle' | 'autre';
+  name?: string;
+  prix: number;
+  source: 'magasin' | 'externe';
+  magasinItemId?: string;
+}
+
 export interface Vidange {
   id: string;
   vehiculeId: string;
@@ -24,6 +33,7 @@ export interface Vidange {
   coutFiltreGasoil?: number;
   filtreAir?: boolean;
   coutFiltreAir?: number;
+  filters?: VidangeFilter[];
   cout: number;
   notes?: string;
 }

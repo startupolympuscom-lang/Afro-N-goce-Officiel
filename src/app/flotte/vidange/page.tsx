@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useVidangeStore, Vidange } from '../../../stores/useVidangeStore';
+import { useVidangeStore, Vidange, VidangeFilter } from '../../../stores/useVidangeStore';
 import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChauffeurStore } from '../../../stores/useChauffeurStore';
+import { useMagasinStore } from '../../../stores/useMagasinStore';
 import { 
   Plus, 
   Search, 
@@ -150,6 +151,8 @@ function generateVidangePDF(v: Vidange, vehicule: any, oilTypeName: string) {
 export default function VidangePage() {
   const { vidanges, oilTypes, addVidange, updateVidange, deleteVidange } = useVidangeStore();
   const vehicules = useVehiculeStore(s => s.vehicules);
+  const magasinItems = useMagasinStore(s => s.items);
+  const removeStock = useMagasinStore(s => s.removeStock);
   const chauffeurs = useChauffeurStore(s => s.chauffeurs);
   const user = useAuthStore(s => s.user);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -176,10 +179,7 @@ export default function VidangePage() {
   const [coutFiltreAir, setCoutFiltreAir] = useState<string>('');
   const [notes, setNotes] = useState('');
 
-  // Checkbox Selection for Filters
-  const [hasFiltreHuile, setHasFiltreHuile] = useState(false);
-  const [hasFiltreGasoil, setHasFiltreGasoil] = useState(false);
-  const [hasFiltreAir, setHasFiltreAir] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<VidangeFilter[]>([]);
 
   // Alarms: List of vehicles whose current kilometrage exceeds recommended prochainKilometrage
   const exceededVidangeVehicules = useMemo(() => {
@@ -212,9 +212,7 @@ export default function VidangePage() {
     setCoutFiltreGasoil('');
     setCoutFiltreAir('');
     setNotes('');
-    setHasFiltreHuile(false);
-    setHasFiltreGasoil(false);
-    setHasFiltreAir(false);
+    setSelectedFilters([]);
   }
 
   const openAddForm = () => {
@@ -234,20 +232,16 @@ export default function VidangePage() {
     setCoutFiltreGasoil(v.coutFiltreGasoil ? String(v.coutFiltreGasoil) : '');
     setCoutFiltreAir(v.coutFiltreAir ? String(v.coutFiltreAir) : '');
     setNotes(v.notes || '');
-    setHasFiltreHuile(!!v.filtreHuile);
-    setHasFiltreGasoil(!!v.filtreGasoil);
-    setHasFiltreAir(!!v.filtreAir);
+    setSelectedFilters(v.filters || []);
     setIsDrawerOpen(true);
   }
 
   const handleSaveVidange = (e: React.FormEvent) => {
     e.preventDefault();
     const ch = parseFloat(coutHuile) || 0;
-    const cfh = hasFiltreHuile ? (parseFloat(coutFiltreHuile) || 0) : 0;
-    const cfg = hasFiltreGasoil ? (parseFloat(coutFiltreGasoil) || 0) : 0;
-    const cfa = hasFiltreAir ? (parseFloat(coutFiltreAir) || 0) : 0;
+    const filtersCost = selectedFilters.reduce((sum, f) => sum + f.prix, 0);
     
-    const totalCout = ch + cfh + cfg + cfa;
+    const totalCout = ch + filtersCost;
 
     const data = {
       vehiculeId,
@@ -256,12 +250,7 @@ export default function VidangePage() {
       prochainKilometrage,
       typeHuileId,
       coutHuile: ch,
-      filtreHuile: hasFiltreHuile,
-      coutFiltreHuile: cfh,
-      filtreGasoil: hasFiltreGasoil,
-      coutFiltreGasoil: cfg,
-      filtreAir: hasFiltreAir,
-      coutFiltreAir: cfa,
+      filters: selectedFilters,
       cout: totalCout,
       notes
     };
@@ -270,6 +259,11 @@ export default function VidangePage() {
       updateVidange(editingId, data);
     } else {
       addVidange(data);
+      selectedFilters.forEach(f => {
+        if (f.source === 'magasin' && f.magasinItemId) {
+          removeStock(f.magasinItemId, 1, `Vidange sur ${vehicules.find(v => v.id === vehiculeId)?.immatriculation || 'vehicule'}`, vehiculeId);
+        }
+      });
       // Automatically update the vehicle's kilometrageActuel on new vidange
       useVehiculeStore.getState().updateVehicule(vehiculeId, { kilometrageActuel: kilometrage });
     }
@@ -326,6 +320,39 @@ export default function VidangePage() {
   useEffect(() => {
     setLitersHuileBrulee(filteredVidanges.length * capaciteMoyenne);
   }, [filteredVidanges.length, capaciteMoyenne]);
+
+  const addFilter = () => {
+    setSelectedFilters([...selectedFilters, {
+      id: Math.random().toString(36).substring(2, 9),
+      type: 'air',
+      prix: 0,
+      source: 'externe',
+    }]);
+  };
+
+  const updateFilter = (index: number, updates: Partial<VidangeFilter>) => {
+    const newFilters = [...selectedFilters];
+    if (updates.source === 'magasin' && updates.magasinItemId) {
+      const item = magasinItems.find(i => i.id === updates.magasinItemId);
+      if (item) {
+         updates.prix = item.unitPrice;
+         updates.name = item.name;
+      }
+    } else if (updates.source === 'externe') {
+       if (!newFilters[index].name) {
+         updates.name = '';
+       }
+    }
+    
+    newFilters[index] = { ...newFilters[index], ...updates };
+    setSelectedFilters(newFilters);
+  };
+
+  const removeFilter = (index: number) => {
+    const newFilters = [...selectedFilters];
+    newFilters.splice(index, 1);
+    setSelectedFilters(newFilters);
+  };
 
   return (
     <div className="space-y-6 relative h-full">
@@ -535,10 +562,14 @@ export default function VidangePage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-text-primary font-medium">{oilType?.name || 'Standard'}</div>
-                        <div className="text-xs text-text-muted flex gap-1 mt-0.5">
-                          {v.filtreHuile && <span className="px-1.5 bg-surface-2 rounded">F.Huile</span>}
-                          {v.filtreGasoil && <span className="px-1.5 bg-surface-2 rounded">F.Gas</span>}
-                          {v.filtreAir && <span className="px-1.5 bg-surface-2 rounded">F.Air</span>}
+                        <div className="text-xs text-text-muted flex gap-1 mt-0.5 flex-wrap">
+                          {v.filters?.length ? v.filters.map(f => (
+                            <span key={f.id} className="px-1.5 bg-surface-2 rounded">{f.name || f.type}</span>
+                          )) : null}
+                          {/* Fallbacks for older data */}
+                          {v.filtreHuile && !v.filters?.length && <span className="px-1.5 bg-surface-2 rounded">F.Huile</span>}
+                          {v.filtreGasoil && !v.filters?.length && <span className="px-1.5 bg-surface-2 rounded">F.Gas</span>}
+                          {v.filtreAir && !v.filters?.length && <span className="px-1.5 bg-surface-2 rounded">F.Air</span>}
                         </div>
                       </td>
                       <td className="px-6 py-4 font-medium">{v.kilometrage.toLocaleString()} km</td>
@@ -692,89 +723,53 @@ export default function VidangePage() {
                      <h3 className="text-sm font-bold text-text-primary mb-3">Sélection des Filtres à Remplacer</h3>
                      
                      <div className="space-y-4 mb-4">
-                       {/* Preset buttons: Filtre Huile Uniquement OR Tous les Filtres */}
-                       <div className="grid grid-cols-2 gap-2">
-                         <button
-                           type="button"
-                           onClick={() => {
-                             setHasFiltreHuile(true);
-                             setHasFiltreGasoil(false);
-                             setHasFiltreAir(false);
-                             setCoutFiltreGasoil('');
-                             setCoutFiltreAir('');
-                           }}
-                           className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
-                             hasFiltreHuile && !hasFiltreGasoil && !hasFiltreAir
-                               ? 'border-primary bg-primary/10 text-primary'
-                               : 'border-border bg-surface text-text-secondary hover:bg-surface-2'
-                           }`}
-                         >
-                           Filtre Huile Uniquement
-                         </button>
-                         <button
-                           type="button"
-                           onClick={() => {
-                             setHasFiltreHuile(true);
-                             setHasFiltreGasoil(true);
-                             setHasFiltreAir(true);
-                           }}
-                           className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
-                             hasFiltreHuile && hasFiltreGasoil && hasFiltreAir
-                               ? 'border-primary bg-primary/10 text-primary'
-                               : 'border-border bg-surface text-text-secondary hover:bg-surface-2'
-                           }`}
-                         >
-                           Tous les Filtres
-                         </button>
-                       </div>
-
-                       {/* Individual Checkbox Grid */}
-                       <div className="grid grid-cols-3 gap-2">
-                         <label className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                           hasFiltreHuile ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface hover:bg-surface-2 text-text-secondary'
-                         }`}>
-                           <input 
-                             type="checkbox" 
-                             checked={hasFiltreHuile} 
-                             onChange={e => {
-                               setHasFiltreHuile(e.target.checked);
-                               if (!e.target.checked) setCoutFiltreHuile('');
-                             }}
-                             className="sr-only" 
-                           />
-                           <span className="text-[11px] font-bold text-center">Filtre Huile</span>
-                         </label>
-                         
-                         <label className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                           hasFiltreGasoil ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface hover:bg-surface-2 text-text-secondary'
-                         }`}>
-                           <input 
-                             type="checkbox" 
-                             checked={hasFiltreGasoil} 
-                             onChange={e => {
-                               setHasFiltreGasoil(e.target.checked);
-                               if (!e.target.checked) setCoutFiltreGasoil('');
-                             }}
-                             className="sr-only" 
-                           />
-                           <span className="text-[11px] font-bold text-center">Filtre Gasoil</span>
-                         </label>
-                         
-                         <label className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                           hasFiltreAir ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface hover:bg-surface-2 text-text-secondary'
-                         }`}>
-                           <input 
-                             type="checkbox" 
-                             checked={hasFiltreAir} 
-                             onChange={e => {
-                               setHasFiltreAir(e.target.checked);
-                               if (!e.target.checked) setCoutFiltreAir('');
-                             }}
-                             className="sr-only" 
-                           />
-                           <span className="text-[11px] font-bold text-center">Filtre Air</span>
-                         </label>
-                       </div>
+                       {selectedFilters.map((filter, index) => (
+                         <div key={filter.id} className="p-3 border rounded-lg bg-surface-50 space-y-3">
+                           <div className="flex items-center justify-between">
+                             <select value={filter.source} onChange={e => updateFilter(index, { source: e.target.value as any, magasinItemId: '' })} className="h-9 px-2 text-sm border rounded bg-white">
+                               <option value="externe">Achat Externe</option>
+                               <option value="magasin">Depuis Magasin (Stock)</option>
+                             </select>
+                             <button type="button" onClick={() => removeFilter(index)} className="text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                           </div>
+                           
+                           {filter.source === 'magasin' ? (
+                             <select value={filter.magasinItemId || ''} onChange={e => updateFilter(index, { magasinItemId: e.target.value })} className="w-full h-9 px-2 text-sm border rounded bg-white">
+                               <option value="">Sélectionner dans le magasin...</option>
+                               {magasinItems.map(item => (
+                                 <option key={item.id} value={item.id}>{item.name} ({item.quantity} en stock) - {item.unitPrice} MAD</option>
+                               ))}
+                             </select>
+                           ) : (
+                             <div className="flex gap-2">
+                               <input 
+                                 type="text" 
+                                 placeholder="Nom du filtre" 
+                                 value={filter.name || ''} 
+                                 onChange={e => updateFilter(index, { name: e.target.value })} 
+                                 className="flex-1 h-9 px-2 text-sm border rounded bg-white"
+                               />
+                               <select value={filter.type} onChange={e => updateFilter(index, { type: e.target.value as any })} className="w-24 h-9 px-2 text-sm border rounded bg-white">
+                                 <option value="air">Air</option>
+                                 <option value="gasoil">Gasoil</option>
+                                 <option value="huile">Huile</option>
+                                 <option value="habitacle">Habitacle</option>
+                                 <option value="autre">Autre</option>
+                               </select>
+                               <input 
+                                 type="number" 
+                                 placeholder="Prix (MAD)" 
+                                 value={filter.prix || ''} 
+                                 onChange={e => updateFilter(index, { prix: Number(e.target.value) })} 
+                                 className="w-24 h-9 px-2 text-sm border rounded bg-white"
+                               />
+                             </div>
+                           )}
+                         </div>
+                       ))}
+                       <button type="button" onClick={addFilter} className="w-full py-2 border-2 border-dashed rounded-lg text-sm font-medium text-text-secondary hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 bg-surface">
+                         <Plus className="w-4 h-4" /> Ajouter un filtre
+                       </button>
                      </div>
 
                      <h3 className="text-sm font-bold text-text-primary mb-3 pt-2 border-t border-border/50">Saisie des Coûts</h3>
@@ -790,75 +785,6 @@ export default function VidangePage() {
                             className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
                           />
                         </div>
-
-                        {/* Conditional Price Inputs based on checked filters */}
-                        <AnimatePresence>
-                          {hasFiltreHuile && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="pb-1">
-                                <label className="block text-xs font-medium text-text-secondary mb-1">Coût Filtre Huile (MAD)</label>
-                                <input 
-                                  type="number" 
-                                  step="any"
-                                  required
-                                  value={coutFiltreHuile}
-                                  onChange={e => setCoutFiltreHuile(e.target.value)}
-                                  placeholder="0.00" 
-                                  className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
-                                />
-                              </div>
-                            </motion.div>
-                          )}
-
-                          {hasFiltreGasoil && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="pb-1">
-                                <label className="block text-xs font-medium text-text-secondary mb-1">Coût Filtre Gasoil (MAD)</label>
-                                <input 
-                                  type="number" 
-                                  step="any"
-                                  required
-                                  value={coutFiltreGasoil}
-                                  onChange={e => setCoutFiltreGasoil(e.target.value)}
-                                  placeholder="0.00" 
-                                  className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
-                                />
-                              </div>
-                            </motion.div>
-                          )}
-
-                          {hasFiltreAir && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="pb-1">
-                                <label className="block text-xs font-medium text-text-secondary mb-1">Coût Filtre Air (MAD)</label>
-                                <input 
-                                  type="number" 
-                                  step="any"
-                                  required
-                                  value={coutFiltreAir}
-                                  onChange={e => setCoutFiltreAir(e.target.value)}
-                                  placeholder="0.00" 
-                                  className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
-                                />
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
                      </div>
                   </div>
 
@@ -878,9 +804,7 @@ export default function VidangePage() {
                     <span className="text-lg font-bold text-primary">
                       {formatMAD(
                         (parseFloat(coutHuile) || 0) + 
-                        (hasFiltreHuile ? (parseFloat(coutFiltreHuile) || 0) : 0) + 
-                        (hasFiltreGasoil ? (parseFloat(coutFiltreGasoil) || 0) : 0) + 
-                        (hasFiltreAir ? (parseFloat(coutFiltreAir) || 0) : 0)
+                        selectedFilters.reduce((sum, f) => sum + f.prix, 0)
                       )}
                     </span>
                   </div>

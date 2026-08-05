@@ -52,6 +52,7 @@ const ConformitePage = React.lazy(() => import('./app/conformite/page'));
 const CarburantPage = React.lazy(() => import('./app/flotte/carburant/page'));
 const LeasingPage = React.lazy(() => import('./app/flotte/leasing/page'));
 const VidangePage = React.lazy(() => import('./app/flotte/vidange/page'));
+const MagasinPage = React.lazy(() => import('./app/flotte/magasin/page'));
 const ChargesVariablesPage = React.lazy(() => import('./app/flotte/charges-variables/page'));
 const MissionsPage = React.lazy(() => import('./app/flotte/missions/page'));
 const MaintenancePage = React.lazy(() => import('./app/flotte/maintenance/page'));
@@ -144,6 +145,7 @@ export default function App() {
             <Route path="/flotte/carburant" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'chef_de_parc']}><CarburantPage /></ProtectedRoute>} />
             <Route path="/flotte/leasing" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'chef_de_parc']}><LeasingPage /></ProtectedRoute>} />
             <Route path="/flotte/vidange" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'chef_de_parc']}><VidangePage /></ProtectedRoute>} />
+            <Route path="/flotte/magasin" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'chef_de_parc']}><MagasinPage /></ProtectedRoute>} />
             <Route path="/flotte/charges-variables" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'chef_de_parc']}><ChargesVariablesPage /></ProtectedRoute>} />
             <Route path="/flotte/missions" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'chef_de_parc']}><MissionsPage /></ProtectedRoute>} />
             <Route path="/flotte/maintenance" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'chef_de_parc']}><MaintenancePage /></ProtectedRoute>} />
