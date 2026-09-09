@@ -16,12 +16,23 @@ import {
   CheckCircle2, 
   AlertCircle,
   HelpCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Compass
 } from 'lucide-react';
 import { formatMAD } from '../../../../lib/formatters';
 
 interface CaissePnLViewProps {
   initialCompany?: 'afro_negoce' | 'chakirine_gaz';
+}
+
+function escapeHtml(str?: string | number | null): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewProps) {
@@ -35,6 +46,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
 
   const [companyFilter, setCompanyFilter] = useState<'all' | 'afro_negoce' | 'chakirine_gaz'>(initialCompany);
   const [periodFilter, setPeriodFilter] = useState<'today' | 'month' | 'year' | 'all' | 'custom'>('month');
+  const [isPrinting, setIsPrinting] = useState(false);
   
   const todayStr = new Date().toISOString().split('T')[0];
   const currentMonthStr = todayStr.slice(0, 7); // YYYY-MM
@@ -283,6 +295,614 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
     return 'Consolidé (Afro Négoce & Chakirine Gaz)';
   };
 
+  const generatePrintPnLHtml = (): string => {
+    const companyLabel = escapeHtml(getCompanyLabel());
+    const periodLabel = escapeHtml(getPeriodLabel());
+    const todayFormatted = new Date().toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const refCode = `PNL-${companyFilter.toUpperCase()}-${todayStr.replace(/-/g, '')}`;
+
+    const part12Kg = totalSalesRevenue > 0 ? ((salesByCategory['12Kg'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+    const part3Kg = totalSalesRevenue > 0 ? ((salesByCategory['3Kg'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+    const part34Kg = totalSalesRevenue > 0 ? ((salesByCategory['34Kg'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+    const partAutres = totalSalesRevenue > 0 ? ((salesByCategory['Autres'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+
+    const partCarburant = totalSalesRevenue > 0 ? ((expensesByCategory['Carburant'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+    const partEntretien = totalSalesRevenue > 0 ? ((expensesByCategory['Entretien / Réparation'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+    const partAvances = totalSalesRevenue > 0 ? ((expensesByCategory['Avance sur salaire'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+    const partAutresExp = totalSalesRevenue > 0 ? ((expensesByCategory['Autres charges'].total / totalSalesRevenue) * 100).toFixed(1) : '0';
+    const partTotalExp = totalSalesRevenue > 0 ? ((totalExpenses / totalSalesRevenue) * 100).toFixed(1) : '0';
+
+    const isProfit = resultatNetGlobal >= 0;
+
+    const autresVentesRow = salesByCategory['Autres'].qty > 0 ? `
+      <tr>
+        <td class="indent bold">Autres Ventes de Gaz & Produits Dérivés</td>
+        <td class="text-muted">Chiffre d'Affaires Gaz</td>
+        <td class="center bold">${salesByCategory['Autres'].qty.toLocaleString()} Btl</td>
+        <td class="right bold">${salesByCategory['Autres'].total.toLocaleString()} MAD</td>
+        <td class="right text-muted">${partAutres}%</td>
+      </tr>
+    ` : '';
+
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Compte_Resultat_PnL_${escapeHtml(companyFilter)}_${escapeHtml(periodFilter)}</title>
+  <style>
+    @page {
+      size: landscape;
+      margin: 8mm;
+    }
+    *, *:before, *:after {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff !important;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .sheet {
+      width: 100%;
+      max-width: 280mm;
+      margin: 0 auto;
+      padding: 2mm 4mm;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-badge {
+      width: 34px;
+      height: 34px;
+      background: #0f172a;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 13px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .brand-title {
+      font-size: 14px;
+      font-weight: 900;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+    .brand-sub {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 2px 0 0 0;
+    }
+    .header-right {
+      text-align: right;
+    }
+    .ref-badge {
+      display: inline-block;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: monospace;
+      font-weight: 800;
+      font-size: 10px;
+      color: #1e293b;
+    }
+    .date-text {
+      font-size: 9px;
+      color: #64748b;
+      margin: 2px 0 0 0;
+    }
+    .doc-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 5px 10px;
+      margin-bottom: 8px;
+    }
+    .doc-title {
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #0f172a;
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+    .doc-sub {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #334155;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .kpi-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .kpi-card {
+      flex: 1;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 5px 8px;
+      text-align: center;
+      background: #ffffff;
+    }
+    .kpi-label {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #64748b;
+      display: block;
+    }
+    .kpi-val {
+      font-size: 12.5px;
+      font-weight: 900;
+      margin-top: 1px;
+      color: #0f172a;
+    }
+    .kpi-sub {
+      font-size: 8px;
+      color: #64748b;
+      margin-top: 1px;
+    }
+    .kpi-card.green {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .kpi-card.green .kpi-val {
+      color: #166534;
+    }
+    .kpi-card.red {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .kpi-card.red .kpi-val {
+      color: #991b1b;
+    }
+    .kpi-card.blue {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+    .kpi-card.blue .kpi-val {
+      color: #1e40af;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
+      font-size: 9px;
+    }
+    th {
+      background: #0f172a;
+      color: #ffffff;
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 8.5px;
+      letter-spacing: 0.4px;
+      padding: 5px 8px;
+      border: 1px solid #334155;
+      text-align: left;
+    }
+    th.right, td.right {
+      text-align: right;
+    }
+    th.center, td.center {
+      text-align: center;
+    }
+    td {
+      padding: 4.5px 8px;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+    }
+    .bold {
+      font-weight: 700;
+    }
+    .indent {
+      padding-left: 18px;
+    }
+    .text-muted {
+      color: #64748b;
+    }
+    .section-header {
+      font-weight: 900;
+      text-transform: uppercase;
+      font-size: 9px;
+      padding: 5px 8px;
+      letter-spacing: 0.3px;
+    }
+    .section-header.blue {
+      background: #dbeafe !important;
+      color: #172554 !important;
+      border-top: 2px solid #3b82f6;
+    }
+    .section-header.red {
+      background: #fee2e2 !important;
+      color: #7f1d1d !important;
+      border-top: 2px solid #ef4444;
+    }
+    .section-header.dark {
+      background: #1e293b !important;
+      color: #ffffff !important;
+    }
+    .row-subtotal {
+      background: #f1f5f9;
+      font-weight: 800;
+      border-top: 1px solid #94a3b8;
+      border-bottom: 1px solid #94a3b8;
+    }
+    .row-total-produits {
+      background: #dcfce7 !important;
+      font-weight: 900;
+      color: #14532d;
+      border-top: 2px solid #22c55e;
+      border-bottom: 2px solid #22c55e;
+    }
+    .row-total-charges {
+      background: #fee2e2 !important;
+      font-weight: 900;
+      color: #7f1d1d;
+      border-top: 2px solid #ef4444;
+      border-bottom: 2px solid #ef4444;
+    }
+    .row-marge-brute {
+      background: #e0e7ff !important;
+      font-weight: 900;
+      color: #1e1b4b;
+      border-top: 1px solid #6366f1;
+    }
+    .row-resultat-net {
+      font-weight: 900;
+      font-size: 10.5px;
+      border-top: 2px solid;
+      border-bottom: 2px solid;
+    }
+    .row-resultat-net.green {
+      background: #bbf7d0 !important;
+      color: #052e16;
+      border-color: #16a34a;
+    }
+    .row-resultat-net.red {
+      background: #fecaca !important;
+      color: #450a0a;
+      border-color: #dc2626;
+    }
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 6px;
+      margin-bottom: 6px;
+    }
+    .sig-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 9px;
+      height: 68px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #ffffff;
+    }
+    .sig-title {
+      font-size: 8.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+    .sig-sub {
+      font-size: 7.5px;
+      color: #64748b;
+      font-style: italic;
+    }
+    .sig-line {
+      border-bottom: 1px dashed #cbd5e1;
+    }
+    .footer {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 4px;
+      text-align: center;
+      font-size: 8px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-badge">P&L</div>
+        <div>
+          <h1 class="brand-title">FLEETOPS • AFRO NÉGOCE & CHAKIRINE GAZ</h1>
+          <p class="brand-sub">Direction Financière & Gestion Comptable de Caisse</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="ref-badge">RÉF: ${escapeHtml(refCode)}</div>
+        <p class="date-text">Édité le : ${escapeHtml(todayFormatted)} (Format Paysage)</p>
+      </div>
+    </div>
+
+    <!-- Document Title Banner -->
+    <div class="doc-banner">
+      <div>
+        <h2 class="doc-title">COMPTE DE RÉSULTAT DE CAISSE (P&L STATEMENT)</h2>
+        <p class="doc-sub">${companyLabel} • ${periodLabel}</p>
+      </div>
+      <div style="text-align: right;">
+        <span class="ref-badge" style="background: #e2e8f0; font-weight: 900;">DEVISE : MAD (DIRHAM MAROCAIN)</span>
+      </div>
+    </div>
+
+    <!-- KPI Summary Row -->
+    <div class="kpi-row">
+      <div class="kpi-card blue">
+        <span class="kpi-label">Chiffre d'Affaires Brut (Gaz)</span>
+        <div class="kpi-val">${totalSalesRevenue.toLocaleString()} MAD</div>
+        <div class="kpi-sub">${totalBottlesSold.toLocaleString()} bouteilles vendues</div>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Total Produits & Entrées (A)</span>
+        <div class="kpi-val">${totalProduitsEtEntrees.toLocaleString()} MAD</div>
+        <div class="kpi-sub">${filteredSales.length + filteredAlimentations.length} opérations d'encaissement</div>
+      </div>
+      <div class="kpi-card red">
+        <span class="kpi-label">Total Charges & Sorties (B)</span>
+        <div class="kpi-val">-${totalExpenses.toLocaleString()} MAD</div>
+        <div class="kpi-sub">${filteredExpenses.length} bons de décaissement</div>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Marge Brute d'Exploitation</span>
+        <div class="kpi-val" style="color: ${margeBruteExploitation >= 0 ? '#312e81' : '#991b1b'};">${margeBruteExploitation.toLocaleString()} MAD</div>
+        <div class="kpi-sub">Taux : ${tauxMargeBrute.toFixed(1)}% du CA</div>
+      </div>
+      <div class="kpi-card ${isProfit ? 'green' : 'red'}">
+        <span class="kpi-label">Résultat Net Global de Caisse</span>
+        <div class="kpi-val">${resultatNetGlobal.toLocaleString()} MAD</div>
+        <div class="kpi-sub">${isProfit ? 'Bénéfice Net' : 'Perte Nette'} (${tauxMargeNette.toFixed(1)}%)</div>
+      </div>
+    </div>
+
+    <!-- Actual P&L Table -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 36%;">Poste Comptable & Libellé</th>
+          <th style="width: 22%;">Nature / Rubrique</th>
+          <th class="center" style="width: 14%;">Quantité / Base</th>
+          <th class="right" style="width: 15%;">Montant (MAD)</th>
+          <th class="right" style="width: 13%;">Part du CA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Section 1: Produits -->
+        <tr class="section-header blue">
+          <td colspan="5">I. PRODUITS D'EXPLOITATION & REVENUS (FLUX ENTRANT)</td>
+        </tr>
+        <tr>
+          <td class="indent bold">Ventes Gaz Bouteilles 12 Kg (Usage Domestique)</td>
+          <td class="text-muted">Chiffre d'Affaires Gaz</td>
+          <td class="center bold">${salesByCategory['12Kg'].qty.toLocaleString()} Btl</td>
+          <td class="right bold">${salesByCategory['12Kg'].total.toLocaleString()} MAD</td>
+          <td class="right text-muted">${part12Kg}%</td>
+        </tr>
+        <tr>
+          <td class="indent bold">Ventes Gaz Bouteilles 3 Kg (Petites Bouteilles)</td>
+          <td class="text-muted">Chiffre d'Affaires Gaz</td>
+          <td class="center bold">${salesByCategory['3Kg'].qty.toLocaleString()} Btl</td>
+          <td class="right bold">${salesByCategory['3Kg'].total.toLocaleString()} MAD</td>
+          <td class="right text-muted">${part3Kg}%</td>
+        </tr>
+        <tr>
+          <td class="indent bold">Ventes Gaz Bouteilles 34 Kg (Industrielles / Pro)</td>
+          <td class="text-muted">Chiffre d'Affaires Gaz</td>
+          <td class="center bold">${salesByCategory['34Kg'].qty.toLocaleString()} Btl</td>
+          <td class="right bold">${salesByCategory['34Kg'].total.toLocaleString()} MAD</td>
+          <td class="right text-muted">${part34Kg}%</td>
+        </tr>
+        ${autresVentesRow}
+        <tr class="row-subtotal">
+          <td class="indent bold uppercase">SOUS-TOTAL CHIFFRE D'AFFAIRES GAZ (A1)</td>
+          <td>Ventes chauffeurs & comptoir</td>
+          <td class="center bold">${totalBottlesSold.toLocaleString()} Btl</td>
+          <td class="right bold" style="color: #1d4ed8;">${totalSalesRevenue.toLocaleString()} MAD</td>
+          <td class="right bold">100.0%</td>
+        </tr>
+        <tr>
+          <td class="indent text-muted">Alimentations ordinaires de Caisse (Hors-vente)</td>
+          <td class="text-muted">Fonds propres / Apports</td>
+          <td class="center text-muted">${filteredAlimentations.filter(a => a.type !== 'pret').length} op.</td>
+          <td class="right bold" style="color: #15803d;">+${totalAlimentationsNormale.toLocaleString()} MAD</td>
+          <td class="right text-muted">-</td>
+        </tr>
+        <tr>
+          <td class="indent text-muted">Prêts & Emprunts reçus en Caisse</td>
+          <td class="text-muted">Financement court terme</td>
+          <td class="center text-muted">${filteredAlimentations.filter(a => a.type === 'pret').length} op.</td>
+          <td class="right bold" style="color: #b45309;">+${totalPretsRecus.toLocaleString()} MAD</td>
+          <td class="right text-muted">-</td>
+        </tr>
+        <tr class="row-total-produits">
+          <td class="indent uppercase">TOTAL PRODUITS & ENTRÉES DE CAISSE (A)</td>
+          <td>Ensemble des encaissements</td>
+          <td class="center">${filteredSales.length + filteredAlimentations.length} op.</td>
+          <td class="right">${totalProduitsEtEntrees.toLocaleString()} MAD</td>
+          <td class="right">-</td>
+        </tr>
+
+        <!-- Section 2: Charges -->
+        <tr class="section-header red">
+          <td colspan="5">II. CHARGES DIRECTES & SORTIES DE CAISSE (FLUX SORTANT)</td>
+        </tr>
+        <tr>
+          <td class="indent bold">Dépenses Carburant & Lubrifiants</td>
+          <td class="text-muted">Énergie & Transport</td>
+          <td class="center text-muted">${expensesByCategory['Carburant'].count} bons</td>
+          <td class="right bold" style="color: #b91c1c;">-${expensesByCategory['Carburant'].total.toLocaleString()} MAD</td>
+          <td class="right text-muted">${partCarburant}%</td>
+        </tr>
+        <tr>
+          <td class="indent bold">Entretien, Dépannages & Réparations Véhicules</td>
+          <td class="text-muted">Maintenance Flotte</td>
+          <td class="center text-muted">${expensesByCategory['Entretien / Réparation'].count} bons</td>
+          <td class="right bold" style="color: #b91c1c;">-${expensesByCategory['Entretien / Réparation'].total.toLocaleString()} MAD</td>
+          <td class="right text-muted">${partEntretien}%</td>
+        </tr>
+        <tr>
+          <td class="indent bold">Avances sur Salaires & Frais Chauffeurs</td>
+          <td class="text-muted">Personnel & Chauffeurs</td>
+          <td class="center text-muted">${expensesByCategory['Avance sur salaire'].count} bons</td>
+          <td class="right bold" style="color: #b91c1c;">-${expensesByCategory['Avance sur salaire'].total.toLocaleString()} MAD</td>
+          <td class="right text-muted">${partAvances}%</td>
+        </tr>
+        <tr>
+          <td class="indent bold">Autres Frais d'Exploitation & Décaissements Divers</td>
+          <td class="text-muted">Frais Généraux / Divers</td>
+          <td class="center text-muted">${expensesByCategory['Autres charges'].count} bons</td>
+          <td class="right bold" style="color: #b91c1c;">-${expensesByCategory['Autres charges'].total.toLocaleString()} MAD</td>
+          <td class="right text-muted">${partAutresExp}%</td>
+        </tr>
+        <tr class="row-total-charges">
+          <td class="indent uppercase">TOTAL CHARGES & DÉPENSES DE CAISSE (B)</td>
+          <td>Total des décaissements</td>
+          <td class="center">${filteredExpenses.length} bons</td>
+          <td class="right">-${totalExpenses.toLocaleString()} MAD</td>
+          <td class="right">${partTotalExp}%</td>
+        </tr>
+
+        <!-- Section 3: Soldes Intermediaires -->
+        <tr class="section-header dark">
+          <td colspan="5">III. SOLDES INTERMÉDIAIRES DE GESTION & SYNTHÈSE P&L</td>
+        </tr>
+        <tr class="row-marge-brute">
+          <td class="indent uppercase">MARGE BRUTE D'EXPLOITATION (A1 - B)</td>
+          <td>Chiffre d'Affaires - Charges</td>
+          <td class="center">-</td>
+          <td class="right" style="color: ${margeBruteExploitation >= 0 ? '#1e1b4b' : '#b91c1c'}; font-size: 10px;">${margeBruteExploitation.toLocaleString()} MAD</td>
+          <td class="right">${tauxMargeBrute.toFixed(1)}%</td>
+        </tr>
+        <tr class="row-resultat-net ${isProfit ? 'green' : 'red'}">
+          <td class="indent uppercase">
+            ${isProfit ? '✔' : '✖'} RÉSULTAT NET GLOBAL DE CAISSE (P&L = A - B)
+          </td>
+          <td class="uppercase">${isProfit ? 'Bénéfice Net Comptable' : 'Déficit Net Comptable'}</td>
+          <td class="center">-</td>
+          <td class="right" style="font-size: 11.5px;">${resultatNetGlobal.toLocaleString()} MAD</td>
+          <td class="right">${tauxMargeNette.toFixed(1)}%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Signatures -->
+    <div class="signatures">
+      <div class="sig-card">
+        <div>
+          <div class="sig-title">Visa du Caissier Responsable</div>
+          <div class="sig-sub">Arrêté des comptes de caisse certifié sincère et conforme</div>
+        </div>
+        <div class="sig-line"></div>
+      </div>
+      <div class="sig-card">
+        <div>
+          <div class="sig-title">Visa Direction Financière / Comptabilité</div>
+          <div class="sig-sub">Contrôle de conformité et validation formelle du P&L</div>
+        </div>
+        <div class="sig-line"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      FLEETOPS - Système Intégré de Gestion de Flotte Automobile & Logistique • Document comptable et financier confidentiel
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
+  const handlePrintPnL = () => {
+    setIsPrinting(true);
+
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.style.visibility = 'hidden';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (!doc) {
+        window.print();
+        setIsPrinting(false);
+        return;
+      }
+
+      const htmlContent = generatePrintPnLHtml();
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (printErr) {
+          console.error('Error invoking print on iframe, falling back to window.print', printErr);
+          window.print();
+        } finally {
+          setIsPrinting(false);
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 2000);
+        }
+      }, 350);
+    } catch (err) {
+      console.error('Failed to prepare print iframe', err);
+      window.print();
+      setIsPrinting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
@@ -420,11 +1040,13 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            disabled={isPrinting}
+            onClick={handlePrintPnL}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            title="Imprimer le compte de résultat P&L en format paysage"
           >
             <Printer className="w-4 h-4 text-blue-400" />
-            Imprimer P&L
+            <span>{isPrinting ? 'Préparation...' : 'Imprimer P&L (Paysage)'}</span>
           </button>
         </div>
       </div>
@@ -579,12 +1201,24 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
                 </div>
               </div>
             </div>
-            <div className="text-right text-xs">
-              <span className="inline-block px-3 py-1 bg-slate-100 rounded-lg font-mono font-bold text-slate-700">
-                DEVISE: MAD (DIRHAM MAROCAIN)
-              </span>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Généré le {new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
+            <div className="text-right text-xs flex flex-col sm:items-end gap-1.5 print:hidden">
+              <div className="flex items-center gap-2">
+                <span className="inline-block px-3 py-1 bg-slate-100 rounded-lg font-mono font-bold text-slate-700">
+                  DEVISE: MAD (DIRHAM MAROCAIN)
+                </span>
+                <button
+                  type="button"
+                  disabled={isPrinting}
+                  onClick={handlePrintPnL}
+                  className="px-3.5 py-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  title="Imprimer le tableau P&L en format paysage"
+                >
+                  <Printer className="w-3.5 h-3.5 text-blue-400" />
+                  <span>{isPrinting ? 'Préparation...' : 'Imprimer Tableau P&L'}</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Généré le {new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} • Format Paysage
               </p>
             </div>
           </div>
@@ -989,9 +1623,17 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
         </div>
       )}
 
-      {/* Embedded print styling for P&L */}
+      {/* Embedded print styling for P&L fallback */}
       <style>{`
         @media print {
+          @page {
+            size: landscape;
+            margin: 8mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
           body * {
             visibility: hidden !important;
           }
@@ -1004,9 +1646,10 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
+            max-width: 100% !important;
             background: white !important;
             color: black !important;
-            padding: 8mm !important;
+            padding: 4mm !important;
             margin: 0 !important;
             border: none !important;
             box-shadow: none !important;
