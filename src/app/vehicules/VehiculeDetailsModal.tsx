@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Wrench, User, Calendar, Plus, Trash2, CheckCircle2, XCircle, FileText, AlertTriangle, Building, AlertCircle } from 'lucide-react';
+import { X, Wrench, User, Calendar, Plus, Trash2, CheckCircle2, XCircle, FileText, AlertTriangle, Building, AlertCircle, Printer } from 'lucide-react';
 import { useVehiculeStore } from '../../stores/useVehiculeStore';
 import { useChauffeurStore } from '../../stores/useChauffeurStore';
 import { useDocumentStore } from '../../stores/useDocumentStore';
@@ -8,6 +8,7 @@ import { usePrestataireStore } from '../../stores/usePrestataireStore';
 import { formatDate } from '../../lib/formatters';
 import { TypeDocument } from '../../types';
 import { DatePicker } from '../../components/ui/DatePicker';
+import { PrintBoiteAOutilsModal } from './PrintBoiteAOutilsModal';
 
 interface VehiculeDetailsModalProps {
   vehiculeId: string;
@@ -22,6 +23,7 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
   
   const vehicule = getVehiculeById(vehiculeId);
   const [activeTab, setActiveTab] = useState<'info' | 'chauffeur' | 'outillage' | 'documents'>('info');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   
   // Equipement form
   const [nomEquipement, setNomEquipement] = useState('');
@@ -203,8 +205,8 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
                         onChange={(e) => updateVehicule(vehicule.id, { parc: e.target.value })}
                         className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none"
                       >
-                        {parcs.map(p => (
-                          <option key={p.id} value={p.name}>{p.name}</option>
+                        {parcs.map((p, pIdx) => (
+                          <option key={`parc-opt-${p.id || pIdx}-${pIdx}`} value={p.name}>{p.name}</option>
                         ))}
                       </select>
                     </div>
@@ -262,8 +264,8 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
                 <div>
                   <h3 className="text-sm font-medium text-text-secondary mb-4">Assigner un nouveau chauffeur</h3>
                   <div className="space-y-2">
-                    {chauffeurs.filter(c => c.status === 'actif').map(chauffeur => (
-                      <div key={chauffeur.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-surface-2 transition-colors">
+                    {chauffeurs.filter(c => c.status === 'actif').map((chauffeur, cIdx) => (
+                      <div key={`chauffeur-card-${chauffeur.id || cIdx}-${cIdx}`} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-surface-2 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-surface-2 border border-border flex items-center justify-center text-text-secondary font-medium text-sm">
                             {chauffeur.prenom[0]}{chauffeur.nom[0]}
@@ -292,6 +294,26 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
             
             {activeTab === 'outillage' && (
               <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-2 p-4 rounded-xl border border-border">
+                  <div>
+                    <h4 className="font-bold text-sm text-text-primary flex items-center gap-2">
+                      <Wrench className="w-4 h-4 text-primary" />
+                      Inventaire de la Boîte à Outils
+                    </h4>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      {vehicule.outillage?.filter(o => o.status === 'present').length || 0} équipement(s) présent(s) et répertorié(s)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPrintModalOpen(true)}
+                    className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer shrink-0"
+                  >
+                    <Printer className="w-4 h-4 text-primary-300" />
+                    Imprimer la boîte à outils
+                  </button>
+                </div>
+
                 <form onSubmit={handleAddEquipement} className="flex gap-3">
                   <input
                     type="text"
@@ -331,8 +353,8 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
                     </thead>
                     <tbody className="divide-y divide-border">
                       {vehicule.outillage?.length > 0 ? (
-                        vehicule.outillage.map((eq) => (
-                          <tr key={eq.id} className={eq.status === 'retire' ? 'bg-surface-2/50 opacity-75' : ''}>
+                        vehicule.outillage.map((eq, eqIdx) => (
+                          <tr key={`outil-row-${eq.id || eqIdx}-${eqIdx}`} className={eq.status === 'retire' ? 'bg-surface-2/50 opacity-75' : ''}>
                             <td className="px-4 py-3 font-medium text-text-primary">{eq.nom}</td>
                             <td className="px-4 py-3 text-text-secondary">{eq.quantite}</td>
                             <td className="px-4 py-3 text-text-secondary">
@@ -440,8 +462,8 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
                       <option value="">Sélectionner une administration ou prestataire</option>
                       {prestataires
                         .filter(p => p.status === 'actif')
-                        .map(p => (
-                          <option key={p.id} value={p.nom}>{p.nom}</option>
+                        .map((p, pIdx) => (
+                          <option key={`prestataire-opt-${p.id || pIdx}-${pIdx}`} value={p.nom}>{p.nom}</option>
                         ))}
                     </select>
                   </div>
@@ -516,8 +538,8 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
                     </thead>
                     <tbody className="divide-y divide-border">
                       {vehiculeDocuments.length > 0 ? (
-                        vehiculeDocuments.map((doc) => (
-                          <tr key={doc.id}>
+                        vehiculeDocuments.map((doc, docIdx) => (
+                          <tr key={`doc-row-${doc.id || docIdx}-${docIdx}`}>
                             <td className="px-4 py-3 font-medium text-text-primary capitalize">
                               <div>{doc.type.replace('_', ' ')}</div>
                               {doc.reference && <div className="text-[10px] text-text-muted">{doc.reference}</div>}
@@ -586,6 +608,14 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
           </div>
         </motion.div>
       </div>
+
+      {isPrintModalOpen && (
+        <PrintBoiteAOutilsModal
+          vehicule={vehicule}
+          chauffeur={chauffeurs.find(c => c.id === vehicule.chauffeurAssigneId)}
+          onClose={() => setIsPrintModalOpen(false)}
+        />
+      )}
     </AnimatePresence>
   );
 }

@@ -818,8 +818,8 @@ export default function DispatchHRPage() {
                     className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Sélectionner un chauffeur...</option>
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>
+                    {drivers.map((d, dIdx) => (
+                      <option key={`hr-driver-opt-${d.id || dIdx}-${dIdx}`} value={d.id}>
                         {d.prenom} {d.nom} ({d.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Afro Négoce'})
                       </option>
                     ))}
@@ -1157,7 +1157,7 @@ export default function DispatchHRPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {payrollData.details.map((detail, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50">
+                          <tr key={`payroll-detail-${detail.brandName || idx}-${detail.category || idx}-${idx}`} className="hover:bg-slate-50">
                             <td className="p-3 font-medium text-slate-900">{detail.brandName} - {detail.category}</td>
                             <td className="p-3 text-right text-slate-600">{detail.quantity}</td>
                             <td className="p-3 text-right text-slate-600">{detail.commissionRate.toFixed(2)} MAD</td>
@@ -1255,7 +1255,7 @@ export default function DispatchHRPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {historyData.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50">
+                    <tr key={`payroll-history-${item.driver?.id || idx}-${item.month}-${idx}`} className="hover:bg-slate-50">
                       <td className="p-4">
                         <div className="font-bold text-slate-900">{item.driver.prenom} {item.driver.nom}</div>
                         <div className="text-xs text-slate-500">CIN: {item.driver.cin || '-'}</div>
@@ -1329,8 +1329,8 @@ export default function DispatchHRPage() {
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 >
                   <option value="">Tous les chauffeurs</option>
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>
+                  {drivers.map((d, dIdx) => (
+                    <option key={`cnss-driver-opt-${d.id || dIdx}-${dIdx}`} value={d.id}>{d.prenom} {d.nom}</option>
                   ))}
                 </select>
               </div>
@@ -1362,7 +1362,7 @@ export default function DispatchHRPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {cnssData.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50">
+                    <tr key={`cnss-row-${item.driverId || idx}-${item.month}-${idx}`} className="hover:bg-slate-50">
                       <td className="p-4 font-bold text-slate-900">{item.month}</td>
                       <td className="p-4">
                         <div className="font-medium text-slate-900">{item.driver?.prenom} {item.driver?.nom}</div>

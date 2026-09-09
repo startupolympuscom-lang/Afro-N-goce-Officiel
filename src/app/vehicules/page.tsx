@@ -14,13 +14,17 @@ import {
   AlertCircle, 
   Clock, 
   XCircle,
-  Trash2
+  Trash2,
+  Printer,
+  Wrench
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LABELS } from '../../lib/constants';
 import { formatKm } from '../../lib/formatters';
 import { VehiculeStatus, ParcVehicule } from '../../types';
 import { VehiculeDetailsModal } from './VehiculeDetailsModal';
+import { PrintBoiteAOutilsModal } from './PrintBoiteAOutilsModal';
+import { useChauffeurStore } from '../../stores/useChauffeurStore';
 
 export default function VehiculesPage() {
   const { vehicules, addVehicule, deleteVehicule, parcs, updateVehicule } = useVehiculeStore();
@@ -46,6 +50,8 @@ export default function VehiculesPage() {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVehiculeId, setSelectedVehiculeId] = useState<string | null>(null);
+  const [printToolboxVehiculeId, setPrintToolboxVehiculeId] = useState<string | null>(null);
+  const chauffeurs = useChauffeurStore(s => s.chauffeurs);
 
   // Form state
   const [immatriculation, setImmatriculation] = useState('');
@@ -217,6 +223,13 @@ export default function VehiculesPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
+                          onClick={() => setPrintToolboxVehiculeId(v.id)}
+                          className="text-text-muted hover:text-slate-900 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                          title="Imprimer la boîte à outils"
+                        >
+                          <Printer className="w-4 h-4 text-slate-500 hover:text-slate-900" />
+                        </button>
+                        <button 
                           onClick={() => setSelectedVehiculeId(v.id)}
                           className="text-sm font-medium text-primary hover:text-primary-hover px-2 py-1"
                         >
@@ -307,12 +320,21 @@ export default function VehiculesPage() {
                     {getStatusIcon(v.status)}
                     {LABELS.status[v.status]}
                   </span>
-                  <button 
-                    onClick={() => setSelectedVehiculeId(v.id)}
-                    className="text-sm font-medium text-primary hover:text-primary-hover"
-                  >
-                    Gérer
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setPrintToolboxVehiculeId(v.id)}
+                      className="p-1.5 text-text-muted hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                      title="Imprimer la boîte à outils"
+                    >
+                      <Printer className="w-4 h-4 text-slate-500 hover:text-slate-900" />
+                    </button>
+                    <button 
+                      onClick={() => setSelectedVehiculeId(v.id)}
+                      className="text-sm font-medium text-primary hover:text-primary-hover"
+                    >
+                      Gérer
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -451,6 +473,14 @@ export default function VehiculesPage() {
         <VehiculeDetailsModal 
           vehiculeId={selectedVehiculeId} 
           onClose={() => setSelectedVehiculeId(null)} 
+        />
+      )}
+
+      {printToolboxVehiculeId && vehicules.find(v => v.id === printToolboxVehiculeId) && (
+        <PrintBoiteAOutilsModal
+          vehicule={vehicules.find(v => v.id === printToolboxVehiculeId)!}
+          chauffeur={chauffeurs.find(c => c.id === vehicules.find(v => v.id === printToolboxVehiculeId)?.chauffeurAssigneId)}
+          onClose={() => setPrintToolboxVehiculeId(null)}
         />
       )}
     </div>

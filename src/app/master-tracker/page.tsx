@@ -111,22 +111,22 @@ export default function MasterTrackerPage() {
 
     // Global Alarms
     const alarms = [
-      ...maintenances.filter(m => m.status === 'planifiee').map(m => ({
-        id: `maint-${m.id}`,
+      ...maintenances.filter(m => m.status === 'planifiee').map((m, mIdx) => ({
+        id: `maint-${m.id || mIdx}-${mIdx}`,
         source: 'DF',
         type: 'warning',
         message: `Maintenance prévue pour ${m.vehiculeId}`,
         time: m.datePrevue
       })),
-      ...dispatchAlerts.map(a => ({
-        id: `disp-${a.id}`,
+      ...dispatchAlerts.map((a, aIdx) => ({
+        id: `disp-${a.id || aIdx}-${aIdx}`,
         source: 'DD',
         type: a.type,
         message: a.message,
         time: a.timestamp
       })),
-      ...infractions.slice(0, 5).map(i => ({
-        id: `inf-${i.id}`,
+      ...infractions.slice(0, 5).map((i, iIdx) => ({
+        id: `inf-${i.id || iIdx}-${iIdx}`,
         source: 'DF',
         type: 'error',
         message: `Infraction détectée: ${i.type} (${i.vehiculeId})`,
@@ -370,7 +370,7 @@ export default function MasterTrackerPage() {
 
             <div className="space-y-4">
               {mtStats.driverRankings.map((driver, index) => (
-                <div key={driver.id} className="flex items-center gap-4 p-4 bg-slate-800/30 rounded-2xl border border-slate-700/50 hover:bg-slate-800/50 transition-all">
+                <div key={`driver-rank-${driver.id || index}-${index}`} className="flex items-center gap-4 p-4 bg-slate-800/30 rounded-2xl border border-slate-700/50 hover:bg-slate-800/50 transition-all">
                   <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center relative">
                     {index === 0 ? (
                       <Medal className="w-8 h-8 text-amber-500" />

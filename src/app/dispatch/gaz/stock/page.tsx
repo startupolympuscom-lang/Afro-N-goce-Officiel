@@ -949,7 +949,7 @@ export default function DispatchStockPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pendingValidations.map(dispatch => {
+                  {pendingValidations.map((dispatch, idx) => {
                     const driver = drivers.find(d => d.id === dispatch.driverId);
                     const brand = brands.find(b => b.id === dispatch.brandId);
                     
@@ -957,7 +957,7 @@ export default function DispatchStockPage() {
                     const expectedEmpty = dispatch.sold;
 
                     return (
-                      <tr key={dispatch.id} className="hover:bg-slate-50/50 transition-colors">
+                      <tr key={`dispatch-row-${dispatch.id || idx}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-4">
                           <div className="font-extrabold text-slate-900 flex items-center gap-2">
                             <Truck className="w-4 h-4 text-slate-400" />
@@ -1076,7 +1076,7 @@ export default function DispatchStockPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {todaysDispatches.map(dispatch => {
+                  {todaysDispatches.map((dispatch, idx) => {
                     const driver = drivers.find(d => d.id === dispatch.driverId);
                     const brand = brands.find(b => b.id === dispatch.brandId);
                     const totalSold = dispatch.sold + (dispatch.soldConsigned || 0);
@@ -1084,7 +1084,7 @@ export default function DispatchStockPage() {
                     const isLow = (dispatch.quantity - totalSold) <= dispatch.quantity * 0.2;
 
                     return (
-                      <tr key={dispatch.id} className={`hover:bg-slate-50/50 transition-colors ${dispatch.isValidated ? 'opacity-65 bg-slate-50/30' : ''}`}>
+                      <tr key={`disp-val-${dispatch.id || idx}-${idx}`} className={`hover:bg-slate-50/50 transition-colors ${dispatch.isValidated ? 'opacity-65 bg-slate-50/30' : ''}`}>
                         <td className="p-4">
                           <div className="font-bold text-slate-900 flex items-center gap-2">
                             <Truck className="w-4 h-4 text-slate-400" />
@@ -1196,7 +1196,7 @@ export default function DispatchStockPage() {
                 <tbody className="divide-y divide-slate-100">
                   {stockActivities
                     .filter(a => a.date.includes(todayStr) || a.date.includes(new Date().toISOString().split('T')[0]))
-                    .map(a => {
+                    .map((a, idx) => {
                       const brand = brands.find(b => b.id === a.brandId)?.name || a.brandId || '-';
                       const time = new Date(a.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                       const quantityStr = [];
@@ -1229,7 +1229,7 @@ export default function DispatchStockPage() {
                       }
 
                       return (
-                        <tr key={a.id} className="hover:bg-slate-50/50 transition-all">
+                        <tr key={`appro-row-${a.id || idx}-${idx}`} className="hover:bg-slate-50/50 transition-all">
                           <td className="p-4 text-slate-400 font-mono text-xs">{time}</td>
                           <td className="p-4">
                             <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold border ${badgeStyle}`}>
@@ -1284,7 +1284,7 @@ export default function DispatchStockPage() {
                       const brand = brands.find(b => b.id === hLine.brandId);
                       const company = hLine.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
                       return (
-                        <tr key={hLine.id || idx} className="hover:bg-slate-50/30 transition-colors">
+                        <tr key={`history-row-${hLine.id || idx}-${idx}`} className="hover:bg-slate-50/30 transition-colors">
                           <td className="p-4 text-slate-400 font-mono text-xs">{new Date(hLine.date).toLocaleString('fr-FR')}</td>
                           <td className="p-4 font-bold text-slate-700">{company}</td>
                           <td className="p-4 font-semibold text-slate-700">{brand?.name || hLine.brandId}</td>
@@ -1386,7 +1386,7 @@ export default function DispatchStockPage() {
                     const companyName = item.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro Négoce';
                     const actualStock = globalStock.find(g => g.brandId === item.brandId && g.category === item.category && g.company === item.company);
                     return (
-                      <div key={originalIdx} className="bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 space-y-3 relative overflow-hidden group hover:bg-slate-50 transition-colors">
+                      <div key={`stock-grid-${item.brandId}-${item.category}-${item.company}-${originalIdx}`} className="bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 space-y-3 relative overflow-hidden group hover:bg-slate-50 transition-colors">
                         <div className="absolute top-0 right-0 bg-slate-200 text-slate-600 px-2 py-0.5 text-[8px] font-black uppercase rounded-bl">
                           {companyName}
                         </div>
@@ -1708,7 +1708,7 @@ export default function DispatchStockPage() {
                     const activeGS = globalStock.find(g => g.brandId === formData.brandId && g.category === item.category && (g.company || 'afro_negoce') === comp);
                     
                     return (
-                      <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-50/75 p-3.5 rounded-xl border border-slate-200/50">
+                      <div key={`dispatch-form-item-${index}-${item.category || 'cat'}`} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-50/75 p-3.5 rounded-xl border border-slate-200/50">
                         <div className="flex-1">
                           <select 
                             required
@@ -1850,7 +1850,7 @@ export default function DispatchStockPage() {
                     const activeGS = globalStock.find(g => g.brandId === comptoirFormData.brandId && g.category === item.category && (g.company || 'afro_negoce') === comp);
 
                     return (
-                      <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-50 p-3.5 rounded-xl border border-indigo-50">
+                      <div key={`comptoir-form-item-${index}-${item.category || 'cat'}`} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-50 p-3.5 rounded-xl border border-indigo-50">
                         <div className="flex-1">
                           <select 
                             required

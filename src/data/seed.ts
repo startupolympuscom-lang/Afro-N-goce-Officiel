@@ -2,8 +2,52 @@ import { Vehicule, Chauffeur, TicketCarburant, Maintenance, Mission, Infraction,
 import { nanoid } from 'nanoid';
 
 export const mockVehicules: Vehicule[] = [
-  { id: nanoid(), immatriculation: '12345-A-7', marque: 'Mercedes-Benz', modele: 'Actros 2545', anneeAcquisition: 2021, poids: 18, typeMoteur: 'diesel', kilometrageActuel: 142500, status: 'disponible', documentStatus: 'valide', outillage: [], parc: 'Afro Négoce', createdAt: new Date().toISOString() },
-  { id: nanoid(), immatriculation: '67890-B-7', marque: 'Volvo', modele: 'FH 500', anneeAcquisition: 2020, poids: 20, typeMoteur: 'diesel', kilometrageActuel: 198700, status: 'en_mission', documentStatus: 'valide', outillage: [], parc: 'Chakirine Gaz', createdAt: new Date().toISOString() },
+  { 
+    id: nanoid(), 
+    immatriculation: '12345-A-7', 
+    marque: 'Mercedes-Benz', 
+    modele: 'Actros 2545', 
+    anneeAcquisition: 2021, 
+    poids: 18, 
+    typeMoteur: 'diesel', 
+    kilometrageActuel: 142500, 
+    status: 'disponible', 
+    documentStatus: 'valide', 
+    outillage: [
+      { id: 'tool-1', nom: 'Cric hydraulique télescopique 20 Tonnes', quantite: 1, dateAjout: '2024-01-15', status: 'present' },
+      { id: 'tool-2', nom: 'Clé démonte-roue et rallonge dynamométrique', quantite: 1, dateAjout: '2024-01-15', status: 'present' },
+      { id: 'tool-3', nom: 'Gilets haute visibilité fluorescent (Lot de 2)', quantite: 2, dateAjout: '2024-01-15', status: 'present' },
+      { id: 'tool-4', nom: 'Triangles de présignalisation renforcés', quantite: 2, dateAjout: '2024-01-15', status: 'present' },
+      { id: 'tool-5', nom: 'Extincteur 6kg à poudre polyvalente ABC', quantite: 1, dateAjout: '2024-01-15', status: 'present' },
+      { id: 'tool-6', nom: 'Câbles de démarrage poids lourd 50mm² 5m', quantite: 1, dateAjout: '2024-01-15', status: 'present' },
+      { id: 'tool-7', nom: 'Boîte de secours médical premiers soins', quantite: 1, dateAjout: '2024-01-15', status: 'present' },
+      { id: 'tool-8', nom: 'Lampe baladeuse rechargeable LED étanche', quantite: 1, dateAjout: '2024-02-10', status: 'present' }
+    ], 
+    parc: 'Afro Négoce', 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: nanoid(), 
+    immatriculation: '67890-B-7', 
+    marque: 'Volvo', 
+    modele: 'FH 500', 
+    anneeAcquisition: 2020, 
+    poids: 20, 
+    typeMoteur: 'diesel', 
+    kilometrageActuel: 198700, 
+    status: 'en_mission', 
+    documentStatus: 'valide', 
+    outillage: [
+      { id: 'tool-9', nom: 'Cric hydraulique 15T', quantite: 1, dateAjout: '2024-02-01', status: 'present' },
+      { id: 'tool-10', nom: 'Clé démonte-roue', quantite: 1, dateAjout: '2024-02-01', status: 'present' },
+      { id: 'tool-11', nom: 'Gilet haute visibilité', quantite: 2, dateAjout: '2024-02-01', status: 'present' },
+      { id: 'tool-12', nom: 'Triangle de sécurité', quantite: 2, dateAjout: '2024-02-01', status: 'present' },
+      { id: 'tool-13', nom: 'Extincteur 6kg ABC', quantite: 1, dateAjout: '2024-02-01', status: 'present' },
+      { id: 'tool-14', nom: 'Flexible de gonflage avec manomètre', quantite: 1, dateAjout: '2024-03-01', status: 'present' }
+    ], 
+    parc: 'Chakirine Gaz', 
+    createdAt: new Date().toISOString() 
+  },
   { id: nanoid(), immatriculation: '11111-C-5', marque: 'MAN', modele: 'TGX 18.480', anneeAcquisition: 2022, poids: 18, typeMoteur: 'diesel', kilometrageActuel: 87300, status: 'en_maintenance', documentStatus: 'expire_bientot', outillage: [], parc: 'Afro Négoce', createdAt: new Date().toISOString() },
   { id: nanoid(), immatriculation: '22222-D-5', marque: 'Renault Trucks', modele: 'T 480', anneeAcquisition: 2019, poids: 17, typeMoteur: 'diesel', kilometrageActuel: 267800, status: 'disponible', documentStatus: 'valide', outillage: [], parc: 'Chakirine Gaz', createdAt: new Date().toISOString() },
   { id: nanoid(), immatriculation: '33333-E-6', marque: 'Scania', modele: 'R 500', anneeAcquisition: 2021, poids: 19, typeMoteur: 'diesel', kilometrageActuel: 156200, status: 'disponible', documentStatus: 'valide', outillage: [], parc: 'Afro Négoce', createdAt: new Date().toISOString() },

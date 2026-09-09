@@ -225,7 +225,7 @@ export default function DispatchManualSalePage() {
                 className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
               >
                 <option value="">Sélectionner un chauffeur actif</option>
-                {activeDrivers.map(d => <option key={d.id} value={d.id}>{d.prenom} {d.nom} (CIN: {d.cin})</option>)}
+                {activeDrivers.map((d, dIdx) => <option key={`active-driver-${d.id || dIdx}-${dIdx}`} value={d.id}>{d.prenom} {d.nom} (CIN: {d.cin})</option>)}
               </select>
               
               {selectedDriver && driverDispatches.length === 0 && (
@@ -252,7 +252,7 @@ export default function DispatchManualSalePage() {
                 className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all"
               >
                 <option value="">Sélectionner un client</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.city})</option>)}
+                {clients.map((c, cIdx) => <option key={`client-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name} ({c.city})</option>)}
               </select>
             </div>
 
@@ -276,10 +276,10 @@ export default function DispatchManualSalePage() {
               >
                 <option value="">Sélectionner une marque</option>
                 {/* Only show brands the driver actually has stock for */}
-                {Array.from(new Set(driverDispatches.map(sd => sd.brandId))).map(bId => {
+                {Array.from(new Set(driverDispatches.map(sd => sd.brandId))).map((bId, bIdx) => {
                   const b = brands.find(brand => brand.id === bId);
                   if (!b) return null;
-                  return <option key={b.id} value={b.id}>{b.name}</option>;
+                  return <option key={`brand-opt-${b.id || bIdx}-${bIdx}`} value={b.id}>{b.name}</option>;
                 })}
               </select>
             </div>
@@ -302,7 +302,7 @@ export default function DispatchManualSalePage() {
                   const currentlyAvailableForThisRow = Math.max(0, maxAllowed - alreadySelected);
 
                   return (
-                    <div key={index} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                    <div key={`manual-sale-row-${index}-${item.category || 'none'}`} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
                       {item.category && (
                         <div className="flex justify-end">
                           <button type="button" onClick={() => removeItem(index)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
@@ -312,14 +312,14 @@ export default function DispatchManualSalePage() {
                       )}
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {availableCategoriesForBrand.map(catItem => {
+                        {availableCategoriesForBrand.map((catItem, cIdx) => {
                           const catAlreadySelected = items.reduce((sum, it, i) => (i !== index && it.category === catItem.category) ? sum + it.quantity : sum, 0);
                           const remainingForNewSelection = Math.max(0, catItem.remaining - catAlreadySelected);
                           const isSelected = item.category === catItem.category;
 
                           return (
                             <button
-                              key={catItem.category}
+                              key={`cat-btn-${index}-${catItem.category || cIdx}-${cIdx}`}
                               type="button"
                               disabled={!isSelected && remainingForNewSelection <= 0}
                               onClick={() => {

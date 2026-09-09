@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
-import { ArrowDownRight, ArrowUpRight, Plus, FileText, Lock, Printer, X, ShieldAlert, Wallet, Camera } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Plus, FileText, Lock, Printer, X, ShieldAlert, Wallet, Camera, TrendingUp } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AfroNegoceLogo } from '../../../../components/Logo';
 import { formatMAD, formatDatetime } from '../../../../lib/formatters';
 import { toast } from 'sonner';
+import { CaissePnLView } from './CaissePnLView';
 
 export default function DispatchCaissePage() {
+  const [mainView, setMainView] = useState<'journal' | 'pnl'>('journal');
   const { 
     sales, 
     expenses = [], 
@@ -574,30 +576,68 @@ export default function DispatchCaissePage() {
         </div>
       </div>
 
-      {/* Company Selector segment */}
-      <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full max-w-md border border-slate-200/50">
-        <button
-          onClick={() => setSelectedCompany('afro_negoce')}
-          className={`flex-1 py-3 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-            selectedCompany === 'afro_negoce'
-              ? 'bg-blue-650 text-white shadow-lg'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          Ste. Afro Négoce
-        </button>
-        <button
-          onClick={() => setSelectedCompany('chakirine_gaz')}
-          className={`flex-1 py-3 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-            selectedCompany === 'chakirine_gaz'
-              ? 'bg-amber-500 text-white shadow-lg'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          Chakirine Gaz
-        </button>
+      {/* Top View Mode Navigation: Journal vs P&L */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-3">
+        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => setMainView('journal')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+              mainView === 'journal'
+                ? 'bg-white text-slate-900 shadow-md shadow-slate-900/5'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Wallet className="w-4 h-4 text-blue-600" />
+            Journal & Opérations de Caisse
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainView('pnl')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+              mainView === 'pnl'
+                ? 'bg-white text-slate-900 shadow-md shadow-slate-900/5'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4 text-emerald-600" />
+            Vue P&L (Compte de Résultat)
+            <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800">
+              P&L
+            </span>
+          </button>
+        </div>
+
+        {mainView === 'journal' && (
+          <div className="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-auto max-w-md border border-slate-200/50">
+            <button
+              onClick={() => setSelectedCompany('afro_negoce')}
+              className={`flex-1 sm:flex-none px-6 py-2 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                selectedCompany === 'afro_negoce'
+                  ? 'bg-blue-650 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Ste. Afro Négoce
+            </button>
+            <button
+              onClick={() => setSelectedCompany('chakirine_gaz')}
+              className={`flex-1 sm:flex-none px-6 py-2 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                selectedCompany === 'chakirine_gaz'
+                  ? 'bg-amber-500 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Chakirine Gaz
+            </button>
+          </div>
+        )}
       </div>
 
+      {mainView === 'pnl' ? (
+        <CaissePnLView initialCompany={selectedCompany} />
+      ) : (
+        <>
       {/* Caisse Limit Admin Control Info Banner */}
       <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in">
         <div className="flex items-center gap-4">
@@ -834,7 +874,7 @@ export default function DispatchCaissePage() {
               <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Chauffeur concerné</label>
               <select required value={expenseData.driverId} onChange={e => setExpenseData({...expenseData, driverId: e.target.value})} className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 transition-all font-medium">
                 <option value="">Sélectionner</option>
-                {drivers.map(d => <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>)}
+                {drivers.map((d, dIdx) => <option key={`driver-opt-${d.id || dIdx}-${dIdx}`} value={d.id}>{d.prenom} {d.nom}</option>)}
               </select>
             </div>
             <div>
@@ -1035,8 +1075,8 @@ export default function DispatchCaissePage() {
           <div className="overflow-y-auto flex-1 p-6 space-y-6 custom-scrollbar">
             {entreeTab === 'sales' ? (
               <>
-                {salesByDriver.map(([driverId, data]) => (
-                  <div key={driverId} className="space-y-3">
+                {salesByDriver.map(([driverId, data], gIdx) => (
+                  <div key={`driver-group-${driverId || gIdx}-${gIdx}`} className="space-y-3">
                     <div className="flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur pb-2 border-b border-slate-100 z-10 pt-2">
                       <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
@@ -1047,11 +1087,11 @@ export default function DispatchCaissePage() {
                       <span className="font-black text-blue-600 text-sm">{data.total.toLocaleString()} MAD</span>
                     </div>
                     <div className="space-y-2 pl-2 sm:pl-10">
-                      {data.sales.map((sale: any) => {
+                      {data.sales.map((sale: any, sIdx: number) => {
                         const brand = brands.find(b => b.id === sale.brandId);
                         const client = clients.find(c => c.id === sale.clientId);
                         return (
-                          <div key={sale.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group">
+                          <div key={`sale-row-${sale.id || sIdx}-${sIdx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-0.5">
                                 <span className="text-xs font-black text-slate-900 truncate">{client?.name || 'Vente directe'}</span>
@@ -1099,8 +1139,8 @@ export default function DispatchCaissePage() {
               </>
             ) : (
               <div className="space-y-4">
-                {alimentationsTodayCompany.map((a) => (
-                  <div key={a.id} className={`p-4 rounded-2xl border transition-all flex items-start justify-between ${
+                {alimentationsTodayCompany.map((a, aIdx) => (
+                  <div key={`alim-row-${a.id || aIdx}-${aIdx}`} className={`p-4 rounded-2xl border transition-all flex items-start justify-between ${
                     a.type === 'pret' 
                       ? 'bg-amber-50/60 border-amber-200 hover:border-amber-300' 
                       : 'bg-emerald-50/50 border-emerald-100/80 hover:border-emerald-200'
@@ -1160,10 +1200,10 @@ export default function DispatchCaissePage() {
             <span className="text-[10px] font-bold px-2 py-1 bg-red-100 text-red-700 rounded-full uppercase font-medium">Pertes / Dépenses</span>
           </div>
           <div className="overflow-y-auto flex-1 p-6 space-y-4 custom-scrollbar font-display">
-            {expensesTodayCompany.slice().reverse().map(expense => {
+            {expensesTodayCompany.slice().reverse().map((expense, eIdx) => {
               const driver = drivers.find(d => d.id === expense.driverId);
               return (
-                <div key={expense.id} className="flex items-start justify-between p-4 bg-red-50/50 rounded-2xl border border-red-100 hover:border-red-300 transition-all">
+                <div key={`expense-row-${expense.id || eIdx}-${eIdx}`} className="flex items-start justify-between p-4 bg-red-50/50 rounded-2xl border border-red-100 hover:border-red-300 transition-all">
                   <div className="flex gap-4 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-600 font-bold shrink-0">
                       {driver?.prenom.charAt(0)}
@@ -1220,8 +1260,8 @@ export default function DispatchCaissePage() {
             <span className="text-[10px] font-bold px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase font-medium">Répartition</span>
           </div>
           <div className="overflow-y-auto flex-1 p-6 space-y-4 custom-scrollbar font-display">
-            {transfersTodayCompany.slice().reverse().map(transfer => (
-              <div key={transfer.id} className="flex items-start justify-between p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 hover:border-indigo-300 transition-all">
+            {transfersTodayCompany.slice().reverse().map((transfer, tIdx) => (
+              <div key={`transfer-row-${transfer.id || tIdx}-${tIdx}`} className="flex items-start justify-between p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 hover:border-indigo-300 transition-all">
                 <div className="flex gap-4">
                   <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold shrink-0">
                     <ArrowUpRight className="w-5 h-5 text-indigo-600" />
@@ -1247,6 +1287,8 @@ export default function DispatchCaissePage() {
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* Thermal Ticket Printer Modal for Sales */}
       {ticketToPrint && (

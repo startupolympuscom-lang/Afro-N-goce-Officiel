@@ -482,8 +482,8 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { id: 'chart-exp-evolution', type: 'chart' as const, title: 'Évolution des Dépenses', visible: true, layout: { x: 2, y: 10, w: 2, h: 8 } },
       ],
       alerts: [
-        { id: '1', type: 'warning' as const, message: 'Niveau de stock bas - Zone 1', timestamp: new Date().toISOString() },
-        { id: '2', type: 'info' as const, message: 'Nouveau client prospecté: Restaurant Oasis', timestamp: new Date().toISOString() }
+        { id: 'alert-init-1', type: 'warning' as const, message: 'Niveau de stock bas - Zone 1', timestamp: new Date().toISOString() },
+        { id: 'alert-init-2', type: 'info' as const, message: 'Nouveau client prospecté: Restaurant Oasis', timestamp: new Date().toISOString() }
       ] as DispatchAlert[],
       paySlips: [],
       convoyeurs: [

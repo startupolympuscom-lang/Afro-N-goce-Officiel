@@ -1009,8 +1009,8 @@ export default function DispatchLivePage() {
                 </div>
 
                 <div className="space-y-3">
-                  {alerts.map(alert => (
-                    <div key={alert.id} className={`p-4 rounded-2xl border flex gap-4 transition-all ${
+                  {alerts.map((alert, aIdx) => (
+                    <div key={`alert-${alert.id || aIdx}-${aIdx}`} className={`p-4 rounded-2xl border flex gap-4 transition-all ${
                       alert.type === 'critical' ? 'bg-red-500/10 border-red-500/30' :
                       alert.type === 'warning' ? 'bg-orange-500/10 border-orange-500/30' :
                       'bg-blue-500/10 border-blue-500/30'
