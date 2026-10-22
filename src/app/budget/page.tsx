@@ -157,16 +157,16 @@ export default function BudgetPage() {
                 <h3 className="text-lg font-bold text-text-primary">{getCategoryName(b.categorie)}</h3>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <dl className="flex flex-wrap gap-x-8 gap-y-3 mb-6">
                 <div>
-                  <div className="text-sm text-text-secondary mb-1">Alloué</div>
-                  <div className="text-xl font-bold text-text-primary">{formatMAD(b.montantAlloue)}</div>
+                  <dt className="text-sm text-text-secondary mb-1">Alloué</dt>
+                  <dd className="text-lg font-bold text-text-primary tabular-nums whitespace-nowrap">{formatMAD(b.montantAlloue)}</dd>
                 </div>
                 <div>
-                  <div className="text-sm text-text-secondary mb-1">Dépensé</div>
-                  <div className="text-xl font-bold text-text-primary">{formatMAD(b.montantDepense)}</div>
+                  <dt className="text-sm text-text-secondary mb-1">Dépensé</dt>
+                  <dd className="text-lg font-bold text-text-primary tabular-nums whitespace-nowrap">{formatMAD(b.montantDepense)}</dd>
                 </div>
-              </div>
+              </dl>
 
               <div className="mt-auto">
                 <div className="flex justify-between text-sm mb-2">
@@ -205,8 +205,8 @@ export default function BudgetPage() {
                 formatter={(value: number) => [formatMAD(value), '']}
               />
               <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
-              <Bar dataKey="budget" name="Budget Alloué" fill="#E4E3E0" radius={[4, 4, 0, 0]} barSize={20} />
-              <Bar dataKey="reel" name="Dépenses Réelles" fill="#0052FF" radius={[4, 4, 0, 0]} barSize={20} />
+              <Bar dataKey="budget" name="Budget Alloué" fill="var(--color-border-strong)" radius={[4, 4, 0, 0]} barSize={20} />
+              <Bar dataKey="reel" name="Dépenses Réelles" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={20} />
             </BarChart>
           </ResponsiveContainer>
         </div>

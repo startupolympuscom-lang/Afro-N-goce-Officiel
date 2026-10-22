@@ -668,8 +668,8 @@ export default function CarburantPage() {
                                   <Fuel className="w-4 h-4" />
                                 </div>
                                 <div>
-                                  <div className="font-bold text-text-primary uppercase tracking-tight">{group.immatriculation}</div>
-                                  <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">{group.parc}</div>
+                                  <div className="font-bold text-text-primary uppercase tracking-tight whitespace-nowrap">{group.immatriculation}</div>
+                                  <div className="text-[10px] font-black text-text-muted uppercase tracking-widest whitespace-nowrap">{group.parc}</div>
                                 </div>
                               </div>
                             </td>
@@ -882,7 +882,7 @@ export default function CarburantPage() {
 
           {/* New Management Card for explicit Reset & Approvisionnement */}
           {canManage && (
-            <div className="bg-[#0B1120] p-6 rounded-2xl border border-white/10 shadow-xl text-white">
+            <div className="bg-sidebar p-6 rounded-2xl border border-white/10 shadow-xl text-white">
               <h3 className="text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Settings className="w-4 h-4 text-primary" />
                 Actions Station

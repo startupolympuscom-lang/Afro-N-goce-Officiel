@@ -181,7 +181,7 @@ export default function FinancePage() {
     };
   }, [allExpenditures, selectedVehiculeId, vehicules]);
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6B7280'];
+  const COLORS = ['#0B5C9C', '#8CC63F', '#F59E0B', '#EF4444', '#0891B2', '#8B5CF6', '#6B7280'];
 
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
@@ -362,7 +362,7 @@ export default function FinancePage() {
                   formatter={(value: number) => formatMAD(value)}
                   cursor={{ fill: '#F1F5F9' }}
                 />
-                <Bar dataKey="value" fill="#6366F1" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

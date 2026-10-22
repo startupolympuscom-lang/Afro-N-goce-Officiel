@@ -6,23 +6,23 @@ import { useMaintenanceStore } from '../../stores/useMaintenanceStore';
 import { useInfractionStore } from '../../stores/useInfractionStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useDocumentStore } from '../../stores/useDocumentStore';
+import React from 'react';
 import { 
   Truck, 
   MapPin, 
   Wrench, 
   AlertTriangle, 
   Fuel, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
   Plus,
-  PieChart,
   AlertCircle,
-  FileText
+  FileText,
+  ChevronRight,
+  type LucideIcon
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { formatMAD } from '../../lib/formatters';
+import { cn } from '../../lib/utils';
 import { 
   AreaChart, 
   Area, 
@@ -32,19 +32,82 @@ import {
   Tooltip, 
   ResponsiveContainer,
   BarChart,
-  Bar,
-  Legend
+  Bar
 } from 'recharts';
 
-const cardVariants = {
-  initial: { opacity: 0, y: 16, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  hover: { y: -2, boxShadow: 'var(--shadow-md)' }
+type Tone = 'primary' | 'info' | 'warning' | 'danger' | 'success';
+
+const TONES: Record<Tone, string> = {
+  primary: 'bg-primary/10 text-primary',
+  info: 'bg-info/10 text-info',
+  warning: 'bg-warning/10 text-warning',
+  danger: 'bg-danger/10 text-danger',
+  success: 'bg-success/10 text-success',
 };
 
-const staggerContainer = {
-  animate: { transition: { staggerChildren: 0.06 } }
-};
+function StatCard({ label, value, hint, icon: Icon, tone }: { label: string; value: React.ReactNode; hint?: string; icon: LucideIcon; tone: Tone }) {
+  return (
+    <div className="bg-surface rounded-xl border border-border shadow-xs p-5">
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-sm font-medium text-text-secondary">{label}</span>
+        <span className={cn('p-2 rounded-lg', TONES[tone])}>
+          <Icon className="w-4 h-4" />
+        </span>
+      </div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight text-text-primary tabular-nums">{value}</div>
+      {hint && <div className="mt-1 text-xs text-text-muted">{hint}</div>}
+    </div>
+  );
+}
+
+function Panel({ title, subtitle, action, children, className }: { title: string; subtitle?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={cn('bg-surface rounded-xl border border-border shadow-xs p-5 lg:p-6', className)}>
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h2 className="text-base font-semibold text-text-primary">{title}</h2>
+          {subtitle && <p className="text-sm text-text-secondary mt-0.5">{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function AlertBanner({ tone, icon: Icon, title, message, links }: {
+  tone: 'warning' | 'danger';
+  icon: LucideIcon;
+  title: string;
+  message: React.ReactNode;
+  links: { key: string; label: string; to: string }[];
+}) {
+  const toneClass = tone === 'warning' ? 'border-warning/30 bg-warning/5 text-warning' : 'border-danger/30 bg-danger/5 text-danger';
+  return (
+    <div className={cn('rounded-xl border p-4 space-y-3', toneClass)}>
+      <div className="flex items-start gap-3">
+        <Icon className="w-5 h-5 shrink-0 mt-0.5" />
+        <div>
+          <div className="text-sm font-semibold">{title}</div>
+          <div className="text-sm text-text-secondary">{message}</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 pl-8">
+        {links.map(link => (
+          <Link
+            key={link.key}
+            to={link.to}
+            className="whitespace-nowrap px-2.5 py-1 bg-surface border border-border rounded-md text-xs font-medium text-text-primary hover:border-border-strong transition-colors"
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const tooltipStyle = { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', boxShadow: 'var(--shadow-md)', fontSize: 12 };
 
 export default function DashboardPage() {
   const user = useAuthStore(s => s.user);
@@ -56,6 +119,8 @@ export default function DashboardPage() {
   const documents = useDocumentStore(s => s.documents);
   
   const [date] = useState(new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+  const [trendMonths, setTrendMonths] = useState<6 | 12>(6);
+  const canSeeReports = user?.role === 'super_admin' || user?.role === 'admin';
 
   // Calculate real stats
   const currentMonth = new Date().getMonth();
@@ -78,26 +143,32 @@ export default function DashboardPage() {
 
   const pctStock = stationInterne.capacite > 0 ? (stationInterne.stockActuel / stationInterne.capacite) * 100 : 0;
 
-  const stats = [
-    { title: 'Total Véhicules', value: vehicules.length, icon: Truck, color: 'text-primary', bg: 'bg-primary/10', trend: { value: 0, label: 'vs mois dernier', direction: 'neutral' } },
-    { title: 'En Mission', value: vehicules.filter(v => v.status === 'en_mission').length, icon: MapPin, color: 'text-info', bg: 'bg-info/10', trend: { value: 0, label: 'vs hier', direction: 'neutral' } },
-    { title: 'En Maintenance', value: vehicules.filter(v => v.status === 'en_maintenance').length, icon: Wrench, color: 'text-warning', bg: 'bg-warning/10', trend: { value: 0, label: 'vs hier', direction: 'neutral' } },
-    { title: 'Immobilisés', value: vehicules.filter(v => v.status === 'immobilise').length, icon: AlertTriangle, color: 'text-danger', bg: 'bg-danger/10', trend: { value: 0, label: 'vs mois dernier', direction: 'neutral' } },
+  const shareOfFleet = (count: number) =>
+    vehicules.length > 0 ? `${Math.round((count / vehicules.length) * 100)} % du parc` : undefined;
+  const enMission = vehicules.filter(v => v.status === 'en_mission').length;
+  const enMaintenance = vehicules.filter(v => v.status === 'en_maintenance').length;
+  const immobilises = vehicules.filter(v => v.status === 'immobilise').length;
+
+  const stats: { label: string; value: React.ReactNode; hint?: string; icon: LucideIcon; tone: Tone }[] = [
+    { label: 'Véhicules', value: vehicules.length, hint: 'Total du parc', icon: Truck, tone: 'primary' },
+    { label: 'En mission', value: enMission, hint: shareOfFleet(enMission), icon: MapPin, tone: 'info' },
+    { label: 'En maintenance', value: enMaintenance, hint: shareOfFleet(enMaintenance), icon: Wrench, tone: 'warning' },
+    { label: 'Immobilisés', value: immobilises, hint: shareOfFleet(immobilises), icon: AlertTriangle, tone: 'danger' },
   ];
 
-  const financialStats = [
-    { title: 'Coût Carburant (Mois)', value: formatMAD(totalCarburantCost), icon: Fuel, color: 'text-primary', bg: 'bg-primary/10' },
-    { title: 'Coût Maintenance (Mois)', value: formatMAD(totalMaintenanceCost), icon: Wrench, color: 'text-warning', bg: 'bg-warning/10' },
-    { title: 'Amendes Impayées', value: formatMAD(totalUnpaidInfractions), icon: AlertTriangle, color: 'text-danger', bg: 'bg-danger/10' },
-    { title: 'Stock Station', value: `${stationInterne.stockActuel} L`, icon: Fuel, color: 'text-success', bg: 'bg-success/10' },
+  const financialStats: typeof stats = [
+    { label: 'Carburant', value: formatMAD(totalCarburantCost), hint: `${currentMonthTickets.length} plein(s) ce mois`, icon: Fuel, tone: 'primary' },
+    { label: 'Maintenance', value: formatMAD(totalMaintenanceCost), hint: `${currentMonthMaintenances.length} intervention(s) ce mois`, icon: Wrench, tone: 'warning' },
+    { label: 'Amendes impayées', value: formatMAD(totalUnpaidInfractions), hint: `${unpaidInfractions.length} amende(s) en attente`, icon: AlertTriangle, tone: 'danger' },
+    { label: 'Stock station', value: `${stationInterne.stockActuel.toLocaleString('fr-FR')} L`, hint: `${Math.round(pctStock)} % de la capacité`, icon: Fuel, tone: 'success' },
   ];
 
   // Quick Actions
   const quickActions = [
-    { name: 'Nouveau Véhicule', path: '/vehicules', icon: Plus, color: 'bg-primary' },
-    { name: 'Saisie Carburant', path: '/flotte/carburant', icon: Fuel, color: 'bg-info' },
-    { name: 'Maintenance', path: '/flotte/maintenance', icon: Wrench, color: 'bg-warning' },
-    { name: 'Mission', path: '/flotte/missions', icon: MapPin, color: 'bg-success' },
+    { name: 'Ajouter un véhicule', path: '/vehicules', icon: Plus },
+    { name: 'Saisir un plein', path: '/flotte/carburant', icon: Fuel },
+    { name: 'Planifier une maintenance', path: '/flotte/maintenance', icon: Wrench },
+    { name: 'Créer une mission', path: '/flotte/missions', icon: MapPin },
   ];
 
   // Calculate real budget data
@@ -149,10 +220,10 @@ export default function DashboardPage() {
 
   const displayConsoData = realConsoData.length > 0 ? realConsoData : [];
 
-  // Calculate real trend data (last 6 months)
+  // Calculate real trend data (last 6 or 12 months)
   const realTrendData = useMemo(() => {
     const months = [];
-    for (let i = 5; i >= 0; i--) {
+    for (let i = trendMonths - 1; i >= 0; i--) {
       const d = new Date(currentYear, currentMonth - i, 1);
       const monthName = d.toLocaleDateString('fr-FR', { month: 'short' });
       
@@ -175,7 +246,7 @@ export default function DashboardPage() {
       });
     }
     return months;
-  }, [tickets, maintenances, currentMonth, currentYear]);
+  }, [tickets, maintenances, currentMonth, currentYear, trendMonths]);
 
   // Calculate recent activity
   const recentActivity = useMemo(() => {
@@ -295,358 +366,262 @@ export default function DashboardPage() {
   }, [tickets, vehicules]);
 
   return (
-    <div className="space-y-8 bg-surface/30 -m-8 p-8 min-h-screen">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
-            <span>FLEETOPS</span>
-            <span className="w-1 h-1 bg-primary rounded-full" />
-            <span className="text-text-muted font-normal text-lg">Tableau de bord</span>
-          </h1>
-          <div className="flex items-center gap-2 text-text-secondary mt-1">
-            <span className="capitalize font-medium">{date}</span>
-            <span className="w-1 h-1 bg-border-strong rounded-full" />
-            <span className="text-xs uppercase tracking-widest font-bold text-text-muted">Système: Actif</span>
-          </div>
+          <h1 className="text-2xl font-bold text-text-primary">Tableau de bord</h1>
+          <p className="text-text-secondary mt-1">
+            {user?.prenom ? `Bonjour ${user.prenom}, ` : ''}<span className="first-letter:uppercase inline-block">{date}</span>
+          </p>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <button className="bg-[#0B1120] text-white px-5 py-2.5 rounded-xl font-bold border border-white/10 shadow-xl transition-all flex items-center gap-2 hover:bg-black">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            Rapports Analytiques
-          </button>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {cdcAlerts.length > 0 && (
-          <div className="bg-warning/10 border border-warning/20 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in slide-in-from-top duration-500 shadow-sm shadow-warning/10">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-warning/20 rounded-xl">
-                <AlertCircle className="w-6 h-6 text-warning" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-warning uppercase tracking-widest leading-none mb-1">Alerte Certificat de Circulation (CDC)</h3>
-                <p className="text-sm text-text-primary font-bold">
-                  Le CDC est expiré pour {cdcAlerts.length} véhicule(s). Veuillez ajouter la <span className="underline decoration-warning/30 underline-offset-2">Carte Grise</span> définitive.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-              {cdcAlerts.map((v: any) => (
-                <Link 
-                  key={v.id} 
-                  to="/vehicules" 
-                  className="whitespace-nowrap px-3 py-1.5 bg-white border border-warning/30 rounded-lg text-xs font-bold text-text-primary hover:bg-warning/10 transition-colors shadow-sm"
-                >
-                  {v.immatriculation} ({v.marque})
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {fuelAlerts.length > 0 && (
-          <div className="bg-error/10 border border-error/20 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in slide-in-from-top duration-500 shadow-sm shadow-error/10">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-error/20 rounded-xl">
-                <Fuel className="w-6 h-6 text-error" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-error uppercase tracking-widest leading-none mb-1">Alerte Surconsommation Carburant</h3>
-                <p className="text-sm text-text-primary font-bold">
-                  Hausse {">"} 50% de consommation pour {fuelAlerts.length} véhicule(s).
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-              {fuelAlerts.map((v: any) => (
-                <Link 
-                  key={v.id} 
-                  to="/flotte/carburant" 
-                  className="whitespace-nowrap px-3 py-1.5 bg-white border border-error/30 rounded-lg text-xs font-bold text-text-primary hover:bg-error/10 transition-colors shadow-sm flex items-center gap-2"
-                >
-                  <TrendingUp className="w-3.5 h-3.5 text-error" />
-                  {v.immatriculation} (+{v.diffPct.toFixed(0)}%)
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Financial Pulse Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {financialStats.map((stat, i) => (
-          <div key={i} className="bg-surface p-4 rounded-2xl border border-border flex items-center gap-4 group hover:border-primary/50 transition-all">
-            <div className={`p-2 rounded-lg ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform`}>
-              <stat.icon className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-text-muted">{stat.title}</div>
-              <div className="text-lg font-black text-text-primary">{stat.value}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column (8 units) */}
-        <div className="lg:col-span-8 space-y-8">
-          {/* Main Fleet Stats */}
-          <motion.div 
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6"
+        {canSeeReports && (
+          <Link
+            to="/rapports"
+            className="self-start sm:self-auto inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-border bg-surface text-sm font-medium text-text-primary hover:bg-surface-2 transition-colors"
           >
-            {stats.map((stat, i) => (
-              <motion.div 
-                key={i}
-                variants={cardVariants}
-                className="group bg-surface p-6 rounded-2xl border border-border shadow-sm hover:ring-2 hover:ring-primary/20 transition-all"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className={`p-3 rounded-xl ${stat.bg} ${stat.color} group-hover:bg-primary group-hover:text-white transition-all`}>
-                    <stat.icon className="w-6 h-6" />
-                  </div>
-                </div>
-                <div className="text-3xl font-black text-text-primary tracking-tight mb-1">{stat.value}</div>
-                <div className="text-xs font-black text-text-muted uppercase tracking-widest">{stat.title}</div>
-              </motion.div>
-            ))}
-          </motion.div>
+            <FileText className="w-4 h-4 text-text-muted" />
+            Rapports
+          </Link>
+        )}
+      </div>
 
-          {/* Main Chart */}
-          <div className="bg-surface p-8 rounded-3xl border border-border shadow-sm flex flex-col min-h-[450px]">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-xl font-black text-text-primary tracking-tight">Analyse de Flux</h3>
-                <p className="text-sm text-text-secondary">Corrélation Consommation & Entretien</p>
+      {(cdcAlerts.length > 0 || fuelAlerts.length > 0) && (
+        <div className="space-y-3">
+          {cdcAlerts.length > 0 && (
+            <AlertBanner
+              tone="warning"
+              icon={AlertCircle}
+              title="Certificat de circulation (CDC) expiré"
+              message={<>Le CDC est expiré pour {cdcAlerts.length} véhicule(s). Ajoutez la carte grise définitive.</>}
+              links={cdcAlerts.map((v: any) => ({ key: v.id, label: `${v.immatriculation} · ${v.marque}`, to: '/vehicules' }))}
+            />
+          )}
+          {fuelAlerts.length > 0 && (
+            <AlertBanner
+              tone="danger"
+              icon={Fuel}
+              title="Surconsommation de carburant"
+              message={<>Consommation en hausse de plus de 50 % par rapport au mois dernier pour {fuelAlerts.length} véhicule(s).</>}
+              links={fuelAlerts.map((v: any) => ({ key: v.id, label: `${v.immatriculation} · +${v.diffPct.toFixed(0)} %`, to: '/flotte/carburant' }))}
+            />
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map(stat => <StatCard key={stat.label} {...stat} />)}
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-text-secondary mb-3">Dépenses du mois</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {financialStats.map(stat => <StatCard key={stat.label} {...stat} />)}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 space-y-6">
+          <Panel
+            title="Évolution des coûts"
+            subtitle="Carburant et maintenance par mois"
+            action={
+              <div className="flex bg-surface-2 p-1 rounded-lg border border-border" role="group" aria-label="Période">
+                {([6, 12] as const).map(months => (
+                  <button
+                    key={months}
+                    onClick={() => setTrendMonths(months)}
+                    aria-pressed={trendMonths === months}
+                    className={cn(
+                      'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                      trendMonths === months ? 'bg-surface text-text-primary shadow-xs' : 'text-text-muted hover:text-text-primary'
+                    )}
+                  >
+                    {months} mois
+                  </button>
+                ))}
               </div>
-              <div className="flex bg-surface-2 p-1 rounded-xl border border-border">
-                <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-text-primary bg-surface border border-border shadow-sm">6 Mois</button>
-                <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-text-muted hover:text-text-primary transition-colors ml-1">12 Mois</button>
-              </div>
+            }
+          >
+            <div className="flex items-center gap-5 mb-4 text-xs text-text-secondary">
+              <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-primary" />Carburant</span>
+              <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-warning" />Maintenance</span>
             </div>
-            
-            <div className="flex-1 w-full h-full min-h-0">
+            <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={realTrendData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
+                <AreaChart data={realTrendData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCarburant" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.18}/>
                       <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorMaintenance" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-warning)" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="var(--color-warning)" stopOpacity={0.18}/>
                       <stop offset="95%" stopColor="var(--color-warning)" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'var(--color-text-secondary)', fontSize: 11, fontWeight: 600 }} 
-                    dy={15} 
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'var(--color-text-secondary)', fontSize: 11, fontWeight: 600 }} 
-                    tickFormatter={(value) => `${value / 1000}k`} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '16px', boxShadow: 'var(--shadow-lg)' }}
-                    itemStyle={{ fontSize: '13px', fontWeight: 700 }}
-                    formatter={(value: number) => [formatMAD(value), '']}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="carburant" 
-                    name="Gasoil" 
-                    stroke="var(--color-primary)" 
-                    strokeWidth={4} 
-                    fillOpacity={1} 
-                    fill="url(#colorCarburant)" 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="maintenance" 
-                    name="Maintenance" 
-                    stroke="var(--color-warning)" 
-                    strokeWidth={4} 
-                    fillOpacity={1} 
-                    fill="url(#colorMaintenance)" 
-                  />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} dy={8} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} tickFormatter={(value) => `${value / 1000}k`} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number, name: string) => [formatMAD(value), name]} />
+                  <Area type="monotone" dataKey="carburant" name="Carburant" stroke="var(--color-primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCarburant)" />
+                  <Area type="monotone" dataKey="maintenance" name="Maintenance" stroke="var(--color-warning)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorMaintenance)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </Panel>
 
-          {/* Secondary Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-[#0B1120] p-8 rounded-3xl border border-white/10 shadow-xl min-h-[350px] flex flex-col text-white">
-              <h3 className="text-lg font-black tracking-tight mb-6 flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-primary" />
-                Dépenses vs Budget
-              </h3>
-              <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Panel title="Budget du mois" subtitle="Alloué et dépensé par poste">
+              <div className="flex items-center gap-5 mb-3 text-xs text-text-secondary">
+                <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-border-strong" />Alloué</span>
+                <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-primary" />Dépensé</span>
+              </div>
+              <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={realBudgetData}>
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 600 }} />
-                    <Tooltip 
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                      contentStyle={{ backgroundColor: '#0B1120', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                    />
-                    <Bar dataKey="budget" name="Alloué" fill="rgba(255,255,255,0.1)" radius={[4, 4, 0, 0]} barSize={12} />
-                    <Bar dataKey="reel" name="Réel" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={12} />
+                  <BarChart data={realBudgetData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} />
+                    <Tooltip cursor={{ fill: 'var(--color-surface-2)' }} contentStyle={tooltipStyle} formatter={(value: number, name: string) => [formatMAD(value), name]} />
+                    <Bar dataKey="budget" name="Alloué" fill="var(--color-border-strong)" radius={[4, 4, 0, 0]} barSize={14} />
+                    <Bar dataKey="reel" name="Dépensé" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={14} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+            </Panel>
 
-            <div className="bg-surface p-8 rounded-3xl border border-border shadow-sm min-h-[350px] flex flex-col">
-              <h3 className="text-lg font-black tracking-tight mb-6">Consommation par Unité</h3>
-              <div className="flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={displayConsoData} layout="vertical">
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-secondary)', fontSize: 11, fontWeight: 600 }} width={80} />
-                    <Tooltip cursor={{ fill: 'var(--color-surface-2)' }} />
-                    <Bar dataKey="conso" fill="var(--color-primary)" radius={[0, 6, 6, 0]} barSize={16} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            <Panel title="Consommation par véhicule" subtitle="Top 5, en L/100 km">
+              {displayConsoData.length > 0 ? (
+                <div className="h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={displayConsoData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }} width={90} />
+                      <Tooltip cursor={{ fill: 'var(--color-surface-2)' }} contentStyle={tooltipStyle} formatter={(value: number) => [`${value} L/100 km`, 'Consommation']} />
+                      <Bar dataKey="conso" fill="var(--color-primary)" radius={[0, 4, 4, 0]} barSize={14} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-[240px] flex flex-col items-center justify-center text-center">
+                  <Fuel className="w-8 h-8 text-border-strong mb-3" />
+                  <p className="text-sm font-medium text-text-primary">Pas encore de données</p>
+                  <p className="text-xs text-text-muted mt-1 max-w-[220px]">La consommation apparaît après deux pleins consécutifs d'un même véhicule.</p>
+                </div>
+              )}
+            </Panel>
           </div>
         </div>
 
-        {/* Right Column (4 units) */}
-        <div className="lg:col-span-4 space-y-8">
-          {/* Internal Station Status */}
-          <div className="bg-primary p-8 rounded-3xl text-white shadow-2xl shadow-primary/30 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="w-full flex justify-between items-center mb-6">
-                <h3 className="text-lg font-black uppercase tracking-tighter">Station Interne</h3>
-                <Fuel className="w-6 h-6 opacity-50" />
+        <div className="space-y-6">
+          <section className="bg-primary rounded-xl p-6 text-white shadow-lg shadow-primary/20 relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+            <div className="relative flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-base font-semibold">Station interne</h2>
+                <p className="text-sm text-white/70">Stock de gasoil</p>
               </div>
-              
-              <div className="relative w-44 h-44 mb-6">
+              <Fuel className="w-5 h-5 text-white/60" />
+            </div>
+            <div className="relative flex items-center gap-6">
+              <div className="relative w-28 h-28 shrink-0">
                 <svg className="w-full h-full" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                  <motion.circle 
-                    cx="50" cy="50" r="45" 
-                    fill="none" 
-                    stroke="white" 
-                    strokeWidth="8" 
-                    strokeDasharray="283" 
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="9" />
+                  <motion.circle
+                    cx="50" cy="50" r="45"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="9"
+                    strokeDasharray="283"
                     initial={{ strokeDashoffset: 283 }}
-                    animate={{ strokeDashoffset: 283 - (283 * pctStock) / 100 }}
-                    transition={{ duration: 1.5, ease: "easeOut" }}
-                    strokeLinecap="round" 
-                    transform="rotate(-90 50 50)" 
+                    animate={{ strokeDashoffset: 283 - (283 * Math.min(pctStock, 100)) / 100 }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
+                    strokeLinecap="round"
+                    transform="rotate(-90 50 50)"
                   />
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-black">{Math.round(pctStock)}%</span>
-                  <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest leading-none mt-1">Volume</span>
-                </div>
+                <div className="absolute inset-0 flex items-center justify-center text-2xl font-semibold">{Math.round(pctStock)}%</div>
               </div>
-              
-              <div className="w-full text-center">
-                <div className="text-2xl font-black">{stationInterne.stockActuel.toLocaleString()} L</div>
-                <div className="text-xs font-bold opacity-60 uppercase tracking-widest">Stock Disponible</div>
-              </div>
-
-              {pctStock < 20 && (
-                <div className="mt-8 w-full bg-black/20 p-4 rounded-2xl flex items-center gap-3 border border-white/10">
-                  <AlertTriangle className="w-5 h-5 text-warning shrink-0" />
-                  <p className="text-xs font-bold leading-tight">Stock sous seuil critique. Approvisionnement requis.</p>
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-white/70">Disponible</dt>
+                  <dd className="text-xl font-semibold tabular-nums">{stationInterne.stockActuel.toLocaleString('fr-FR')} L</dd>
                 </div>
-              )}
+                <div>
+                  <dt className="text-white/70">Capacité</dt>
+                  <dd className="font-medium tabular-nums">{stationInterne.capacite.toLocaleString('fr-FR')} L</dd>
+                </div>
+              </dl>
             </div>
-          </div>
+            {pctStock < 20 && (
+              <div className="relative mt-5 bg-black/20 p-3 rounded-lg flex items-center gap-3 border border-white/10">
+                <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+                <p className="text-xs font-medium">Stock sous le seuil critique : approvisionnement requis.</p>
+              </div>
+            )}
+          </section>
 
-          {/* Business Continuity / Fleet Status */}
-          <div className="bg-surface p-8 rounded-3xl border border-border shadow-sm">
-            <h3 className="text-lg font-black tracking-tight mb-6">État de la Flotte</h3>
+          <Panel title="État de la flotte">
             <div className="space-y-4">
-              {fleetStatusData.map((item, i) => (
-                <div key={i} className="flex flex-col gap-2">
-                  <div className="flex justify-between text-xs font-black uppercase tracking-widest">
+              {fleetStatusData.map(item => (
+                <div key={item.name}>
+                  <div className="flex justify-between text-sm mb-1.5">
                     <span className="text-text-secondary">{item.name}</span>
-                    <span className="text-text-primary">{item.value} unités</span>
+                    <span className="font-medium text-text-primary tabular-nums">{item.value} véhicule{item.value > 1 ? 's' : ''}</span>
                   </div>
                   <div className="h-2 w-full bg-surface-2 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-1000" 
-                      style={{ 
-                        width: `${vehicules.length > 0 ? (item.value / vehicules.length) * 100 : 0}%`,
-                        backgroundColor: item.color
-                      }} 
+                    <div
+                      className="h-full rounded-full transition-all duration-1000"
+                      style={{ width: `${vehicules.length > 0 ? (item.value / vehicules.length) * 100 : 0}%`, backgroundColor: item.color }}
                     />
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Panel>
 
-          {/* Quick Actions */}
-          <div className="bg-surface p-8 rounded-3xl border border-border shadow-sm">
-            <h1 className="text-lg font-black tracking-tight mb-6">Accès Rapides</h1>
-            <div className="grid grid-cols-2 gap-4">
-              {quickActions.map((action, i) => (
-                <Link 
-                  key={i}
-                  to={action.path}
-                  className="flex flex-col items-center justify-center p-5 rounded-2xl border border-border hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all group shadow-sm hover:shadow-md"
-                >
-                  <div className={`p-3 rounded-xl ${action.color} text-white mb-3 group-hover:rotate-6 transition-transform`}>
-                    <action.icon className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-black text-center text-text-primary uppercase tracking-wider">{action.name}</span>
-                </Link>
+          <Panel title="Accès rapides">
+            <ul className="-mx-2">
+              {quickActions.map(action => (
+                <li key={action.path}>
+                  <Link
+                    to={action.path}
+                    className="flex items-center gap-3 px-2 h-11 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-2 transition-colors group"
+                  >
+                    <span className="p-1.5 rounded-md bg-primary/10 text-primary">
+                      <action.icon className="w-4 h-4" />
+                    </span>
+                    <span className="flex-1">{action.name}</span>
+                    <ChevronRight className="w-4 h-4 text-text-muted group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </li>
               ))}
-            </div>
-          </div>
+            </ul>
+          </Panel>
 
-          {/* Activity Stream */}
-          <div className="bg-surface p-8 rounded-3xl border border-border shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-lg font-black tracking-tight">Activité Récente</h3>
-            </div>
-            
-            <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+          <Panel title="Activité récente">
+            <ul className="max-h-[380px] overflow-y-auto custom-scrollbar -mr-2 pr-2">
               {recentActivity.map((activity, i) => (
-                <div key={i} className="flex gap-4 group">
+                <li key={i} className="flex gap-3">
                   <div className="relative flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-2xl ${activity.bg} ${activity.color} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform z-10`}>
-                      <activity.icon className="w-5 h-5" />
-                    </div>
-                    {i !== recentActivity.length - 1 && (
-                      <div className="absolute top-10 w-0.5 h-full bg-border" />
-                    )}
+                    <span className={`w-8 h-8 rounded-lg ${activity.bg} ${activity.color} flex items-center justify-center shrink-0 z-10`}>
+                      <activity.icon className="w-4 h-4" />
+                    </span>
+                    {i !== recentActivity.length - 1 && <span className="absolute top-8 w-px h-full bg-border" />}
                   </div>
-                  <div className="pb-6 w-full">
-                    <div className="flex justify-between items-start mb-0.5">
-                      <div className="text-[13px] font-black text-text-primary leading-tight">{activity.title}</div>
-                      <div className="text-[9px] font-black text-text-muted uppercase">{activity.time}</div>
+                  <div className="pb-5 min-w-0 flex-1">
+                    <div className="flex justify-between items-baseline gap-3">
+                      <span className="text-sm font-medium text-text-primary truncate">{activity.title}</span>
+                      <span className="text-xs text-text-muted whitespace-nowrap">{activity.time}</span>
                     </div>
-                    <div className="text-xs font-medium text-text-secondary leading-normal">{activity.desc}</div>
+                    <div className="text-xs text-text-secondary">{activity.desc}</div>
                   </div>
-                </div>
+                </li>
               ))}
               {recentActivity.length === 0 && (
-                <div className="text-center py-12 text-text-secondary text-sm">Aucune activité récente.</div>
+                <li className="text-center py-10 text-text-secondary text-sm">Aucune activité récente.</li>
               )}
-            </div>
-          </div>
+            </ul>
+          </Panel>
         </div>
       </div>
     </div>

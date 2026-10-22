@@ -42,6 +42,8 @@
   --color-warning-light: #FFFBEB;
   --color-danger: #DC2626;
   --color-danger-light: #FEF2F2;
+  --color-error: #DC2626;
+  --color-error-light: #FEF2F2;
   --color-info: #0891B2;
   --color-info-light: #ECFEFF;
 
@@ -82,6 +84,22 @@
   .writing-vertical-rl {
     writing-mode: vertical-rl;
   }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.35) transparent;
+  }
+}
+
+/* FleetOps back-office: AFRO Négoce brand colours, scoped so the other apps keep theirs */
+.theme-fleetops {
+  --color-primary: #0B5C9C;
+  --color-primary-hover: #094A7E;
+  --color-primary-light: #E8F1F8;
+  --color-bg: #F4F6F9;
+  --color-background: #F4F6F9;
+  --color-sidebar: #0B1E33;
+  --color-sidebar-2: #12294A;
+  --color-sidebar-text: #A3B3C7;
 }
 
 @layer base {
@@ -90,6 +108,17 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    white-space: nowrap;
+  }
+  :where(a, button, [role="button"], summary):focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
 
   /* Public landing: in-page anchors land below the sticky header */

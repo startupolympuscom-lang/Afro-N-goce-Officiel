@@ -22,11 +22,11 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div className="theme-fleetops flex h-screen bg-background text-text-primary overflow-hidden relative">
       <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Navbar onMenuClick={() => setMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -34,7 +34,7 @@ export function AppLayout() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="h-full"
+              className="h-full max-w-[1600px] mx-auto"
             >
               <Outlet />
             </motion.div>

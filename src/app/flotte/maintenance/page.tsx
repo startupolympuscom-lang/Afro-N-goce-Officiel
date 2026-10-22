@@ -674,7 +674,7 @@ export default function MaintenancePage() {
                           <Truck className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-bold text-text-primary">{vehicule?.immatriculation}</div>
+                          <div className="font-bold text-text-primary whitespace-nowrap">{vehicule?.immatriculation}</div>
                           <div className="text-xs text-text-secondary">{vehicule?.marque} {vehicule?.modele}</div>
                         </div>
                       </div>
@@ -726,7 +726,7 @@ export default function MaintenancePage() {
                       </div>
                     </td>
                     <td className="p-4">
-                      <div className="flex items-center gap-2 text-sm text-text-primary font-medium">
+                      <div className="flex items-center gap-2 text-sm text-text-primary font-medium whitespace-nowrap">
                         <Calendar className="w-4 h-4 text-text-muted" />
                         {formatDate(m.datePrevue)}
                       </div>
