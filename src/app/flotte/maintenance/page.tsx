@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useMaintenanceStore, MaintenanceType, MaintenanceStatus, MaintenancePiece } from '../../../stores/useMaintenanceStore';
+import { useMaintenanceStore, MaintenanceType, MaintenanceStatus, MaintenancePiece, getNumeroCommande, getDateCommande, getNumerosBL } from '../../../stores/useMaintenanceStore';
 import { useVehiculeStore } from '../../../stores/useVehiculeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { usePrestataireStore } from '../../../stores/usePrestataireStore';
@@ -19,14 +19,52 @@ import {
   FileText,
   Download,
   PlusCircle,
-  ShoppingBag
+  ShoppingBag,
+  Receipt,
+  RotateCcw
 } from 'lucide-react';
-import { formatMAD, formatDate } from '../../../lib/formatters';
+import { formatMAD, formatDate, toDayKey, dayKeyToISO } from '../../../lib/formatters';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../../lib/utils';
 import { DatePicker } from '../../../components/ui/DatePicker';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
+import { MaintenanceReferencesModal, MaintenanceReferences } from './MaintenanceReferencesModal';
+
+const EMPTY_FILTERS = {
+  vehiculeId: '',
+  numeroBL: '',
+  dateFrom: '',
+  dateTo: '',
+  commandeFrom: '',
+  commandeTo: '',
+  factureFrom: '',
+  factureTo: '',
+};
+
+// Inclusive day range; an unset bound is open. A missing date only matches when no bound is set.
+const isInDayRange = (value: string | undefined, from: string, to: string) => {
+  if (!from && !to) return true;
+  const day = toDayKey(value);
+  return day !== '' && (!from || day >= from) && (!to || day <= to);
+};
+
+function DateRangeFilter({ label, from, to, onChange }: {
+  label: string;
+  from: string;
+  to: string;
+  onChange: (from: string, to: string) => void;
+}) {
+  return (
+    <div>
+      <span className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">{label}</span>
+      <div className="grid grid-cols-2 gap-2">
+        <DatePicker value={from} onChange={value => onChange(value, to)} placeholder="Du" />
+        <DatePicker value={to} onChange={value => onChange(from, value)} placeholder="Au" />
+      </div>
+    </div>
+  );
+}
 
 export default function MaintenancePage() {
   const { maintenances, spareParts, addMaintenance, deleteMaintenance, updateMaintenance } = useMaintenanceStore();
@@ -39,7 +77,10 @@ export default function MaintenancePage() {
   const canManage = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'chef_de_parc';
 
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [referencesTargetId, setReferencesTargetId] = useState<string | null>(null);
 
   // Form state
   const [vehiculeId, setVehiculeId] = useState('');
@@ -49,6 +90,10 @@ export default function MaintenancePage() {
   const [kilometrage, setKilometrage] = useState(0);
   const [coutEstime, setCoutEstime] = useState(0); // This acts as base/labor cost
   const [numeroCommande, setNumeroCommande] = useState('');
+  const [dateCommande, setDateCommande] = useState(() => toDayKey(new Date().toISOString()));
+  const [numeroBL, setNumeroBL] = useState('');
+  const [numeroFacture, setNumeroFacture] = useState('');
+  const [dateFacture, setDateFacture] = useState('');
 
   // Curative parts selection state
   const [piecesList, setPiecesList] = useState<{ partId: string; nom: string; quantite: number; prixUnitaire: number; source: 'magasin' | 'externe'; magasinItemId?: string }[]>([]);
@@ -66,12 +111,53 @@ export default function MaintenancePage() {
   const [fournisseurPieceId, setFournisseurPieceId] = useState('');
   const [fournisseurMaintenanceId, setFournisseurMaintenanceId] = useState('');
 
-  const filteredMaintenances = maintenances.filter(m => {
-    const vehicule = vehicules.find(v => v.id === m.vehiculeId);
-    if (!vehicule) return false;
-    const searchString = `${vehicule.immatriculation} ${vehicule.marque} ${m.description}`.toLowerCase();
-    return searchString.includes(search.toLowerCase());
-  }).sort((a, b) => new Date(b.datePrevue).getTime() - new Date(a.datePrevue).getTime());
+  const setFilter = (changes: Partial<typeof EMPTY_FILTERS>) => setFilters(prev => ({ ...prev, ...changes }));
+  const activeFilterCount = [
+    filters.vehiculeId,
+    filters.numeroBL,
+    filters.dateFrom || filters.dateTo,
+    filters.commandeFrom || filters.commandeTo,
+    filters.factureFrom || filters.factureTo,
+  ].filter(Boolean).length;
+
+  const sortedVehicules = useMemo(
+    () => [...vehicules].sort((a, b) => a.immatriculation.localeCompare(b.immatriculation)),
+    [vehicules]
+  );
+
+  const filteredMaintenances = useMemo(() => {
+    const query = search.toLowerCase();
+    const blQuery = filters.numeroBL.trim().toLowerCase();
+    return maintenances.filter(m => {
+      const vehicule = vehicules.find(v => v.id === m.vehiculeId);
+      if (!vehicule) return false;
+      if (filters.vehiculeId && m.vehiculeId !== filters.vehiculeId) return false;
+      const numerosBL = getNumerosBL(m);
+      if (blQuery && !numerosBL.some(n => n.toLowerCase().includes(blQuery))) return false;
+      if (!isInDayRange(m.datePrevue, filters.dateFrom, filters.dateTo)) return false;
+      if (!isInDayRange(getDateCommande(m), filters.commandeFrom, filters.commandeTo)) return false;
+      if (!isInDayRange(m.dateFacture, filters.factureFrom, filters.factureTo)) return false;
+      const searchString = [
+        vehicule.immatriculation,
+        vehicule.marque,
+        m.description,
+        getNumeroCommande(m),
+        m.numeroFacture,
+        ...numerosBL,
+        ...(m.documents ?? []).map(d => d.reference),
+      ].join(' ').toLowerCase();
+      return searchString.includes(query);
+    }).sort((a, b) => new Date(b.datePrevue).getTime() - new Date(a.datePrevue).getTime());
+  }, [maintenances, vehicules, search, filters]);
+
+  const referencesTarget = referencesTargetId ? maintenances.find(m => m.id === referencesTargetId) : undefined;
+
+  const handleSaveReferences = (references: MaintenanceReferences) => {
+    if (!referencesTarget) return;
+    updateMaintenance(referencesTarget.id, references);
+    setReferencesTargetId(null);
+    toast.success('Références BC / BL / facture enregistrées');
+  };
 
   // PDF Purchase Order generator
   const handleDownloadBC = (m: any, typeBC: 'piece' | 'maintenance' | 'combine') => {
@@ -99,9 +185,8 @@ export default function MaintenancePage() {
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const bcRef = m.numeroCommande || `BC-MAINT-${m.id.toUpperCase()}`;
-    doc.text(`Réf BC: ${bcRef}`, 15, 26);
-    doc.text(`Date: ${new Date(m.datePrevue).toLocaleDateString('fr-FR')}`, 150, 26);
+    doc.text(`Réf BC: ${getNumeroCommande(m)}`, 15, 26);
+    doc.text(`Date: ${new Date(getDateCommande(m)).toLocaleDateString('fr-FR')}`, 150, 26);
 
     doc.setTextColor(0, 0, 0);
 
@@ -302,7 +387,11 @@ export default function MaintenancePage() {
       status: 'planifiee' as MaintenanceStatus,
       pieces: finalPieces,
       documents: documentsList,
-      numeroCommande: numeroCommande || undefined
+      numeroCommande: numeroCommande.trim() || undefined,
+      dateCommande: dayKeyToISO(dateCommande),
+      numeroBL: numeroBL.trim() || undefined,
+      numeroFacture: numeroFacture.trim() || undefined,
+      dateFacture: dayKeyToISO(dateFacture)
     };
 
     const createdRecord = addMaintenance(maintenanceData);
@@ -352,6 +441,10 @@ export default function MaintenancePage() {
     setKilometrage(0);
     setCoutEstime(0);
     setNumeroCommande('');
+    setDateCommande(toDayKey(new Date().toISOString()));
+    setNumeroBL('');
+    setNumeroFacture('');
+    setDateFacture('');
     setPiecesList([]);
     setDocumentsList([]);
     setDocName('');
@@ -442,17 +535,108 @@ export default function MaintenancePage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
           <input
             type="text"
-            placeholder="Rechercher par véhicule, description..."
+            placeholder="Rechercher par véhicule, description, n° BC, BL, facture..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg hover:bg-surface-2 transition-colors text-text-primary font-medium">
+        <button
+          onClick={() => setShowFilters(open => !open)}
+          aria-expanded={showFilters}
+          className={cn(
+            'flex items-center justify-center gap-2 px-4 py-2 border rounded-lg transition-colors font-medium',
+            showFilters || activeFilterCount > 0
+              ? 'bg-primary/10 border-primary/30 text-primary'
+              : 'bg-surface border-border hover:bg-surface-2 text-text-primary'
+          )}
+        >
           <Filter className="w-4 h-4" />
           <span>Filtres</span>
+          {activeFilterCount > 0 && (
+            <span className="min-w-5 h-5 px-1.5 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
       </div>
+
+      <AnimatePresence initial={false}>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-surface p-4 rounded-xl border border-border shadow-sm space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="filter-matricule" className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Matricule</label>
+                  <select
+                    id="filter-matricule"
+                    value={filters.vehiculeId}
+                    onChange={e => setFilter({ vehiculeId: e.target.value })}
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-surface text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  >
+                    <option value="">Tous les véhicules</option>
+                    {sortedVehicules.map(v => (
+                      <option key={v.id} value={v.id}>{v.immatriculation} - {v.marque} {v.modele}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="filter-bl" className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">N° de BL</label>
+                  <input
+                    id="filter-bl"
+                    type="text"
+                    value={filters.numeroBL}
+                    onChange={e => setFilter({ numeroBL: e.target.value })}
+                    placeholder="Ex: BL-2026-0451"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-surface text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <DateRangeFilter
+                  label="Date de maintenance"
+                  from={filters.dateFrom}
+                  to={filters.dateTo}
+                  onChange={(dateFrom, dateTo) => setFilter({ dateFrom, dateTo })}
+                />
+                <DateRangeFilter
+                  label="Date du bon de commande"
+                  from={filters.commandeFrom}
+                  to={filters.commandeTo}
+                  onChange={(commandeFrom, commandeTo) => setFilter({ commandeFrom, commandeTo })}
+                />
+                <DateRangeFilter
+                  label="Date de facture"
+                  from={filters.factureFrom}
+                  to={filters.factureTo}
+                  onChange={(factureFrom, factureTo) => setFilter({ factureFrom, factureTo })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
+                <span className="text-xs text-text-secondary">
+                  {filteredMaintenances.length} maintenance{filteredMaintenances.length > 1 ? 's' : ''} trouvée{filteredMaintenances.length > 1 ? 's' : ''}
+                </span>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={() => setFilters(EMPTY_FILTERS)}
+                    className="flex items-center gap-1.5 text-xs text-primary hover:underline font-bold"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Réinitialiser les filtres
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Table */}
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
@@ -465,6 +649,7 @@ export default function MaintenancePage() {
                 <th className="p-4 font-medium">Prestation / Pièces</th>
                 <th className="p-4 font-medium">Fournisseurs</th>
                 <th className="p-4 font-medium">Date Prévue</th>
+                <th className="p-4 font-medium">BC / BL / Facture</th>
                 <th className="p-4 font-medium">Coût Total</th>
                 <th className="p-4 font-medium">Statut</th>
                 <th className="p-4 font-medium w-24 text-right">Actions</th>
@@ -476,6 +661,8 @@ export default function MaintenancePage() {
                 const fPiece = prestataires.find(p => p.id === m.fournisseurPieceId);
                 const fMaint = prestataires.find(p => p.id === m.fournisseurMaintenanceId);
                 
+                const numerosBL = getNumerosBL(m);
+
                 // Calculate display total cost
                 const displayTotal = m.coutTotalGlobal || (m.coutEstime + (m.pieces?.reduce((a, b) => a + (b.quantite * b.prixUnitaire), 0) || 0));
 
@@ -545,6 +732,31 @@ export default function MaintenancePage() {
                       </div>
                     </td>
                     <td className="p-4">
+                      <div className="text-xs space-y-0.5 text-text-primary whitespace-nowrap">
+                        <div>
+                          <span className="text-text-secondary font-medium">BC:</span> <span className="font-bold">{getNumeroCommande(m)}</span>
+                          <span className="text-text-muted"> · {formatDate(getDateCommande(m))}</span>
+                        </div>
+                        <div>
+                          <span className="text-text-secondary font-medium">BL:</span>{' '}
+                          {numerosBL.length > 0
+                            ? <span className="font-bold">{numerosBL.join(', ')}</span>
+                            : <span className="text-text-muted italic">—</span>}
+                        </div>
+                        <div>
+                          <span className="text-text-secondary font-medium">Facture:</span>{' '}
+                          {m.numeroFacture || m.dateFacture ? (
+                            <>
+                              <span className="font-bold">{m.numeroFacture || 'Sans n°'}</span>
+                              {m.dateFacture && <span className="text-text-muted"> · {formatDate(m.dateFacture)}</span>}
+                            </>
+                          ) : (
+                            <span className="text-text-muted italic">—</span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
                       <div className="font-bold text-text-primary">
                         {formatMAD(displayTotal)}
                       </div>
@@ -574,6 +786,15 @@ export default function MaintenancePage() {
                             <span>Retour au parc</span>
                           </button>
                         )}
+                        {canManage && (
+                          <button
+                            onClick={() => setReferencesTargetId(m.id)}
+                            className="p-1.5 bg-surface-2 text-text-secondary hover:bg-primary hover:text-white rounded transition-colors"
+                            title="Saisir BC / BL / facture"
+                          >
+                            <Receipt className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => triggerDownloadForExisting(m)}
                           className="p-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded transition-colors"
@@ -597,10 +818,19 @@ export default function MaintenancePage() {
               })}
               {filteredMaintenances.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-text-secondary">
+                  <td colSpan={9} className="p-8 text-center text-text-secondary">
                     <Wrench className="w-12 h-12 mx-auto text-border-strong mb-4" />
-                    <p className="text-lg font-bold text-text-primary">Aucune maintenance planifiée</p>
-                    <p className="text-sm">Cliquez sur nouvelle maintenance pour enregistrer un entretien.</p>
+                    {maintenances.length > 0 ? (
+                      <>
+                        <p className="text-lg font-bold text-text-primary">Aucune maintenance ne correspond à votre recherche</p>
+                        <p className="text-sm">Modifiez la recherche ou réinitialisez les filtres.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-lg font-bold text-text-primary">Aucune maintenance planifiée</p>
+                        <p className="text-sm">Cliquez sur nouvelle maintenance pour enregistrer un entretien.</p>
+                      </>
+                    )}
                   </td>
                 </tr>
               )}
@@ -712,15 +942,54 @@ export default function MaintenancePage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-1">Numéro Bon de Commande (Optionnel)</label>
-                    <input 
-                      type="text" 
-                      value={numeroCommande}
-                      onChange={e => setNumeroCommande(e.target.value)}
-                      placeholder="Ex: BC-2023-08-001 (Laisser vide pour auto-générer)" 
-                      className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none" 
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">N° Bon de Commande</label>
+                      <input 
+                        type="text" 
+                        value={numeroCommande}
+                        onChange={e => setNumeroCommande(e.target.value)}
+                        placeholder="Vide = auto-généré" 
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none text-sm" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Date du Bon de Commande</label>
+                      <DatePicker
+                        value={dateCommande}
+                        onChange={setDateCommande}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">N° BL (Optionnel)</label>
+                      <input 
+                        type="text" 
+                        value={numeroBL}
+                        onChange={e => setNumeroBL(e.target.value)}
+                        placeholder="Ex: BL-0451" 
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none text-sm" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">N° Facture</label>
+                      <input 
+                        type="text" 
+                        value={numeroFacture}
+                        onChange={e => setNumeroFacture(e.target.value)}
+                        placeholder="Ex: FAC-145" 
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 outline-none text-sm" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Date Facture</label>
+                      <DatePicker
+                        value={dateFacture}
+                        onChange={setDateFacture}
+                      />
+                    </div>
                   </div>
 
                   {/* Section: MAIN D'OEUVRE / PRESTATION LABOR */}
@@ -1019,6 +1288,18 @@ export default function MaintenancePage() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {referencesTarget && canManage && (
+          <MaintenanceReferencesModal
+            key={referencesTarget.id}
+            maintenance={referencesTarget}
+            immatriculation={vehicules.find(v => v.id === referencesTarget.vehiculeId)?.immatriculation}
+            onClose={() => setReferencesTargetId(null)}
+            onSave={handleSaveReferences}
+          />
         )}
       </AnimatePresence>
     </div>

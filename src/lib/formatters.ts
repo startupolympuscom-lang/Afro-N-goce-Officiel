@@ -14,6 +14,17 @@ export const formatDate = (date: string | Date) =>
 export const formatDatetime = (date: string | Date) =>
   format(new Date(date), "dd MMM yyyy 'à' HH:mm", { locale: fr });
 
+// Calendar day of a stored date (ISO or "yyyy-MM-dd") in local time, as "yyyy-MM-dd"; '' when missing or invalid.
+export const toDayKey = (value?: string) => {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : format(date, 'yyyy-MM-dd');
+};
+
+// "yyyy-MM-dd" from a date picker → stored ISO date; undefined when empty.
+export const dayKeyToISO = (day: string) => (day ? new Date(day).toISOString() : undefined);
+
 export const formatRelativeTime = (date: string | Date) =>
   formatDistanceToNow(new Date(date), { addSuffix: true, locale: fr });
 

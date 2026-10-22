@@ -47,7 +47,22 @@ export interface Maintenance {
   coutTotalGlobal?: number;
   documents?: MaintenanceDocument[];
   numeroCommande?: string;
+  dateCommande?: string; // date du bon de commande
+  numeroBL?: string; // bon de livraison
+  numeroFacture?: string;
+  dateFacture?: string;
 }
+
+// Purchase order reference as printed on the PDF (auto-generated when none was entered).
+export const getNumeroCommande = (m: Maintenance) => m.numeroCommande || `BC-MAINT-${m.id.toUpperCase()}`;
+
+// Purchase orders created before dateCommande existed were printed with the planned date.
+export const getDateCommande = (m: Maintenance) => m.dateCommande || m.datePrevue;
+
+// BL numbers, including those recorded as additional documents before numeroBL existed.
+export const getNumerosBL = (m: Maintenance) =>
+  [m.numeroBL, ...(m.documents ?? []).filter((d) => /\bBL\b|livraison/i.test(d.nom)).map((d) => d.reference)]
+    .filter((n): n is string => Boolean(n));
 
 interface MaintenanceState {
   maintenances: Maintenance[];
