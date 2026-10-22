@@ -9,6 +9,7 @@ import { formatDate } from '../../lib/formatters';
 import { TypeDocument } from '../../types';
 import { DatePicker } from '../../components/ui/DatePicker';
 import { PrintBoiteAOutilsModal } from './PrintBoiteAOutilsModal';
+import { toast } from 'sonner';
 
 interface VehiculeDetailsModalProps {
   vehiculeId: string;
@@ -38,7 +39,32 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
   const [docPrestataire, setDocPrestataire] = useState('');
   const [docCout, setDocCout] = useState<number>(0);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // General information form
+  const [infoImmatriculation, setInfoImmatriculation] = useState(vehicule?.immatriculation ?? '');
+  const [infoParc, setInfoParc] = useState(vehicule?.parc || (parcs.length > 0 ? parcs[0].name : ''));
+  const [infoAnnee, setInfoAnnee] = useState(vehicule?.anneeAcquisition ? String(vehicule.anneeAcquisition) : '');
+  const [infoTonnage, setInfoTonnage] = useState(vehicule?.poids ? String(vehicule.poids) : '');
+
   if (!vehicule) return null;
+
+  const infoChanged =
+    infoImmatriculation !== vehicule.immatriculation ||
+    infoParc !== (vehicule.parc || (parcs.length > 0 ? parcs[0].name : '')) ||
+    infoAnnee !== (vehicule.anneeAcquisition ? String(vehicule.anneeAcquisition) : '') ||
+    infoTonnage !== (vehicule.poids ? String(vehicule.poids) : '');
+
+  const handleSaveInfo = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateVehicule(vehicule.id, {
+      immatriculation: infoImmatriculation.trim(),
+      parc: infoParc,
+      anneeAcquisition: parseInt(infoAnnee),
+      poids: infoTonnage ? parseFloat(infoTonnage) : undefined,
+    });
+    toast.success('Informations du véhicule enregistrées');
+  };
 
   const handleAssignDriver = (chauffeurId: string) => {
     assignDriver(vehiculeId, chauffeurId || undefined);
@@ -54,8 +80,6 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
     setNomEquipement('');
     setQuantiteEquipement(1);
   };
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddDocument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,14 +219,24 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
           <div className="p-6 overflow-y-auto flex-1">
             {activeTab === 'info' && (
               <div className="space-y-6">
-                <div className="bg-surface-2 p-4 rounded-xl border border-border">
+                <form onSubmit={handleSaveInfo} className="bg-surface-2 p-4 rounded-xl border border-border">
                   <h3 className="text-sm font-medium text-text-secondary mb-4">Informations Générales</h3>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Immatriculation</label>
+                      <input
+                        type="text"
+                        required
+                        value={infoImmatriculation}
+                        onChange={(e) => setInfoImmatriculation(e.target.value.toUpperCase())}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface font-mono uppercase focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-text-primary mb-1">Parc d'affectation</label>
                       <select
-                        value={vehicule.parc || (parcs.length > 0 ? parcs[0].name : '')}
-                        onChange={(e) => updateVehicule(vehicule.id, { parc: e.target.value })}
+                        value={infoParc}
+                        onChange={(e) => setInfoParc(e.target.value)}
                         className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none"
                       >
                         {parcs.map((p, pIdx) => (
@@ -210,6 +244,51 @@ export function VehiculeDetailsModal({ vehiculeId, onClose }: VehiculeDetailsMod
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Année d'acquisition</label>
+                      <input
+                        type="number"
+                        required
+                        min="1980"
+                        max={new Date().getFullYear()}
+                        value={infoAnnee}
+                        onChange={(e) => setInfoAnnee(e.target.value)}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Tonnage (t)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={infoTonnage}
+                        onChange={(e) => setInfoTonnage(e.target.value)}
+                        placeholder="À renseigner"
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="text-xs text-text-muted">
+                      Chauffeur : <span className="font-medium text-text-primary">{currentChauffeur ? `${currentChauffeur.prenom} ${currentChauffeur.nom}` : 'aucun'}</span>
+                      {' · '}
+                      <button type="button" onClick={() => setActiveTab('chauffeur')} className="font-medium text-primary hover:underline">
+                        {currentChauffeur ? 'Changer' : 'Assigner'}
+                      </button>
+                    </p>
+                    <button
+                      type="submit"
+                      disabled={!infoChanged}
+                      className="h-10 px-4 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </form>
+
+                <div className="bg-surface-2 p-4 rounded-xl border border-border">
+                  <div className="space-y-4">
 
                     <div className="flex items-center justify-between p-4 bg-surface rounded-lg border border-border">
                       <div>

@@ -16,7 +16,8 @@ import {
   XCircle,
   Trash2,
   Printer,
-  Wrench
+  Wrench,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LABELS } from '../../lib/constants';
@@ -25,6 +26,11 @@ import { VehiculeStatus, ParcVehicule } from '../../types';
 import { VehiculeDetailsModal } from './VehiculeDetailsModal';
 import { PrintBoiteAOutilsModal } from './PrintBoiteAOutilsModal';
 import { useChauffeurStore } from '../../stores/useChauffeurStore';
+import { exportVehiculesPdf, formatTonnage, getChauffeurName } from './exportVehiculesPdf';
+
+function ToComplete() {
+  return <span className="text-xs font-medium text-warning">À renseigner</span>;
+}
 
 export default function VehiculesPage() {
   const { vehicules, addVehicule, deleteVehicule, parcs, updateVehicule } = useVehiculeStore();
@@ -60,12 +66,26 @@ export default function VehiculesPage() {
   const [annee, setAnnee] = useState(new Date().getFullYear());
   const [km, setKm] = useState(0);
   const [parc, setParc] = useState<string>(parcs.length > 0 ? parcs[0].name : 'Afro Négoce');
+  const [tonnage, setTonnage] = useState('');
+  const [chauffeurId, setChauffeurId] = useState('');
+  const [parcFilter, setParcFilter] = useState('');
 
-  const filteredVehicules = vehicules.filter(v => 
-    v.immatriculation.toLowerCase().includes(search.toLowerCase()) ||
-    v.marque.toLowerCase().includes(search.toLowerCase()) ||
-    v.modele.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredVehicules = vehicules.filter(v => {
+    if (parcFilter && v.parc !== parcFilter) return false;
+    const query = search.toLowerCase();
+    return [v.immatriculation, v.marque, v.modele, v.parc, getChauffeurName(v, chauffeurs)]
+      .some(value => value?.toLowerCase().includes(query));
+  });
+
+  const activeChauffeurs = chauffeurs.filter(c => c.status === 'actif');
+
+  const handleExportPdf = () => {
+    exportVehiculesPdf({
+      vehicules: filteredVehicules,
+      chauffeurs,
+      filter: [parcFilter && `Parc ${parcFilter}`, search.trim()].filter(Boolean).join(' · ') || undefined,
+    });
+  };
 
   const getStatusColor = (status: VehiculeStatus) => {
     switch (status) {
@@ -95,11 +115,12 @@ export default function VehiculesPage() {
       marque,
       modele,
       anneeAcquisition: annee,
-      poids: 18, // default
+      poids: tonnage ? parseFloat(tonnage) : undefined,
       typeMoteur: 'diesel',
       kilometrageActuel: km,
       outillage: [],
-      parc
+      parc,
+      chauffeurAssigneId: chauffeurId || undefined
     });
     setIsModalOpen(false);
     // Reset form
@@ -109,6 +130,8 @@ export default function VehiculesPage() {
     setAnnee(new Date().getFullYear());
     setKm(0);
     setParc(parcs.length > 0 ? parcs[0].name : 'Afro Négoce');
+    setTonnage('');
+    setChauffeurId('');
   };
 
   const handleDelete = (id: string) => {
@@ -146,6 +169,16 @@ export default function VehiculesPage() {
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
+          <button
+            onClick={handleExportPdf}
+            disabled={filteredVehicules.length === 0}
+            title="Télécharger la liste affichée en PDF"
+            className="h-10 px-4 bg-surface border border-border hover:bg-surface-2 text-text-primary rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <FileDown className="w-4 h-4 text-text-muted" />
+            <span className="hidden sm:inline">Exporter PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </button>
           {canManage && (
             <button 
               onClick={() => setIsModalOpen(true)}
@@ -164,16 +197,26 @@ export default function VehiculesPage() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input 
             type="text" 
-            placeholder="Rechercher par immatriculation, marque, modèle..." 
+            placeholder="Rechercher par immatriculation, marque, parc, chauffeur..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-10 pl-9 pr-4 rounded-lg border border-border bg-surface-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <button className="h-10 px-4 border border-border rounded-lg flex items-center gap-2 text-sm font-medium text-text-secondary hover:bg-surface-2 transition-colors">
-          <Filter className="w-4 h-4" />
-          Filtres
-        </button>
+        <div className="relative sm:w-56">
+          <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+          <select
+            value={parcFilter}
+            onChange={e => setParcFilter(e.target.value)}
+            aria-label="Filtrer par parc"
+            className="w-full h-10 pl-9 pr-3 rounded-lg border border-border bg-surface text-sm font-medium text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">Tous les parcs</option>
+            {parcs.map(p => (
+              <option key={p.id} value={p.name}>{p.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {view === 'table' ? (
@@ -182,45 +225,49 @@ export default function VehiculesPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-2 text-text-secondary font-medium border-b border-border">
                 <tr>
-                  <th className="px-6 py-4">Immatriculation</th>
-                  <th className="px-6 py-4">Marque & Modèle</th>
-                  <th className="px-6 py-4">Parc</th>
-                  <th className="px-6 py-4">Année</th>
-                  <th className="px-6 py-4">Kilométrage</th>
-                  <th className="px-6 py-4">Statut</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-4 py-3.5">Immatriculation</th>
+                  <th className="px-4 py-3.5">Marque & Modèle</th>
+                  <th className="px-4 py-3.5">Parc</th>
+                  <th className="px-4 py-3.5">Chauffeur</th>
+                  <th className="px-4 py-3.5">Année acq.</th>
+                  <th className="px-4 py-3.5">Tonnage</th>
+                  <th className="px-4 py-3.5">Kilométrage</th>
+                  <th className="px-4 py-3.5">Statut</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredVehicules.map((v) => (
                   <tr key={v.id} className="hover:bg-surface-2/50 transition-colors group">
-                    <td className="px-6 py-4 font-mono font-medium text-text-primary">{v.immatriculation}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5 font-mono font-medium text-text-primary whitespace-nowrap">{v.immatriculation}</td>
+                    <td className="px-4 py-3.5">
                       <div className="flex flex-col">
                         <div className="font-medium text-text-primary">{v.marque}</div>
                         <div className="text-text-muted text-xs">{v.modele}</div>
                         {checkMissingDocs(v.id).length > 0 && (
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-danger uppercase mt-1">
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-danger uppercase mt-1 whitespace-nowrap">
                             <AlertCircle className="w-3 h-3" />
                             {checkMissingDocs(v.id).length} Doc(s) manquant(s)
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${v.parc === 'Afro Négoce' ? 'bg-primary/10 text-primary' : 'bg-warning/10 text-warning'}`}>
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium ${v.parc === 'Afro Négoce' ? 'bg-primary/10 text-primary' : 'bg-warning/10 text-warning'}`}>
                         {v.parc}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-text-secondary">{v.anneeAcquisition}</td>
-                    <td className="px-6 py-4 text-text-secondary">{formatKm(v.kilometrageActuel)}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(v.status)}`}>
+                    <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">{getChauffeurName(v, chauffeurs) ?? <ToComplete />}</td>
+                    <td className="px-4 py-3.5 text-text-secondary">{v.anneeAcquisition || <ToComplete />}</td>
+                    <td className="px-4 py-3.5 text-text-secondary whitespace-nowrap">{formatTonnage(v.poids) ?? <ToComplete />}</td>
+                    <td className="px-4 py-3.5 text-text-secondary whitespace-nowrap">{formatKm(v.kilometrageActuel)}</td>
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(v.status)}`}>
                         {getStatusIcon(v.status)}
                         {LABELS.status[v.status]}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => setPrintToolboxVehiculeId(v.id)}
@@ -302,8 +349,16 @@ export default function VehiculesPage() {
                     <span className={`font-medium ${v.parc === 'Afro Négoce' ? 'text-primary' : 'text-warning'}`}>{v.parc}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-text-muted">Année</span>
-                    <span className="font-medium text-text-primary">{v.anneeAcquisition}</span>
+                    <span className="text-text-muted">Chauffeur</span>
+                    <span className="font-medium text-text-primary">{getChauffeurName(v, chauffeurs) ?? <ToComplete />}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-text-muted">Année d'acquisition</span>
+                    <span className="font-medium text-text-primary">{v.anneeAcquisition || <ToComplete />}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-text-muted">Tonnage</span>
+                    <span className="font-medium text-text-primary">{formatTonnage(v.poids) ?? <ToComplete />}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-text-muted">Kilométrage</span>
@@ -411,7 +466,7 @@ export default function VehiculesPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-text-primary mb-1">Année</label>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Année d'acquisition</label>
                       <input 
                         type="number" 
                         required
@@ -446,6 +501,39 @@ export default function VehiculesPage() {
                       ))}
                     </select>
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Tonnage (t)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        step="0.5"
+                        value={tonnage}
+                        onChange={e => setTonnage(e.target.value)}
+                        placeholder="Ex: 19" 
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">Chauffeur assigné</label>
+                      <select
+                        value={chauffeurId}
+                        onChange={e => setChauffeurId(e.target.value)}
+                        className="w-full h-11 px-4 rounded-lg border border-border bg-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      >
+                        <option value="">Aucun pour l'instant</option>
+                        {activeChauffeurs.map(c => {
+                          const current = vehicules.find(v => v.chauffeurAssigneId === c.id);
+                          return (
+                            <option key={c.id} value={c.id}>
+                              {c.prenom} {c.nom}{current ? ` (déjà sur ${current.immatriculation})` : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-text-muted">Tonnage et chauffeur peuvent être complétés plus tard depuis « Gérer ».</p>
                 </form>
               </div>
               

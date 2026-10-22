@@ -23,7 +23,7 @@ export interface Vehicule {
   marque: string
   modele: string
   anneeAcquisition: number
-  poids: number
+  poids?: number // tonnage, in tonnes
   typeMoteur: TypeMoteur
   cylindree?: number
   numeroChassis?: string
