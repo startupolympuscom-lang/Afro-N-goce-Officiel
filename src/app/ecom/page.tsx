@@ -13,11 +13,17 @@ import {
 import { Link } from 'react-router-dom';
 import { useEcomStore } from '../../stores/useEcomStore';
 import { AfroNegoceLogo } from '../../components/Logo';
+import { usePageMeta } from '../../lib/seo';
 
 export default function EcomPage() {
   const { products = [], categories = [], addToCart, cart = [] } = useEcomStore();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  usePageMeta({
+    title: 'Pièces & matériel de gaz | AFRO Négoce',
+    description: 'Pièces détachées et accessoires pour vos installations de gaz. Livraison à domicile, paiement à la livraison.',
+    canonicalPath: '/ecom',
+  });
 
   const filteredProducts = useMemo(() => {
     return (products || []).filter(product => {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { usePageMeta } from '../../lib/seo';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
 import { motion, AnimatePresence } from 'motion/react';
@@ -9,6 +10,7 @@ export function AppLayout() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  usePageMeta({ title: 'FleetOps - Gestion de Flotte' });
 
   // Close mobile menu on route change
   React.useEffect(() => {

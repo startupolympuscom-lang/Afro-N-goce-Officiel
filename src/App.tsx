@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { DispatchLayout } from './components/layout/DispatchLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -75,6 +75,15 @@ const LoadingFallback = () => (
   </div>
 );
 
+// BrowserRouter keeps the window scroll position across pages: start each page at the top.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   const fetchDocuments = useDocumentStore(s => s.fetchDocuments);
 
@@ -84,6 +93,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />

@@ -46,3 +46,17 @@ export const generateReference = (prefix: string, existingRefs: string[]): strin
     .toString().padStart(4, '0');
   return `${prefix}-${year}-${next}`;
 };
+
+// Moroccan numbers: "0535558020" → "05 35 55 80 20"
+export const formatPhoneMA = (phone: string) => {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length === 10 ? digits.replace(/(\d{2})(?=\d)/g, '$1 ') : phone;
+};
+
+// Moroccan numbers: "0535558020" → "+212535558020", for tel: links and structured data
+export const toInternationalPhoneMA = (phone: string) => {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('212')) return `+${digits}`;
+  if (digits.length === 10 && digits.startsWith('0')) return `+212${digits.slice(1)}`;
+  return digits || phone;
+};

@@ -13,6 +13,7 @@ import {
 import { Link } from 'react-router-dom';
 import { AfroNegoceLogo, AestheticFlame } from '../components/Logo';
 import { useLandingStore } from '../stores/useLandingStore';
+import { usePageMeta } from '../lib/seo';
 
 const GridBackground = () => (
   <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
@@ -20,6 +21,11 @@ const GridBackground = () => (
 
 export default function HistoryPage() {
   const { historyImages, milestones } = useLandingStore();
+  usePageMeta({
+    title: 'Notre histoire | AFRO Négoce',
+    description: "L'histoire d'AFRO Négoce : plus de 25 ans au service de la distribution de gaz au Maroc, de Meknès aux partenariats Butagaz et Air Liquide.",
+    canonicalPath: '/notre-histoire',
+  });
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
