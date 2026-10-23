@@ -52,7 +52,13 @@ const NAV_ITEMS = [
   { id: 'contact', label: 'Contact' },
 ];
 
-const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=1600';
+// Hero artwork shipped with the site (public/images), in three widths.
+const HERO_IMAGE = '/images/hero-afro-negoce-1536.webp';
+const HERO_SRCSET = [640, 960, 1536].map((w) => `/images/hero-afro-negoce-${w}.webp ${w}w`).join(', ');
+// Former default hero photos, still stored in the CMS by sites that never picked their own.
+const LEGACY_HERO_IMAGES = ['photo-1516937941344-00b4e0337589', 'photo-1542744173-8e7e53415bb0'];
+// The artwork's backdrop is off-white: fade its edges so no rectangle shows against the hero background.
+const HERO_EDGE_MASK = 'linear-gradient(to right, transparent, #000 5%, #000 96%, transparent), linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent)';
 const DEFAULT_MASCOT = 'https://static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_0.png';
 const DEFAULT_PARTNERS = [
   { id: 'butagaz', name: 'Butagaz', url: 'https://upload.wikimedia.org/wikipedia/fr/thumb/3/3d/Logo_Butagaz.svg/1200px-Logo_Butagaz.svg.png' },
@@ -333,9 +339,9 @@ function NewsCard({ item }: { item: NewsItem }) {
   );
 }
 
-const btnPrimaryLook = 'items-center justify-center gap-2 rounded-xl bg-afro-blue text-sm font-semibold text-white shadow-[0_8px_24px_rgb(14,108,208,0.28)] transition-all hover:bg-afro-blue-dark hover:shadow-[0_10px_30px_rgb(14,108,208,0.35)]';
+const btnPrimaryLook = 'items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-afro-blue text-sm font-semibold text-white shadow-[0_8px_24px_rgb(14,108,208,0.28)] transition-all hover:bg-afro-blue-dark hover:shadow-[0_10px_30px_rgb(14,108,208,0.35)]';
 const btnPrimary = `inline-flex h-12 px-6 ${btnPrimaryLook}`;
-const btnSecondary = 'inline-flex items-center justify-center gap-2 h-12 rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-afro-ink transition-colors hover:border-afro-blue/40 hover:text-afro-blue';
+const btnSecondary = 'inline-flex items-center justify-center gap-2 whitespace-nowrap h-12 rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-afro-ink transition-colors hover:border-afro-blue/40 hover:text-afro-blue';
 
 export default function LandingPage() {
   const {
@@ -431,7 +437,8 @@ export default function LandingPage() {
   const phoneDisplay = formatPhoneMA(contactPhone);
   const phoneHref = `tel:${toInternationalPhoneMA(contactPhone)}`;
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactAddress)}`;
-  const heroSrc = heroImage || DEFAULT_HERO_IMAGE;
+  const hasCustomHero = !!heroImage && heroImage !== HERO_IMAGE && !LEGACY_HERO_IMAGES.some((id) => heroImage.includes(id));
+  const heroSrc = hasCustomHero ? heroImage : HERO_IMAGE;
   const heroGases = (heroSubtitle || '').split(/[,·]/).map((s) => s.trim()).filter(Boolean);
   const partners = partnerLogos.length > 0 ? partnerLogos : DEFAULT_PARTNERS;
   const navItems = news.length > 0 ? NAV_ITEMS : NAV_ITEMS.filter((item) => item.id !== 'news');
@@ -472,7 +479,7 @@ export default function LandingPage() {
         name: SITE_NAME,
         url: `${SITE_URL}/`,
         logo: `${SITE_URL}/icon-512.png`,
-        image: heroSrc.startsWith('http') ? heroSrc : `${SITE_URL}/og-image.png`,
+        image: heroSrc.startsWith('http') ? heroSrc : heroSrc.startsWith('/') ? `${SITE_URL}${heroSrc}` : `${SITE_URL}/og-image.png`,
         description: HOME_DESCRIPTION,
         telephone: toInternationalPhoneMA(contactPhone),
         email: contactEmail,
@@ -655,14 +662,14 @@ export default function LandingPage() {
               />
             </div>
 
-            <div className={`${container} relative grid items-center gap-14 py-14 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-24`}>
+            <div className={`${container} relative grid items-center gap-14 py-14 sm:py-20 lg:grid-cols-2 lg:gap-12 lg:py-24 xl:grid-cols-[1fr_1.15fr]`}>
               <div className="text-center lg:text-left">
                 <h1 id="hero-title" className="font-display font-extrabold tracking-tight text-afro-ink">
                   <span className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-afro-blue/15 bg-white/80 px-4 py-1.5 font-sans text-[13px] font-semibold text-afro-blue shadow-sm backdrop-blur lg:mx-0">
                     <span className="h-1.5 w-1.5 rounded-full bg-afro-green" aria-hidden="true" />
                     Distributeur de gaz au Maroc
                   </span>
-                  <span className="block text-[2.5rem] leading-[1.04] sm:text-5xl lg:text-[3.5rem] xl:text-[4rem]">
+                  <span className="block text-[2.5rem] leading-[1.04] sm:text-5xl lg:text-[3.4rem] xl:text-[3.85rem]">
                     L'énergie pour aujourd'hui,{' '}
                     <span className="bg-gradient-to-r from-afro-blue to-[#2E8BEA] bg-clip-text text-transparent">les solutions pour demain.</span>
                   </span>
@@ -695,21 +702,43 @@ export default function LandingPage() {
                 )}
               </div>
 
-              <div className="relative mx-auto w-full max-w-[560px] lg:max-w-none">
-                <div className="absolute -inset-3 rotate-2 rounded-[2.25rem] bg-gradient-to-br from-afro-blue to-[#2E8BEA] opacity-90" aria-hidden="true" />
-                <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-afro-blue-50 shadow-2xl shadow-afro-blue/20 sm:aspect-[5/5] lg:aspect-[4/5]">
-                  <img
-                    src={heroSrc}
-                    srcSet={unsplashSrcSet(heroSrc, [640, 960, 1280, 1600])}
-                    sizes="(min-width: 1024px) 45vw, 100vw"
-                    alt="Livraison de bouteilles de gaz par AFRO Négoce au Maroc"
-                    fetchPriority="high"
-                    className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-afro-navy/40 via-transparent to-transparent" aria-hidden="true" />
+              <div className="relative mx-auto w-full max-w-[640px] lg:max-w-none">
+                {hasCustomHero ? (
+                  <div className="relative aspect-[3/2] overflow-hidden rounded-[2rem] bg-afro-blue-50 shadow-2xl shadow-afro-blue/20 ring-1 ring-slate-900/5">
+                    <img
+                      src={heroSrc}
+                      srcSet={unsplashSrcSet(heroSrc, [640, 960, 1280, 1600])}
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      alt="AFRO Négoce, distribution de gaz au Maroc"
+                      fetchPriority="high"
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="absolute inset-x-[4%] inset-y-[6%] rounded-[50%] bg-gradient-to-br from-afro-blue/15 via-afro-blue/5 to-afro-green/15 blur-2xl" aria-hidden="true" />
+                    {/* White-background artwork: multiply lets the white blend into the hero background */}
+                    <img
+                      src={heroSrc}
+                      srcSet={HERO_SRCSET}
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      width={1536}
+                      height={1024}
+                      alt="Bouteilles de gaz butane et propane, camion-citerne, réseau de gaz et panneaux solaires"
+                      fetchPriority="high"
+                      className="relative h-auto w-full mix-blend-multiply"
+                      style={{ maskImage: HERO_EDGE_MASK, WebkitMaskImage: HERO_EDGE_MASK, maskComposite: 'intersect', WebkitMaskComposite: 'source-in' }}
+                    />
+                  </>
+                )}
+                {/* Stacked under the image on phones, floating over its empty corners from sm up */}
+                <div className="mt-5 grid grid-cols-[auto_1fr] gap-3 sm:contents">
+                <div className="rounded-2xl bg-white px-5 py-4 text-left shadow-[0_20px_50px_rgb(15,23,42,0.14)] ring-1 ring-slate-900/5 sm:absolute sm:-left-4 sm:-top-6 lg:-top-10">
+                  <span className="block font-display text-3xl font-extrabold text-afro-blue">+20</span>
+                  <span className="block text-xs font-medium text-slate-500">villes desservies</span>
                 </div>
-                <div className="absolute -left-4 bottom-8 flex items-center gap-3 rounded-2xl bg-white p-3.5 pr-5 shadow-[0_20px_50px_rgb(15,23,42,0.18)] sm:-left-8">
+                <div className="flex items-center gap-3 rounded-2xl bg-white p-3.5 pr-5 shadow-[0_20px_50px_rgb(15,23,42,0.14)] ring-1 ring-slate-900/5 sm:absolute sm:-bottom-4 sm:-right-2">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-afro-green/20 text-afro-green-dark">
                     <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                   </span>
@@ -718,9 +747,6 @@ export default function LandingPage() {
                     <span className="block font-display text-[15px] font-bold text-afro-ink">Butagaz & Air Liquide</span>
                   </span>
                 </div>
-                <div className="absolute -right-3 top-8 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_20px_50px_rgb(15,23,42,0.18)] sm:-right-6">
-                  <span className="block font-display text-3xl font-extrabold text-afro-blue">+20</span>
-                  <span className="block text-xs font-medium text-slate-500">villes desservies</span>
                 </div>
               </div>
             </div>

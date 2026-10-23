@@ -84,7 +84,7 @@ interface LandingState {
 export const useLandingStore = create<LandingState>()(
   persist(
     (set) => ({
-      heroImage: "https://images.unsplash.com/photo-1516937941344-00b4e0337589?auto=format&fit=crop&q=80&w=1000",
+      heroImage: "/images/hero-afro-negoce-1536.webp",
       heroTitle: "LE LEADER DE LA DISTRIBUTION DE GAZ CONDITIONNÉ EN BOUTEILLE",
       heroSubtitle: "Butane, propane, oxygène, argon, azote, CO2",
       heroDescription: "Industrielle, foyer, agriculture... pour tout type de consommation de gaz",
