@@ -11,9 +11,10 @@
   --color-brand-accent: #3b82f6;
 
   /* AFRO Négoce brand charter (public website) */
-  --color-afro-blue: #0B5C9C;
-  --color-afro-blue-dark: #094A7E;
-  --color-afro-blue-50: #F4F8FC;
+  --color-afro-blue: #0E6CD0; /* brighter brand blue for the public site (white text 5.15:1) */
+  --color-afro-blue-dark: #0A56A8;
+  --color-afro-blue-50: #F2F7FD;
+  --color-afro-navy: #0B1F3A;
   --color-afro-green: #8CC63F;
   --color-afro-green-dark: #4A7A16; /* green for small text on light backgrounds (WCAG AA) */
   --color-afro-ink: #0F172A;
