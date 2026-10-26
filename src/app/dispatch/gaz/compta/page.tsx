@@ -314,7 +314,7 @@ export default function DispatchComptaPage() {
               onClick={() => setSelectedCompany('afro_negoce')}
               className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
                 selectedCompany === 'afro_negoce'
-                  ? 'bg-blue-650 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >

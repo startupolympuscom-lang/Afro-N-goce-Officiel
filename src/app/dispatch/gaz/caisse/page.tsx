@@ -506,18 +506,13 @@ export default function DispatchCaissePage() {
   };
 
   return (
-    <div className="space-y-8 pb-20">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-              <Wallet className="w-7 h-7" />
-            </div>
-            Gestion de la Caisse
-          </h1>
-          <p className="text-sm text-slate-500 font-medium mt-2">Date: {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+    <div className="space-y-6 pb-20">
+      <div className="flex flex-col xl:flex-row justify-between items-start gap-4">
+        <div className="shrink-0">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Gestion de la caisse</h1>
+          <p className="text-slate-500 mt-1 first-letter:uppercase">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2 xl:justify-end">
           <input 
             type="file" 
             accept="image/*" 
@@ -528,17 +523,16 @@ export default function DispatchCaissePage() {
           />
           <button 
             onClick={() => document.getElementById('ocr-upload')?.click()}
-            className="bg-purple-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-xl shadow-purple-900/10"
+            className="h-10 px-3.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
           >
-            <Camera className="w-5 h-5" />
-            Scanner Bon (OCR)
+            <Camera className="w-4 h-4 text-slate-400" />
+            Scanner un bon (OCR)
           </button>
-
           <button 
             onClick={generatePDF}
-            className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-xl shadow-blue-900/10"
+            className="h-10 px-3.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
           >
-            <FileText className="w-5 h-5" />
+            <FileText className="w-4 h-4 text-slate-400" />
             Rapport PDF
           </button>
           <button 
@@ -547,30 +541,30 @@ export default function DispatchCaissePage() {
                 generatePDF();
               }
             }}
-            className="bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-xl shadow-slate-900/10"
+            className="h-10 px-3.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
           >
-            <Lock className="w-5 h-5" />
-            Arrêt Caisse
-          </button>
-          <button 
-            onClick={() => setIsAddingAlimentation(true)}
-            className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-xl shadow-emerald-900/10"
-          >
-            <ArrowDownRight className="w-5 h-5 animate-bounce" />
-            Alimentation de caisse
+            <Lock className="w-4 h-4 text-slate-400" />
+            Arrêt de caisse
           </button>
           <button 
             onClick={() => setIsAddingTransfer(true)}
-            className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-xl shadow-indigo-900/10"
+            className="h-10 px-3.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
           >
-            <ArrowUpRight className="w-5 h-5" />
-            Transférer solde
+            <ArrowUpRight className="w-4 h-4 text-slate-400" />
+            Transférer un solde
+          </button>
+          <button 
+            onClick={() => setIsAddingAlimentation(true)}
+            className="h-10 px-3.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-xs"
+          >
+            <ArrowDownRight className="w-4 h-4" />
+            Alimentation de caisse
           </button>
           <button 
             onClick={() => setIsAddingExpense(true)}
-            className="bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 transition-colors flex items-center gap-2 shadow-xl shadow-red-900/10"
+            className="h-10 px-3.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2 shadow-xs"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             Sortie de caisse
           </button>
         </div>
@@ -614,7 +608,7 @@ export default function DispatchCaissePage() {
               onClick={() => setSelectedCompany('afro_negoce')}
               className={`flex-1 sm:flex-none px-6 py-2 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
                 selectedCompany === 'afro_negoce'
-                  ? 'bg-blue-650 text-white shadow-md'
+                  ? 'bg-blue-600 text-white shadow-md'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -661,7 +655,7 @@ export default function DispatchCaissePage() {
             setNewLimitValue((sortieCaisseLimit || 2000).toString());
             setIsUpdatingLimit(true);
           }}
-          className="bg-slate-900 hover:bg-slate-850 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-slate-900/10 shrink-0 cursor-pointer"
+          className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-slate-900/10 shrink-0 cursor-pointer"
         >
           <Lock className="w-4 h-4 text-slate-400" />
           Définir / Modifier la limite
@@ -742,7 +736,7 @@ export default function DispatchCaissePage() {
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 py-3 bg-red-650 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-900/15 cursor-pointer"
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-900/15 cursor-pointer"
                 >
                   Valider la limite
                 </button>
@@ -1153,13 +1147,13 @@ export default function DispatchCaissePage() {
                             Prêt / Emprunt
                           </span>
                         ) : (
-                          <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-150 text-emerald-800 rounded uppercase">
+                          <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded uppercase">
                             Standard
                           </span>
                         )}
                       </div>
                       <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">
-                        Auteur/Prêteur: <span className="text-emerald-750">{a.byWhom}</span>
+                        Auteur/Prêteur: <span className="text-emerald-700">{a.byWhom}</span>
                       </p>
                       <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                         Date: {a.date} • Réf: {a.id.slice(-6)}
@@ -1398,7 +1392,7 @@ export default function DispatchCaissePage() {
                     <AfroNegoceLogo className="w-10 h-10" />
                   </div>
                   <h4 className="text-sm font-black uppercase">AFRO NÉGOCE</h4>
-                  <p className="text-[9px] text-red-650 font-bold border border-red-200 px-2 py-1 bg-red-50 rounded mt-1 uppercase">TICKET DE SORTIE CAISSE</p>
+                  <p className="text-[9px] text-red-600 font-bold border border-red-200 px-2 py-1 bg-red-50 rounded mt-1 uppercase">TICKET DE SORTIE CAISSE</p>
                 </div>
                 
                 <div className="space-y-1.5 text-[10px] mb-4">
@@ -1427,7 +1421,7 @@ export default function DispatchCaissePage() {
                 
                 <div className="flex justify-between items-center mb-6 px-1 border-t border-dashed border-slate-300 pt-4">
                   <span className="text-xs font-black">SOLDE DÉBITÉ:</span>
-                  <span className="text-base font-black text-red-650">-{formatMAD(expenseToPrint.amount)}</span>
+                  <span className="text-base font-black text-red-600">-{formatMAD(expenseToPrint.amount)}</span>
                 </div>
 
                 <div className="border-t border-dashed border-slate-300 pt-6 mt-4">

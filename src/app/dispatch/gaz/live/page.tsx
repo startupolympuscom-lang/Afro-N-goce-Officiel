@@ -764,7 +764,7 @@ export default function DispatchLivePage() {
                   </div>
 
                   {/* Historique de Trajet Section */}
-                  <div className={`p-4 rounded-2xl border ${isHistoryMode ? 'bg-amber-550/5 border-amber-500/30 ring-1 ring-amber-500/10' : (isFullScreen ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200-gray border-slate-200')}`}>
+                  <div className={`p-4 rounded-2xl border ${isHistoryMode ? 'bg-amber-500/5 border-amber-500/30 ring-1 ring-amber-500/10' : (isFullScreen ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200-gray border-slate-200')}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h4 className={`text-sm font-bold flex items-center gap-2 ${isHistoryMode ? 'text-amber-600 font-extrabold' : (isFullScreen ? 'text-white' : 'text-slate-900')}`}>

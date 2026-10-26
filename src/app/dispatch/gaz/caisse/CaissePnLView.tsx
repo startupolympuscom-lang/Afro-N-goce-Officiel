@@ -919,7 +919,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
               onClick={() => setCompanyFilter('afro_negoce')}
               className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
                 companyFilter === 'afro_negoce'
-                  ? 'bg-blue-650 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1079,7 +1079,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
               <ArrowUpRight className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-red-650 mb-1">
+          <div className="text-2xl font-black text-red-600 mb-1">
             {totalExpenses.toLocaleString()} <span className="text-xs font-bold text-slate-400">MAD</span>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-2 border-t border-slate-100 mt-2">
@@ -1147,7 +1147,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
           onClick={() => setActiveSubTab('table')}
           className={`pb-2 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
             activeSubTab === 'table'
-              ? 'border-blue-650 text-blue-650'
+              ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
         >
@@ -1159,7 +1159,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
           onClick={() => setActiveSubTab('drivers')}
           className={`pb-2 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
             activeSubTab === 'drivers'
-              ? 'border-blue-650 text-blue-650'
+              ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
         >
@@ -1171,7 +1171,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
           onClick={() => setActiveSubTab('expenses')}
           className={`pb-2 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
             activeSubTab === 'expenses'
-              ? 'border-blue-650 text-blue-650'
+              ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
         >
@@ -1345,7 +1345,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
                   </td>
                   <td className="p-3 text-slate-500">Énergie & Transport</td>
                   <td className="p-3 text-center text-slate-700">{expensesByCategory['Carburant'].count} bons</td>
-                  <td className="p-3 text-right font-black text-red-650">-{expensesByCategory['Carburant'].total.toLocaleString()} MAD</td>
+                  <td className="p-3 text-right font-black text-red-600">-{expensesByCategory['Carburant'].total.toLocaleString()} MAD</td>
                   <td className="p-3 text-right font-semibold text-slate-500">
                     {totalSalesRevenue > 0 ? ((expensesByCategory['Carburant'].total / totalSalesRevenue) * 100).toFixed(1) : 0}%
                   </td>
@@ -1357,7 +1357,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
                   </td>
                   <td className="p-3 text-slate-500">Maintenance Flotte</td>
                   <td className="p-3 text-center text-slate-700">{expensesByCategory['Entretien / Réparation'].count} bons</td>
-                  <td className="p-3 text-right font-black text-red-650">-{expensesByCategory['Entretien / Réparation'].total.toLocaleString()} MAD</td>
+                  <td className="p-3 text-right font-black text-red-600">-{expensesByCategory['Entretien / Réparation'].total.toLocaleString()} MAD</td>
                   <td className="p-3 text-right font-semibold text-slate-500">
                     {totalSalesRevenue > 0 ? ((expensesByCategory['Entretien / Réparation'].total / totalSalesRevenue) * 100).toFixed(1) : 0}%
                   </td>
@@ -1369,7 +1369,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
                   </td>
                   <td className="p-3 text-slate-500">Personnel & Chauffeurs</td>
                   <td className="p-3 text-center text-slate-700">{expensesByCategory['Avance sur salaire'].count} bons</td>
-                  <td className="p-3 text-right font-black text-red-650">-{expensesByCategory['Avance sur salaire'].total.toLocaleString()} MAD</td>
+                  <td className="p-3 text-right font-black text-red-600">-{expensesByCategory['Avance sur salaire'].total.toLocaleString()} MAD</td>
                   <td className="p-3 text-right font-semibold text-slate-500">
                     {totalSalesRevenue > 0 ? ((expensesByCategory['Avance sur salaire'].total / totalSalesRevenue) * 100).toFixed(1) : 0}%
                   </td>
@@ -1381,7 +1381,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
                   </td>
                   <td className="p-3 text-slate-500">Frais Généraux / Divers</td>
                   <td className="p-3 text-center text-slate-700">{expensesByCategory['Autres charges'].count} bons</td>
-                  <td className="p-3 text-right font-black text-red-650">-{expensesByCategory['Autres charges'].total.toLocaleString()} MAD</td>
+                  <td className="p-3 text-right font-black text-red-600">-{expensesByCategory['Autres charges'].total.toLocaleString()} MAD</td>
                   <td className="p-3 text-right font-semibold text-slate-500">
                     {totalSalesRevenue > 0 ? ((expensesByCategory['Autres charges'].total / totalSalesRevenue) * 100).toFixed(1) : 0}%
                   </td>
@@ -1603,7 +1603,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
                 </div>
                 <div className="p-3 bg-slate-50 rounded-2xl flex justify-between items-center">
                   <span className="font-semibold text-slate-600">Charge moyenne par bouteille :</span>
-                  <span className="font-black text-red-650">
+                  <span className="font-black text-red-600">
                     {totalBottlesSold > 0 ? (totalExpenses / totalBottlesSold).toFixed(2) : '0'} MAD/Btl
                   </span>
                 </div>

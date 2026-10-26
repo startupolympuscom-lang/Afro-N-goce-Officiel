@@ -91,8 +91,9 @@
   }
 }
 
-/* FleetOps back-office: AFRO Négoce brand colours, scoped so the other apps keep theirs */
-.theme-fleetops {
+/* Back-office apps (FleetOps, Afro Dispatch): AFRO Négoce brand colours, scoped so the other apps keep theirs */
+.theme-fleetops,
+.theme-dispatch {
   --color-primary: #0B5C9C;
   --color-primary-hover: #094A7E;
   --color-primary-light: #E8F1F8;
@@ -101,6 +102,55 @@
   --color-sidebar: #0B1E33;
   --color-sidebar-2: #12294A;
   --color-sidebar-text: #A3B3C7;
+}
+
+/* Afro Dispatch pages hard-code Tailwind's blue/indigo/purple: map them onto the brand blue and a calm navy */
+.theme-dispatch {
+  --color-blue-50: #EEF5FB;
+  --color-blue-100: #D9E9F6;
+  --color-blue-200: #B6D3EE;
+  --color-blue-300: #87B6E0;
+  --color-blue-400: #5094CF;
+  --color-blue-500: #2577BD;
+  --color-blue-600: #0B5C9C;
+  --color-blue-700: #094C84;
+  --color-blue-800: #0A3F6B;
+  --color-blue-900: #0C3558;
+  --color-blue-950: #08223B;
+  --color-indigo-50: #EEF5FB;
+  --color-indigo-100: #D9E9F6;
+  --color-indigo-200: #B6D3EE;
+  --color-indigo-300: #87B6E0;
+  --color-indigo-400: #5094CF;
+  --color-indigo-500: #2577BD;
+  --color-indigo-600: #0B5C9C;
+  --color-indigo-700: #094C84;
+  --color-indigo-800: #0A3F6B;
+  --color-indigo-900: #0C3558;
+  --color-indigo-950: #08223B;
+  --color-purple-50: #F2F5F9;
+  --color-purple-100: #E1E7EF;
+  --color-purple-200: #C4CFDD;
+  --color-purple-300: #9AABC2;
+  --color-purple-400: #6B81A0;
+  --color-purple-500: #4B6283;
+  --color-purple-600: #364C6C;
+  --color-purple-700: #2B3D58;
+  --color-purple-800: #223047;
+  --color-purple-900: #1A253A;
+  --color-purple-950: #101828;
+
+  /* Tighter corners than the shared tokens, so cards and fields read as a business tool */
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-3xl: 1rem;
+}
+.theme-dispatch :is(.rounded-\[2rem\], .rounded-\[24px\], .rounded-\[32px\], .rounded-\[40px\], .rounded-\[60px\]) {
+  border-radius: 1rem;
+}
+/* Pulsing is kept for live status dots only, not for static icons and buttons */
+.theme-dispatch :is(svg, button).animate-pulse {
+  animation: none;
 }
 
 @layer base {

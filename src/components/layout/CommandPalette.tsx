@@ -2,19 +2,25 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { CornerDownLeft, Search } from 'lucide-react';
+import { CornerDownLeft, Search, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { FleetNavSection } from './fleetNav';
+
+export interface PaletteSection {
+  title: string;
+  items: { name: string; path: string; icon: LucideIcon }[];
+}
 
 interface CommandPaletteProps {
-  sections: FleetNavSection[];
+  sections: PaletteSection[];
   onClose: () => void;
+  /** Theme scope of the app opening the palette (the overlay is portalled outside it). */
+  themeClassName?: string;
 }
 
 // Case- and accent-insensitive: "vehi" finds "Véhicules".
 const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-export function CommandPalette({ sections, onClose }: CommandPaletteProps) {
+export function CommandPalette({ sections, onClose, themeClassName = 'theme-fleetops' }: CommandPaletteProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -57,7 +63,7 @@ export function CommandPalette({ sections, onClose }: CommandPaletteProps) {
 
   // Portal: the blurred header would otherwise clip this fixed overlay to its own column.
   return createPortal(
-    <div className="theme-fleetops fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[12vh]">
+    <div className={cn(themeClassName, 'fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[12vh]')}>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

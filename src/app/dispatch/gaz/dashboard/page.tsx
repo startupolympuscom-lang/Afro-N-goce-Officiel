@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useDispatchGazStore, DashboardWidget } from '../../../../stores/useDispatchGazStore';
 import { 
-  Wallet, TrendingUp, ArrowUpRight, ArrowDownRight, Award, 
-  Calendar, Layout, Plus, X, GripVertical, Settings2, Save, Info, Users
+  Wallet, TrendingUp, ArrowDownRight, Award, 
+  Plus, X, GripVertical, Settings2, Save, Info, Users, type LucideIcon
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -18,6 +18,25 @@ const RGLResponsive = Responsive || GridLayout.Responsive;
 const RGLWidthProvider = WidthProvider || GridLayout.WidthProvider;
 
 const ResponsiveGridLayout = RGLWidthProvider(RGLResponsive);
+
+const cardClass = 'bg-white rounded-xl border border-slate-200 shadow-xs h-full';
+const axisTick = { fontSize: 12, fill: '#94a3b8' };
+const tooltipStyle = { backgroundColor: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgb(15 23 42 / 0.08)', fontSize: 12 };
+
+// Compact on purpose: KPI widgets are two grid rows (130 px) high, including in layouts users have saved.
+function StatWidget({ title, value, icon: Icon, tone }: { title: string; value: number; icon: LucideIcon; tone: string }) {
+  return (
+    <div className={`${cardClass} p-5 flex flex-col justify-between`}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-sm font-medium text-slate-500">{title}</span>
+        <span className={`p-2 rounded-lg ${tone}`}><Icon className="w-4 h-4" /></span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-slate-900 truncate tabular-nums">
+        {value.toLocaleString('fr-FR')} <span className="text-sm font-medium text-slate-400">MAD</span>
+      </div>
+    </div>
+  );
+}
 
 export default function DispatchDashboardPage() {
   const { sales, expenses, drivers, dashboardWidgets, updateDashboardWidgets } = useDispatchGazStore();
@@ -107,89 +126,31 @@ export default function DispatchDashboardPage() {
     const content = () => {
       switch (widget.id) {
         case 'stat-daily':
-          return (
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-                <Wallet className="w-24 h-24 text-blue-600" />
-              </div>
-              <div className="flex justify-between items-start relative z-10">
-                <div className="p-3 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl text-blue-600"><Wallet className="w-6 h-6" /></div>
-                <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 shadow-sm">
-                  <ArrowUpRight className="w-3.5 h-3.5" /> +12%
-                </span>
-              </div>
-              <div className="relative z-10 mt-auto pt-2">
-                <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.dailySales.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
-              </div>
-            </div>
-          );
+          return <StatWidget title={widget.title} value={stats.dailySales} icon={Wallet} tone="bg-blue-50 text-blue-600" />;
         case 'stat-total':
-          return (
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-                <TrendingUp className="w-24 h-24 text-indigo-600" />
-              </div>
-              <div className="flex justify-between items-start relative z-10">
-                <div className="p-3 bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl text-indigo-600"><TrendingUp className="w-6 h-6" /></div>
-              </div>
-              <div className="relative z-10 mt-auto pt-2">
-                <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.totalSales.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
-              </div>
-            </div>
-          );
+          return <StatWidget title={widget.title} value={stats.totalSales} icon={TrendingUp} tone="bg-blue-50 text-blue-600" />;
         case 'stat-expenses':
-          return (
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-                <ArrowDownRight className="w-24 h-24 text-red-600" />
-              </div>
-              <div className="flex justify-between items-start relative z-10">
-                <div className="p-3 bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl text-red-600"><ArrowDownRight className="w-6 h-6" /></div>
-              </div>
-              <div className="relative z-10 mt-auto pt-2">
-                <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.totalExpenses.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
-              </div>
-            </div>
-          );
+          return <StatWidget title={widget.title} value={stats.totalExpenses} icon={ArrowDownRight} tone="bg-red-50 text-red-600" />;
         case 'stat-profit':
-          return (
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-                <Award className="w-24 h-24 text-emerald-600" />
-              </div>
-              <div className="flex justify-between items-start relative z-10">
-                <div className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl text-emerald-600"><Award className="w-6 h-6" /></div>
-              </div>
-              <div className="relative z-10 mt-auto pt-2">
-                <p className="text-slate-500 text-sm font-semibold mb-1">{widget.title}</p>
-                <h3 className="text-3xl xl:text-4xl font-black text-slate-900 tracking-tight truncate">{stats.netProfit.toLocaleString()} <span className="text-sm xl:text-lg text-slate-400 font-bold">MAD</span></h3>
-              </div>
-            </div>
-          );
+          return <StatWidget title={widget.title} value={stats.netProfit} icon={Award} tone="bg-emerald-50 text-emerald-600" />;
         case 'chart-evolution':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col">
-              <h3 className="font-bold text-slate-900 text-lg tracking-tight mb-6">{widget.title}</h3>
+            <div className={`${cardClass} p-5 lg:p-6 flex flex-col`}>
+              <h3 className="font-semibold text-slate-900 text-base mb-5">{widget.title}</h3>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.18}/>
+                        <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} dx={-10} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
-                      itemStyle={{ fontWeight: 'bold' }}
-                    />
-                    <Area type="monotone" dataKey="sales" name="Ventes" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorSales)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTick} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={axisTick} dx={-10} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Area type="monotone" dataKey="sales" name="Ventes" stroke="var(--color-primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSales)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -197,27 +158,27 @@ export default function DispatchDashboardPage() {
           );
         case 'ranking-drivers':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col">
+            <div className={`${cardClass} p-5 lg:p-6 flex flex-col`}>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-slate-900 text-lg tracking-tight">{widget.title}</h3>
-                <div className="p-2 bg-purple-50 rounded-xl text-purple-600"><Users className="w-5 h-5" /></div>
+                <h3 className="font-semibold text-slate-900 text-base">{widget.title}</h3>
+                <span className="p-2 bg-slate-100 rounded-lg text-slate-500"><Users className="w-4 h-4" /></span>
               </div>
-              <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
                 {driverRanking.map((driver, index) => (
-                  <div key={driver.id} className="flex items-center gap-4 p-3.5 rounded-2xl bg-slate-50/50 hover:bg-slate-50 transition-colors border border-slate-100/50">
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm shadow-sm ${
-                      index === 0 ? 'bg-gradient-to-br from-amber-200 to-yellow-400 text-amber-900' : 
-                      index === 1 ? 'bg-gradient-to-br from-slate-200 to-slate-300 text-slate-700' : 
-                      index === 2 ? 'bg-gradient-to-br from-orange-200 to-orange-300 text-orange-900' : 'bg-white text-slate-400 border border-slate-200'
+                  <div key={driver.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors border border-slate-100">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-semibold text-sm ${
+                      index === 0 ? 'bg-amber-100 text-amber-800' : 
+                      index === 1 ? 'bg-slate-200 text-slate-700' : 
+                      index === 2 ? 'bg-orange-100 text-orange-800' : 'bg-white text-slate-400 border border-slate-200'
                     }`}>
                       #{index + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">{driver.prenom} {driver.nom}</p>
-                      <p className="text-xs font-semibold text-slate-400 mt-0.5">{driver.qty} bouteilles</p>
+                      <p className="text-sm font-medium text-slate-900 truncate">{driver.prenom} {driver.nom}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{driver.qty} bouteilles</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-base font-black text-slate-900">{driver.revenue.toLocaleString()} <span className="text-xs text-slate-400">MAD</span></p>
+                      <p className="text-sm font-semibold text-slate-900 tabular-nums">{driver.revenue.toLocaleString('fr-FR')} <span className="text-xs font-normal text-slate-400">MAD</span></p>
                     </div>
                   </div>
                 ))}
@@ -226,19 +187,16 @@ export default function DispatchDashboardPage() {
           );
         case 'chart-profit-exp':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col">
-              <h3 className="font-bold text-slate-900 text-lg tracking-tight mb-6">{widget.title}</h3>
+            <div className={`${cardClass} p-5 lg:p-6 flex flex-col`}>
+              <h3 className="font-semibold text-slate-900 text-base mb-5">{widget.title}</h3>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} dx={-10} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                      itemStyle={{ fontWeight: 'bold' }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '13px', fontWeight: '600' }} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTick} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={axisTick} dx={-10} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '16px', fontSize: '12px' }} />
                     <Bar dataKey="profit" name="Bénéfice" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={40} />
                     <Bar dataKey="expenses" name="Dépenses" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={40} />
                   </BarChart>
@@ -248,19 +206,16 @@ export default function DispatchDashboardPage() {
           );
         case 'chart-exp-evolution':
           return (
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col">
-              <h3 className="font-bold text-slate-900 text-lg tracking-tight mb-6">{widget.title}</h3>
+            <div className={`${cardClass} p-5 lg:p-6 flex flex-col`}>
+              <h3 className="font-semibold text-slate-900 text-base mb-5">{widget.title}</h3>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} dx={-10} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                      itemStyle={{ fontWeight: 'bold' }}
-                    />
-                    <Line type="monotone" dataKey="expenses" name="Dépenses" stroke="#ef4444" strokeWidth={4} dot={{ r: 4, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 7 }} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTick} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={axisTick} dx={-10} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Line type="monotone" dataKey="expenses" name="Dépenses" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 3, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 5 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -302,50 +257,43 @@ export default function DispatchDashboardPage() {
   }, [dashboardWidgets]);
 
   return (
-    <div className="space-y-8 pb-12">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
+    <div className="space-y-6 pb-12">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-              <Layout className="w-7 h-7" />
-            </div>
-            Tableau de Bord
-          </h1>
-          <p className="text-slate-500 font-medium mt-2">Analyse des performances et pilotage stratégique</p>
+          <h1 className="text-2xl font-bold text-slate-900">Tableau de bord</h1>
+          <p className="text-slate-500 mt-1">Performances commerciales et pilotage de l'activité gaz</p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-200/60 shadow-sm">
-            <button 
-              onClick={() => setPeriod('week')}
-              className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${period === 'week' ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Semaine
-            </button>
-            <button 
-              onClick={() => setPeriod('month')}
-              className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${period === 'month' ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Mois
-            </button>
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200" role="group" aria-label="Période">
+            {([['week', 'Semaine'], ['month', 'Mois']] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setPeriod(value)}
+                aria-pressed={period === value}
+                className={`px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors ${period === value ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           <button 
             onClick={() => setIsEditMode(!isEditMode)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm transition-all border ${
+            className={`flex items-center gap-2 h-10 px-4 rounded-lg font-medium text-sm transition-colors border ${
               isEditMode 
-                ? 'bg-emerald-600 border-emerald-700 text-white shadow-lg shadow-emerald-500/20' 
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:shadow-sm'
+                ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
-            {isEditMode ? <Save className="w-5 h-5" /> : <Settings2 className="w-5 h-5" />}
+            {isEditMode ? <Save className="w-4 h-4" /> : <Settings2 className="w-4 h-4" />}
             {isEditMode ? 'Enregistrer' : 'Personnaliser'}
           </button>
         </div>
       </div>
 
       {isEditMode && (
-        <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl text-blue-700 text-sm flex items-center gap-3">
+        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 text-sm flex items-center gap-3">
           <Info className="w-5 h-5" />
           <p>Mode édition actif : Vous pouvez <strong>déplacer</strong>, <strong>redimensionner</strong> ou <strong>masquer</strong> les éléments de votre tableau de bord.</p>
         </div>

@@ -193,19 +193,19 @@ export default function DispatchDriverSalePage() {
   if (!isCheckedIn) {
     return (
       <div className="max-w-xl mx-auto space-y-6 pt-12 pb-24 text-center">
-        <div className="w-20 h-20 bg-red-50 rounded-[32px] flex items-center justify-center mx-auto text-red-500 mb-6 border border-red-100">
-          <AlertTriangle className="w-10 h-10" />
+        <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto text-amber-600 mb-6 border border-amber-100">
+          <AlertTriangle className="w-8 h-8" />
         </div>
-        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Accès Restreint</h1>
-        <p className="text-slate-500 font-medium">Vous devez enregistrer votre présence (pointage) aujourd'hui pour pouvoir enregistrer des ventes.</p>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Pointage requis</h1>
+        <p className="text-slate-500">Vous devez enregistrer votre présence (pointage) aujourd'hui pour pouvoir enregistrer des ventes.</p>
         
         <div className="pt-8">
           <button 
             onClick={() => navigate('/dispatch/gaz/driver/pointage?scan=true')}
-            className="px-8 py-4 bg-slate-950 text-white rounded-[24px] font-bold text-lg flex items-center justify-center gap-3 mx-auto hover:bg-blue-600 transition-all shadow-xl shadow-slate-900/10"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-base flex items-center justify-center gap-2.5 mx-auto transition-colors shadow-sm"
           >
-            <QrCode className="w-6 h-6" />
-            Scanner mon QR Code
+            <QrCode className="w-5 h-5" />
+            Scanner mon QR code
           </button>
         </div>
       </div>
