@@ -555,9 +555,9 @@ export default function DispatchRapportsPage() {
                     <YAxis stroke="#94a3b8" fontSize={10} />
                     <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.05)', color: '#0f172a' }} />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
-                    <Bar dataKey="Ventes" name="Chiffre d'Affaires (MAD)" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="Crédit" name="Crédit Client (MAD)" fill="#f97316" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="Volume" name="Volume d'activité (x10)" fill="#10b981" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Ventes" name="Chiffre d'Affaires (MAD)" fill="#0B5C9C" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Crédit" name="Crédit Client (MAD)" fill="#87B6E0" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Volume" name="Volume d'activité (x10)" fill="#364C6C" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -701,8 +701,8 @@ export default function DispatchRapportsPage() {
                       <YAxis stroke="#94a3b8" fontSize={10} />
                       <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.05)', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="Afro" name="Afro Négoce (MAD)" fill="#f97316" stackId="a" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Chakirine" name="Chakirine Gaz (MAD)" fill="#10b981" stackId="a" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Afro" name="Afro Négoce (MAD)" fill="#0B5C9C" stackId="a" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Chakirine" name="Chakirine Gaz (MAD)" fill="#87B6E0" stackId="a" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -726,7 +726,7 @@ export default function DispatchRapportsPage() {
                       <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={100} />
                       <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.05)', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="Revenue" name="Chiffre d'Affaires (MAD)" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="Revenue" name="Chiffre d'Affaires (MAD)" fill="#0B5C9C" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -741,47 +741,47 @@ export default function DispatchRapportsPage() {
         <div className="flex flex-col gap-6 animate-in fade-in duration-200" id="rh-report-tab">
           {/* HR KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="rh-kpis-grid">
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 border border-blue-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-700 border border-blue-100">
                 <Users className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Chauffeurs Enregistrés</span>
-                <span className="text-xl font-black text-white block mt-1">{rhMetrics.totalDrivers} Drivers</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Effectif total</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Chauffeurs Enregistrés</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{rhMetrics.totalDrivers} Drivers</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Effectif total</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-400 border border-green-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-emerald-700 border border-green-100">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Effectif Actif</span>
-                <span className="text-xl font-black text-white block mt-1">{rhMetrics.activeDrivers} Actifs</span>
-                <span className="text-[10px] text-green-400 font-bold block mt-0.5">En service</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Effectif Actif</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{rhMetrics.activeDrivers} Actifs</span>
+                <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">En service</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-blue-700 border border-indigo-100">
                 <Calendar className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Pointages Enregistrés</span>
-                <span className="text-xl font-black text-white block mt-1">{rhMetrics.totalPointagesCount} Présences</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Sur la période</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Pointages Enregistrés</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{rhMetrics.totalPointagesCount} Présences</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Sur la période</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 border border-amber-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-700 border border-amber-100">
                 <Award className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Meilleur Performeur</span>
-                <span className="text-xl font-black text-white truncate max-w-[150px] block mt-1">{rhMetrics.topDriver?.name || 'N/A'}</span>
-                <span className="text-[10px] text-amber-400 font-bold block mt-0.5">Chauffeur</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Meilleur Performeur</span>
+                <span className="text-xl font-black text-slate-900 truncate max-w-[150px] block mt-1">{rhMetrics.topDriver?.name || 'N/A'}</span>
+                <span className="text-[10px] text-amber-700 font-bold block mt-0.5">Chauffeur</span>
               </div>
             </div>
           </div>
@@ -789,22 +789,22 @@ export default function DispatchRapportsPage() {
           {/* Driver performance graphs */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="rh-charts-grid">
             {/* Revenue Generated Per Driver */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-blue-500" />
                 Chiffre d'Affaires Généré par Chauffeur
               </h3>
               <div className="h-80" id="rh-revenue-driver-chart">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={rhMetrics.driverPerformance} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
                     <YAxis stroke="#64748b" fontSize={10} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '10px', color: '#0f172a' }} />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
-                    <Bar dataKey="revenue" name="Ventes Générées (MAD)" fill="#3b82f6" radius={[6, 6, 0, 0]}>
+                    <Bar dataKey="revenue" name="Ventes Générées (MAD)" fill="#0B5C9C" radius={[6, 6, 0, 0]}>
                       {rhMetrics.driverPerformance.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.company === 'Afro' ? '#f97316' : '#10b981'} />
+                        <Cell key={`cell-${index}`} fill={entry.company === 'Afro' ? '#0B5C9C' : '#87B6E0'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -813,22 +813,22 @@ export default function DispatchRapportsPage() {
             </div>
 
             {/* Quantity of bottles sold per Driver */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-indigo-400" />
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-blue-700" />
                 Volumes Livrés (Bouteilles vendues) par Chauffeur
               </h3>
               <div className="h-80" id="rh-qty-driver-chart">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={rhMetrics.driverPerformance} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
                     <YAxis stroke="#64748b" fontSize={10} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '10px', color: '#0f172a' }} />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
-                    <Bar dataKey="qty" name="Quantité Vendue (Bouteilles)" fill="#8b5cf6" radius={[6, 6, 0, 0]}>
+                    <Bar dataKey="qty" name="Quantité Vendue (Bouteilles)" fill="#364C6C" radius={[6, 6, 0, 0]}>
                       {rhMetrics.driverPerformance.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.company === 'Afro' ? '#fdba74' : '#6ee7b7'} />
+                        <Cell key={`cell-${index}`} fill={entry.company === 'Afro' ? '#364C6C' : '#9AABC2'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -838,38 +838,38 @@ export default function DispatchRapportsPage() {
           </div>
 
           {/* Attendance and Sales summary table */}
-          <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800" id="rh-summary-table-section">
-            <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-              <Truck className="w-5 h-5 text-blue-400" />
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs" id="rh-summary-table-section">
+            <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Truck className="w-5 h-5 text-blue-700" />
               Tableau d'activité des Chauffeurs
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800">
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Chauffeur</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Société</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-center">Présences</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-center">Transactions</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-right">Bouteilles Vendues</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-right">C.A. Généré</th>
+                  <tr className="border-b border-slate-200">
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Chauffeur</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Société</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-center">Présences</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-center">Transactions</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">Bouteilles Vendues</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">C.A. Généré</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-slate-100">
                   {rhMetrics.driverPerformance.map((d, index) => (
-                    <tr key={d.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="py-3 px-4 text-sm font-semibold text-white">{d.name}</td>
+                    <tr key={d.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-4 text-sm font-semibold text-slate-900">{d.name}</td>
                       <td className="py-3 px-4 text-xs">
                         {d.company === 'Afro' ? (
-                          <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] font-black uppercase">AFRO</span>
+                          <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase">AFRO</span>
                         ) : (
-                          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-black uppercase">CHAKIRINE</span>
+                          <span className="bg-amber-50 text-amber-800 border border-amber-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase">CHAKIRINE</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-sm text-center font-bold text-indigo-400">{d.pointagesCount} jours</td>
-                      <td className="py-3 px-4 text-sm text-center text-slate-300">{d.salesCount} ventes</td>
-                      <td className="py-3 px-4 text-sm text-right font-black text-slate-100">{d.qty}</td>
-                      <td className="py-3 px-4 text-sm text-right font-bold text-emerald-400">{d.revenue.toLocaleString('fr-FR')} MAD</td>
+                      <td className="py-3 px-4 text-sm text-center font-bold text-blue-700">{d.pointagesCount} jours</td>
+                      <td className="py-3 px-4 text-sm text-center text-slate-600">{d.salesCount} ventes</td>
+                      <td className="py-3 px-4 text-sm text-right font-black text-slate-900">{d.qty}</td>
+                      <td className="py-3 px-4 text-sm text-right font-bold text-emerald-700">{d.revenue.toLocaleString('fr-FR')} MAD</td>
                     </tr>
                   ))}
                 </tbody>
@@ -884,47 +884,47 @@ export default function DispatchRapportsPage() {
         <div className="flex flex-col gap-6 animate-in fade-in duration-200" id="caisse-report-tab">
           {/* Caisse KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="caisse-kpis-grid">
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-700 border border-emerald-100">
                 <Wallet className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Caisse Sécuritaire</span>
-                <span className="text-xl font-black text-white block mt-1">{caisseMetrics.caisseSecuritaire.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Solde officiel</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Caisse Sécuritaire</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{caisseMetrics.caisseSecuritaire.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Solde officiel</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-blue-700 border border-indigo-100">
                 <Wallet className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Caisse Interne / Noir</span>
-                <span className="text-xl font-black text-white block mt-1">{caisseMetrics.caisseNoir.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Solde d'exploitation</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Caisse Interne / Noir</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{caisseMetrics.caisseNoir.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Solde d'exploitation</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-400 border border-green-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-emerald-700 border border-green-100">
                 <ArrowUpRight className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Flux Entrants Totaux</span>
-                <span className="text-xl font-black text-white block mt-1">+{caisseMetrics.totalInflows.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-green-400 font-bold block mt-0.5">Ventes encaissées & alim.</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Flux Entrants Totaux</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">+{caisseMetrics.totalInflows.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">Ventes encaissées & alim.</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-400 border border-red-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 border border-red-100">
                 <ArrowDownRight className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Flux Sortants Totaux</span>
-                <span className="text-xl font-black text-white block mt-1">-{caisseMetrics.totalOutflows.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Dépenses et virements</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Flux Sortants Totaux</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">-{caisseMetrics.totalOutflows.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Dépenses et virements</span>
               </div>
             </div>
           </div>
@@ -932,9 +932,9 @@ export default function DispatchRapportsPage() {
           {/* Cashflow visual graph */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="caisse-charts-grid">
             {/* Entrées vs Sorties Temporelles */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-400" />
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-700" />
                 Flux Financiers: Entrées vs Sorties
               </h3>
               <div className="h-80" id="caisse-flow-trend-chart">
@@ -943,13 +943,13 @@ export default function DispatchRapportsPage() {
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={caisseMetrics.flowData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
                       <YAxis stroke="#64748b" fontSize={10} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '10px', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="Entrées" name="Entrées de Caisse (MAD)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Sorties" name="Sorties / Dépenses (MAD)" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Entrées" name="Entrées de Caisse (MAD)" fill="#0B5C9C" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Sorties" name="Sorties / Dépenses (MAD)" fill="#94A3B8" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -957,9 +957,9 @@ export default function DispatchRapportsPage() {
             </div>
 
             {/* Expenses Breakdown */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <ArrowDownRight className="w-5 h-5 text-red-400" />
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <ArrowDownRight className="w-5 h-5 text-red-600" />
                 Répartition des Charges & Dépenses
               </h3>
               <div className="h-80" id="caisse-expenses-recharts">
@@ -968,12 +968,12 @@ export default function DispatchRapportsPage() {
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={caisseMetrics.expenseBreakdown} layout="vertical" margin={{ top: 20, right: 30, left: 50, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis type="number" stroke="#64748b" fontSize={10} />
                       <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={11} width={120} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '10px', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="Montant" name="Charges en MAD" fill="#f87171" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="Montant" name="Charges en MAD" fill="#6B81A0" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -988,47 +988,47 @@ export default function DispatchRapportsPage() {
         <div className="flex flex-col gap-6 animate-in fade-in duration-200" id="clients-report-tab">
           {/* Clients KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="clients-kpis-grid">
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 border border-blue-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-700 border border-blue-100">
                 <Building2 className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Clients Enregistrés</span>
-                <span className="text-xl font-black text-white block mt-1">{clientsMetrics.totalClientsCount} Clients</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Portefeuille client</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Clients Enregistrés</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{clientsMetrics.totalClientsCount} Clients</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Portefeuille client</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-400 border border-red-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 border border-red-100">
                 <Wallet className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Crédit Client Global</span>
-                <span className="text-xl font-black text-white block mt-1">{clientsMetrics.totalGlobalCredit.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-red-400 font-bold block mt-0.5">Reste à recouvrer</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Crédit Client Global</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{clientsMetrics.totalGlobalCredit.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-red-600 font-bold block mt-0.5">Reste à recouvrer</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-400 border border-green-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-emerald-700 border border-green-100">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Paiements Reçus</span>
-                <span className="text-xl font-black text-white block mt-1">{clientsMetrics.totalGlobalPaid.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-green-400 font-bold block mt-0.5">Encaissé</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Paiements Reçus</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{clientsMetrics.totalGlobalPaid.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">Encaissé</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex items-center gap-4 shadow-md">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-blue-700 border border-indigo-100">
                 <FileCheck2 className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Chiffre Facturé</span>
-                <span className="text-xl font-black text-white block mt-1">{clientsMetrics.totalGlobalInvoiced.toLocaleString('fr-FR')} MAD</span>
-                <span className="text-[10px] text-indigo-400 font-bold block mt-0.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Chiffre Facturé</span>
+                <span className="text-xl font-black text-slate-900 block mt-1">{clientsMetrics.totalGlobalInvoiced.toLocaleString('fr-FR')} MAD</span>
+                <span className="text-[10px] text-blue-700 font-bold block mt-0.5">
                   ({((clientsMetrics.totalGlobalInvoiced / (clientsMetrics.clientPerformance.reduce((s,c)=>s+c.totalSales,0) || 1)) * 100).toFixed(1)}% du total)
                 </span>
               </div>
@@ -1038,9 +1038,9 @@ export default function DispatchRapportsPage() {
           {/* Charts Histogram */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="clients-charts-grid">
             {/* Top Creditor Clients Histogram */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-red-400" />
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-red-600" />
                 Top 10 Clients Débiteurs (Crédit en MAD)
               </h3>
               <div className="h-80" id="clients-credit-histogram">
@@ -1049,12 +1049,12 @@ export default function DispatchRapportsPage() {
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={clientsMetrics.topCreditClients} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
                       <YAxis stroke="#64748b" fontSize={10} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '10px', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="creditAmount" name="Crédit restant à recouvrer (MAD)" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="creditAmount" name="Crédit restant à recouvrer (MAD)" fill="#6B81A0" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1062,9 +1062,9 @@ export default function DispatchRapportsPage() {
             </div>
 
             {/* Top Buyer Clients Histogram */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-400" />
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-700" />
                 Top 10 Clients Acheteurs (Volume & CA)
               </h3>
               <div className="h-80" id="clients-sales-histogram">
@@ -1073,13 +1073,13 @@ export default function DispatchRapportsPage() {
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={clientsMetrics.topSalesClients} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
                       <YAxis stroke="#64748b" fontSize={10} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '10px', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="totalSales" name="Chiffre d'Affaires (MAD)" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="paidAmount" name="Montant Encaissé (MAD)" fill="#10b981" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="totalSales" name="Chiffre d'Affaires (MAD)" fill="#0B5C9C" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="paidAmount" name="Montant Encaissé (MAD)" fill="#87B6E0" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1088,34 +1088,34 @@ export default function DispatchRapportsPage() {
           </div>
 
           {/* Client Situation Table */}
-          <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800" id="clients-table-section">
-            <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-blue-400" />
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs" id="clients-table-section">
+            <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-blue-700" />
               Situation Complète des Comptes Clients
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800">
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Client</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-center">Bouteilles Achetées</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-right">Chiffre d'Affaires</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-right">Total Encaissé</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-right">Crédit Débiteur</th>
-                    <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase text-right">Montant Facturé</th>
+                  <tr className="border-b border-slate-200">
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Client</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-center">Bouteilles Achetées</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">Chiffre d'Affaires</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">Total Encaissé</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">Crédit Débiteur</th>
+                    <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">Montant Facturé</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-slate-100">
                   {clientsMetrics.clientPerformance.map((c, index) => (
-                    <tr key={c.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="py-3 px-4 text-sm font-semibold text-white">{c.name}</td>
-                      <td className="py-3 px-4 text-sm text-center text-slate-300 font-bold">{c.totalQty}</td>
-                      <td className="py-3 px-4 text-sm text-right font-semibold text-white">{c.totalSales.toLocaleString('fr-FR')} MAD</td>
-                      <td className="py-3 px-4 text-sm text-right text-emerald-400 font-medium">{c.paidAmount.toLocaleString('fr-FR')} MAD</td>
-                      <td className={`py-3 px-4 text-sm text-right font-black ${c.creditAmount > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                    <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-4 text-sm font-semibold text-slate-900">{c.name}</td>
+                      <td className="py-3 px-4 text-sm text-center text-slate-600 font-bold">{c.totalQty}</td>
+                      <td className="py-3 px-4 text-sm text-right font-semibold text-slate-900">{c.totalSales.toLocaleString('fr-FR')} MAD</td>
+                      <td className="py-3 px-4 text-sm text-right text-emerald-700 font-medium">{c.paidAmount.toLocaleString('fr-FR')} MAD</td>
+                      <td className={`py-3 px-4 text-sm text-right font-black ${c.creditAmount > 0 ? 'text-red-600' : 'text-slate-500'}`}>
                         {c.creditAmount > 0 ? `${c.creditAmount.toLocaleString('fr-FR')} MAD` : 'Aucun'}
                       </td>
-                      <td className="py-3 px-4 text-sm text-right text-indigo-400 font-medium">{c.invoicedAmount.toLocaleString('fr-FR')} MAD</td>
+                      <td className="py-3 px-4 text-sm text-right text-blue-700 font-medium">{c.invoicedAmount.toLocaleString('fr-FR')} MAD</td>
                     </tr>
                   ))}
                 </tbody>

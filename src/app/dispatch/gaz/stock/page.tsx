@@ -687,9 +687,6 @@ export default function DispatchStockPage() {
                   {kpiTotals.globalFull} dépôt • {kpiTotals.comptoirFull} comptoir
                 </span>
               </div>
-              <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-slate-900 group-hover:scale-110 transition-transform">
-                <Package size={80} />
-              </div>
             </div>
 
             {/* KPI: VIDES */}
@@ -704,9 +701,6 @@ export default function DispatchStockPage() {
                   {kpiTotals.globalEmpty} dépôt • {kpiTotals.comptoirEmpty} comptoir
                 </span>
               </div>
-              <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-slate-900 group-hover:scale-110 transition-transform">
-                <Package size={80} />
-              </div>
             </div>
 
             {/* KPI: AVARIES */}
@@ -720,9 +714,6 @@ export default function DispatchStockPage() {
                 <span className="text-[10px] text-rose-600 font-semibold mt-0.5 block">
                   Nécessitent réparation / retour usine
                 </span>
-              </div>
-              <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-slate-900 group-hover:scale-110 transition-transform">
-                <AlertTriangle size={80} />
               </div>
             </div>
           </div>

@@ -399,13 +399,10 @@ export default function DispatchComptaPage() {
       {visibleWidgets.ledger && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-emerald-200/60 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-            <TrendingUp className="w-24 h-24 text-emerald-600" />
-          </div>
           <div className="relative z-10">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Recettes Totales (Inflows)</span>
             <span className="text-4xl font-black text-emerald-600 block tracking-tight">
-              {grandLedger.totalInflows.toLocaleString()} <span className="text-base text-emerald-400 font-bold">MAD</span>
+              {grandLedger.totalInflows.toLocaleString()} <span className="text-base text-slate-400 font-bold">MAD</span>
             </span>
           </div>
           <div className="mt-8 pt-4 border-t border-slate-100/50 flex justify-between text-xs text-slate-500 font-medium relative z-10">
@@ -415,13 +412,10 @@ export default function DispatchComptaPage() {
         </div>
 
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-rose-200/60 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-            <TrendingDown className="w-24 h-24 text-rose-600" />
-          </div>
           <div className="relative z-10">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Dépenses Totales (Outflows)</span>
-            <span className="text-4xl font-black text-rose-600 block tracking-tight">
-              {grandLedger.totalOutflows.toLocaleString()} <span className="text-base text-rose-400 font-bold">MAD</span>
+            <span className="text-4xl font-black text-slate-900 block tracking-tight">
+              {grandLedger.totalOutflows.toLocaleString()} <span className="text-base text-slate-400 font-bold">MAD</span>
             </span>
           </div>
           <div className="mt-8 pt-4 border-t border-slate-100/50 flex justify-between text-xs text-slate-500 font-medium relative z-10">
@@ -430,15 +424,10 @@ export default function DispatchComptaPage() {
           </div>
         </div>
 
-        <div className={`p-6 rounded-[2rem] border shadow-xl relative overflow-hidden flex flex-col justify-between group transition-all duration-300 ${
-          grandLedger.netBalance >= 0 ? 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-900 hover:shadow-slate-900/30 text-white border-slate-700/50' : 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-900 via-red-950 to-red-950 hover:shadow-red-900/30 text-white border-red-800/50'
-        }`}>
-          <div className={`absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none ${grandLedger.netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-             {grandLedger.netBalance >= 0 ? <TrendingUp className="w-24 h-24" /> : <TrendingDown className="w-24 h-24" />}
-          </div>
+        <div className="p-6 rounded-[2rem] border border-white/5 bg-sidebar text-white shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="relative z-10">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Trésorerie / Net Cash Flow</span>
-            <span className={`text-4xl font-black block tracking-tight ${grandLedger.netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`text-4xl font-black block tracking-tight ${grandLedger.netBalance >= 0 ? 'text-white' : 'text-red-300'}`}>
               {grandLedger.netBalance.toLocaleString()} <span className="text-base opacity-70 font-bold">MAD</span>
             </span>
           </div>

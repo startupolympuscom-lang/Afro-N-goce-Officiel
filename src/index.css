@@ -140,6 +140,134 @@
   --color-purple-900: #1A253A;
   --color-purple-950: #101828;
 
+  /* One restrained palette: brand blue and navy, with green, amber and red kept for status */
+  /* sky, cyan and teal follow the brand blue */
+  --color-sky-50: #EEF5FB;
+  --color-sky-100: #D9E9F6;
+  --color-sky-200: #B6D3EE;
+  --color-sky-300: #87B6E0;
+  --color-sky-400: #5094CF;
+  --color-sky-500: #2577BD;
+  --color-sky-600: #0B5C9C;
+  --color-sky-700: #094C84;
+  --color-sky-800: #0A3F6B;
+  --color-sky-900: #0C3558;
+  --color-sky-950: #08223B;
+  --color-cyan-50: #EEF5FB;
+  --color-cyan-100: #D9E9F6;
+  --color-cyan-200: #B6D3EE;
+  --color-cyan-300: #87B6E0;
+  --color-cyan-400: #5094CF;
+  --color-cyan-500: #2577BD;
+  --color-cyan-600: #0B5C9C;
+  --color-cyan-700: #094C84;
+  --color-cyan-800: #0A3F6B;
+  --color-cyan-900: #0C3558;
+  --color-cyan-950: #08223B;
+  --color-teal-50: #EEF5FB;
+  --color-teal-100: #D9E9F6;
+  --color-teal-200: #B6D3EE;
+  --color-teal-300: #87B6E0;
+  --color-teal-400: #5094CF;
+  --color-teal-500: #2577BD;
+  --color-teal-600: #0B5C9C;
+  --color-teal-700: #094C84;
+  --color-teal-800: #0A3F6B;
+  --color-teal-900: #0C3558;
+  --color-teal-950: #08223B;
+  /* violet, fuchsia and pink follow the navy */
+  --color-violet-50: #F2F5F9;
+  --color-violet-100: #E1E7EF;
+  --color-violet-200: #C4CFDD;
+  --color-violet-300: #9AABC2;
+  --color-violet-400: #6B81A0;
+  --color-violet-500: #4B6283;
+  --color-violet-600: #364C6C;
+  --color-violet-700: #2B3D58;
+  --color-violet-800: #223047;
+  --color-violet-900: #1A253A;
+  --color-violet-950: #101828;
+  --color-fuchsia-50: #F2F5F9;
+  --color-fuchsia-100: #E1E7EF;
+  --color-fuchsia-200: #C4CFDD;
+  --color-fuchsia-300: #9AABC2;
+  --color-fuchsia-400: #6B81A0;
+  --color-fuchsia-500: #4B6283;
+  --color-fuchsia-600: #364C6C;
+  --color-fuchsia-700: #2B3D58;
+  --color-fuchsia-800: #223047;
+  --color-fuchsia-900: #1A253A;
+  --color-fuchsia-950: #101828;
+  --color-pink-50: #F2F5F9;
+  --color-pink-100: #E1E7EF;
+  --color-pink-200: #C4CFDD;
+  --color-pink-300: #9AABC2;
+  --color-pink-400: #6B81A0;
+  --color-pink-500: #4B6283;
+  --color-pink-600: #364C6C;
+  --color-pink-700: #2B3D58;
+  --color-pink-800: #223047;
+  --color-pink-900: #1A253A;
+  --color-pink-950: #101828;
+  /* green and lime share one success green */
+  --color-green-50: oklch(97.9% 0.021 166.113);
+  --color-green-100: oklch(95% 0.052 163.051);
+  --color-green-200: oklch(90.5% 0.093 164.15);
+  --color-green-300: oklch(84.5% 0.143 164.978);
+  --color-green-400: oklch(76.5% 0.177 163.223);
+  --color-green-500: oklch(69.6% 0.17 162.48);
+  --color-green-600: oklch(59.6% 0.145 163.225);
+  --color-green-700: oklch(50.8% 0.118 165.612);
+  --color-green-800: oklch(43.2% 0.095 166.913);
+  --color-green-900: oklch(37.8% 0.077 168.94);
+  --color-green-950: oklch(26.2% 0.051 172.552);
+  --color-lime-50: oklch(97.9% 0.021 166.113);
+  --color-lime-100: oklch(95% 0.052 163.051);
+  --color-lime-200: oklch(90.5% 0.093 164.15);
+  --color-lime-300: oklch(84.5% 0.143 164.978);
+  --color-lime-400: oklch(76.5% 0.177 163.223);
+  --color-lime-500: oklch(69.6% 0.17 162.48);
+  --color-lime-600: oklch(59.6% 0.145 163.225);
+  --color-lime-700: oklch(50.8% 0.118 165.612);
+  --color-lime-800: oklch(43.2% 0.095 166.913);
+  --color-lime-900: oklch(37.8% 0.077 168.94);
+  --color-lime-950: oklch(26.2% 0.051 172.552);
+  /* orange and yellow share one warning amber */
+  --color-orange-50: oklch(98.7% 0.022 95.277);
+  --color-orange-100: oklch(96.2% 0.059 95.617);
+  --color-orange-200: oklch(92.4% 0.12 95.746);
+  --color-orange-300: oklch(87.9% 0.169 91.605);
+  --color-orange-400: oklch(82.8% 0.189 84.429);
+  --color-orange-500: oklch(76.9% 0.188 70.08);
+  --color-orange-600: oklch(66.6% 0.179 58.318);
+  --color-orange-700: oklch(55.5% 0.163 48.998);
+  --color-orange-800: oklch(47.3% 0.137 46.201);
+  --color-orange-900: oklch(41.4% 0.112 45.904);
+  --color-orange-950: oklch(27.9% 0.077 45.635);
+  --color-yellow-50: oklch(98.7% 0.022 95.277);
+  --color-yellow-100: oklch(96.2% 0.059 95.617);
+  --color-yellow-200: oklch(92.4% 0.12 95.746);
+  --color-yellow-300: oklch(87.9% 0.169 91.605);
+  --color-yellow-400: oklch(82.8% 0.189 84.429);
+  --color-yellow-500: oklch(76.9% 0.188 70.08);
+  --color-yellow-600: oklch(66.6% 0.179 58.318);
+  --color-yellow-700: oklch(55.5% 0.163 48.998);
+  --color-yellow-800: oklch(47.3% 0.137 46.201);
+  --color-yellow-900: oklch(41.4% 0.112 45.904);
+  --color-yellow-950: oklch(27.9% 0.077 45.635);
+  /* rose shares the danger red */
+  --color-rose-50: oklch(97.1% 0.013 17.38);
+  --color-rose-100: oklch(93.6% 0.032 17.717);
+  --color-rose-200: oklch(88.5% 0.062 18.334);
+  --color-rose-300: oklch(80.8% 0.114 19.571);
+  --color-rose-400: oklch(70.4% 0.191 22.216);
+  --color-rose-500: oklch(63.7% 0.237 25.331);
+  --color-rose-600: oklch(57.7% 0.245 27.325);
+  --color-rose-700: oklch(50.5% 0.213 27.518);
+  --color-rose-800: oklch(44.4% 0.177 26.899);
+  --color-rose-900: oklch(39.6% 0.141 25.723);
+  --color-rose-950: oklch(25.8% 0.092 26.042);
+
   /* Tighter corners than the shared tokens, so cards and fields read as a business tool */
   --radius-lg: 10px;
   --radius-xl: 12px;
@@ -147,6 +275,31 @@
 }
 .theme-dispatch :is(.rounded-\[2rem\], .rounded-\[24px\], .rounded-\[32px\], .rounded-\[40px\], .rounded-\[60px\]) {
   border-radius: 1rem;
+}
+/* Icon tiles (a tinted box holding only an icon) share the brand tint instead of a colour per card */
+.theme-dispatch :is(div, span):is(.bg-blue-50, .bg-blue-100, .bg-indigo-50, .bg-indigo-100, .bg-purple-50, .bg-purple-100, .bg-emerald-50, .bg-emerald-100, .bg-green-50, .bg-green-100, .bg-teal-50, .bg-teal-100, .bg-sky-50, .bg-sky-100, .bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100, .bg-amber-50, .bg-amber-100, .bg-orange-50, .bg-orange-100):is(.p-1\.5, .p-2, .p-2\.5, .p-3, .p-3\.5, .w-8, .w-9, .w-10, .w-11, .w-12, .w-14, .w-16, .w-20):has(> svg:only-child) {
+  background-color: var(--color-blue-50);
+  border-color: var(--color-blue-100);
+  color: var(--color-blue-600);
+}
+.theme-dispatch :is(div, span):is(.bg-blue-50, .bg-blue-100, .bg-indigo-50, .bg-indigo-100, .bg-purple-50, .bg-purple-100, .bg-emerald-50, .bg-emerald-100, .bg-green-50, .bg-green-100, .bg-teal-50, .bg-teal-100, .bg-sky-50, .bg-sky-100, .bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100, .bg-amber-50, .bg-amber-100, .bg-orange-50, .bg-orange-100):is(.p-1\.5, .p-2, .p-2\.5, .p-3, .p-3\.5, .w-8, .w-9, .w-10, .w-11, .w-12, .w-14, .w-16, .w-20):has(> svg:only-child) > svg {
+  color: inherit;
+}
+/* Solid buttons: brand blue for every action; red stays for destructive confirmations only */
+.theme-dispatch button:is(.bg-slate-800, .bg-slate-900, .bg-slate-950, .bg-emerald-500, .bg-emerald-600, .bg-green-500, .bg-green-600, .bg-teal-600, .bg-purple-600, .bg-amber-500, .bg-amber-600, .bg-orange-500, .bg-orange-600) {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.theme-dispatch button:is(.bg-slate-800, .bg-slate-900, .bg-slate-950, .bg-emerald-500, .bg-emerald-600, .bg-green-500, .bg-green-600, .bg-teal-600, .bg-purple-600, .bg-amber-500, .bg-amber-600, .bg-orange-500, .bg-orange-600):not(:disabled):hover {
+  background-color: var(--color-primary-hover);
+}
+/* Headline figures stay in ink (red still flags deficits); colour is for small status cues */
+.theme-dispatch :is(.text-xl, .text-2xl, .text-3xl, .text-4xl):is(.text-emerald-500, .text-emerald-600, .text-emerald-700, .text-green-500, .text-green-600, .text-green-700, .text-blue-600, .text-indigo-600, .text-purple-600, .text-amber-600, .text-orange-500, .text-orange-600) {
+  color: var(--color-slate-900);
+}
+.theme-dispatch h1 > svg {
+  color: var(--color-primary);
 }
 /* Pulsing is kept for live status dots only, not for static icons and buttons */
 .theme-dispatch :is(svg, button).animate-pulse {

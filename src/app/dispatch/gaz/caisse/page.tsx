@@ -562,7 +562,7 @@ export default function DispatchCaissePage() {
           </button>
           <button 
             onClick={() => setIsAddingExpense(true)}
-            className="h-10 px-3.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2 shadow-xs"
+            className="h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-xs"
           >
             <Plus className="w-4 h-4" />
             Sortie de caisse
@@ -736,7 +736,7 @@ export default function DispatchCaissePage() {
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-900/15 cursor-pointer"
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors cursor-pointer"
                 >
                   Valider la limite
                 </button>
@@ -749,9 +749,6 @@ export default function DispatchCaissePage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-            <ArrowDownRight className="w-24 h-24 text-emerald-600" />
-          </div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Entrées Globales</h3>
@@ -777,9 +774,6 @@ export default function DispatchCaissePage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-            <ArrowUpRight className="w-24 h-24 text-red-600" />
-          </div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Sorties (Dépenses)</h3>
@@ -792,9 +786,6 @@ export default function DispatchCaissePage() {
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest relative z-10">{expensesTodayCompany.length} opérations</p>
         </div>
         <div className="bg-white p-6 rounded-[2rem] border border-emerald-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-emerald-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-            <Wallet className="w-24 h-24 text-emerald-600" />
-          </div>
           <div>
             <div className="flex items-center justify-between mb-2 relative z-10">
               <h3 className="text-emerald-700 font-bold text-[10px] uppercase tracking-widest">Cash Disponible</h3>
@@ -816,9 +807,6 @@ export default function DispatchCaissePage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-[2rem] border border-indigo-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-indigo-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-            <Lock className="w-24 h-24 text-indigo-600" />
-          </div>
           <div className="flex items-center justify-between mb-2 relative z-10">
             <h3 className="text-indigo-700 font-bold text-[10px] uppercase tracking-widest">Caisse Sécuritaire</h3>
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
@@ -831,9 +819,6 @@ export default function DispatchCaissePage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-[2rem] border border-purple-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-purple-300/60 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 pointer-events-none">
-            <ShieldAlert className="w-24 h-24 text-purple-600" />
-          </div>
           <div className="flex items-center justify-between mb-2 relative z-10">
             <h3 className="text-purple-700 font-bold text-[10px] uppercase tracking-widest">Caisse Noir</h3>
             <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
@@ -901,7 +886,7 @@ export default function DispatchCaissePage() {
             </div>
             <div className="md:col-span-4 flex justify-end gap-3 pt-4 border-t border-slate-100">
               <button type="button" onClick={() => setIsAddingExpense(false)} className="px-6 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-all">Annuler</button>
-              <button type="submit" className="px-8 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/10">Enregistrer la sortie</button>
+              <button type="submit" className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors">Enregistrer la sortie</button>
             </div>
           </form>
         </div>
@@ -1452,7 +1437,7 @@ export default function DispatchCaissePage() {
               </button>
               <button 
                 onClick={() => window.print()}
-                className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-200 text-sm flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors text-sm flex items-center justify-center gap-2"
               >
                 <Printer className="w-5 h-5" />
                 Imprimer Ticket

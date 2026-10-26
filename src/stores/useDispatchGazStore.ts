@@ -262,11 +262,25 @@ export function generateMockLocationHistory() {
 
 export interface DashboardWidget {
   id: string;
-  type: 'stat' | 'chart' | 'ranking';
+  type: 'stat' | 'chart' | 'ranking' | 'stock' | 'table';
   title: string;
   visible: boolean;
   layout: { x: number, y: number, w: number, h: number };
 }
+
+// Saved dashboards only hold the widgets that existed when they were saved; the dashboard adds any missing ones from here.
+export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
+  { id: 'stat-daily', type: 'stat' as const, title: 'Ventes du jour', visible: true, layout: { x: 0, y: 0, w: 1, h: 2 } },
+  { id: 'stat-total', type: 'stat' as const, title: "Chiffre d'affaires", visible: true, layout: { x: 1, y: 0, w: 1, h: 2 } },
+  { id: 'stat-expenses', type: 'stat' as const, title: 'Dépenses', visible: true, layout: { x: 2, y: 0, w: 1, h: 2 } },
+  { id: 'stat-profit', type: 'stat' as const, title: 'Résultat net', visible: true, layout: { x: 3, y: 0, w: 1, h: 2 } },
+  { id: 'chart-evolution', type: 'chart' as const, title: "Évolution du chiffre d'affaires", visible: true, layout: { x: 0, y: 2, w: 2, h: 8 } },
+  { id: 'ranking-drivers', type: 'ranking' as const, title: 'Classement des chauffeurs', visible: true, layout: { x: 2, y: 2, w: 2, h: 8 } },
+  { id: 'chart-profit-exp', type: 'chart' as const, title: 'Résultat et dépenses', visible: true, layout: { x: 0, y: 10, w: 2, h: 8 } },
+  { id: 'chart-exp-evolution', type: 'chart' as const, title: 'Évolution des dépenses', visible: true, layout: { x: 2, y: 10, w: 2, h: 8 } },
+  { id: 'stock-overview', type: 'stock' as const, title: 'Stock dépôt', visible: true, layout: { x: 0, y: 18, w: 2, h: 7 } },
+  { id: 'recent-sales', type: 'table' as const, title: 'Dernières ventes', visible: true, layout: { x: 2, y: 18, w: 2, h: 7 } },
+];
 
 export interface DispatchAlert {
   id: string;
@@ -471,16 +485,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { driverId: '3', lat: 33.9021, lng: -5.5510, speed: 0, lastUpdate: new Date().toISOString() }
       ],
       locationHistory: generateMockLocationHistory(),
-      dashboardWidgets: [
-        { id: 'stat-daily', type: 'stat' as const, title: 'Ventes du jour', visible: true, layout: { x: 0, y: 0, w: 1, h: 2 } },
-        { id: 'stat-total', type: 'stat' as const, title: 'Ventes Totales', visible: true, layout: { x: 1, y: 0, w: 1, h: 2 } },
-        { id: 'stat-expenses', type: 'stat' as const, title: 'Dépenses', visible: true, layout: { x: 2, y: 0, w: 1, h: 2 } },
-        { id: 'stat-profit', type: 'stat' as const, title: 'Bénéfice', visible: true, layout: { x: 3, y: 0, w: 1, h: 2 } },
-        { id: 'chart-evolution', type: 'chart' as const, title: 'Évolution des Ventes', visible: true, layout: { x: 0, y: 2, w: 2, h: 8 } },
-        { id: 'ranking-drivers', type: 'ranking' as const, title: 'Classement Chauffeurs', visible: true, layout: { x: 2, y: 2, w: 2, h: 8 } },
-        { id: 'chart-profit-exp', type: 'chart' as const, title: 'Bénéfice vs Dépenses', visible: true, layout: { x: 0, y: 10, w: 2, h: 8 } },
-        { id: 'chart-exp-evolution', type: 'chart' as const, title: 'Évolution des Dépenses', visible: true, layout: { x: 2, y: 10, w: 2, h: 8 } },
-      ],
+      dashboardWidgets: DEFAULT_DASHBOARD_WIDGETS,
       alerts: [
         { id: 'alert-init-1', type: 'warning' as const, message: 'Niveau de stock bas - Zone 1', timestamp: new Date().toISOString() },
         { id: 'alert-init-2', type: 'info' as const, message: 'Nouveau client prospecté: Restaurant Oasis', timestamp: new Date().toISOString() }
