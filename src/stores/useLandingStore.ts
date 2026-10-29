@@ -23,7 +23,7 @@ export interface HistoryMilestone {
 
 export interface ProductImage {
   id: string;
-  brand: 'Butagaz' | 'Air Liquide';
+  brand: 'Butagaz' | 'Air Liquide' | 'Solaire';
   url: string;
   title?: string;
   description?: string;

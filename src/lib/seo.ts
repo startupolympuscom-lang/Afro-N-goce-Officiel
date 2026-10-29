@@ -7,7 +7,7 @@ export const SITE_NAME = 'AFRO Négoce';
 // Keep in sync with the static defaults in index.html (what crawlers see before JavaScript runs).
 export const HOME_TITLE = 'AFRO Négoce | Distributeur de gaz Butagaz & Air Liquide au Maroc';
 export const HOME_DESCRIPTION =
-  'Distributeur de gaz à Meknès : bouteilles Butagaz (butane, propane), gaz industriels et alimentaires Air Liquide, installation de réseaux de gaz et livraison partout au Maroc.';
+  'Distributeur de gaz à Meknès : bouteilles Butagaz, gaz industriels Air Liquide, réseaux de gaz et panneaux solaires (étude, fourniture, installation) partout au Maroc.';
 
 interface PageMeta {
   title: string;

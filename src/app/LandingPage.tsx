@@ -28,6 +28,10 @@ import { useLandingStore } from '../stores/useLandingStore';
 import { usePageMeta, SITE_URL, SITE_NAME, HOME_TITLE, HOME_DESCRIPTION } from '../lib/seo';
 import { formatPhoneMA, toInternationalPhoneMA } from '../lib/formatters';
 import { SiteLogo } from '../components/Logo';
+import { container, unsplashSrcSet, Reveal, Eyebrow, SectionHeading, btnPrimaryLook, btnPrimary, btnSecondary } from '../components/landing/shared';
+import { SolarSection, type SolarImageSlot } from '../components/landing/SolarSection';
+import { SolarSimulator } from '../components/landing/SolarSimulator';
+import { SolarQuoteModal, type SolarQuoteRequest } from '../components/landing/SolarQuoteModal';
 
 const PipelineSimulationModal = lazy(() =>
   import('../components/PipelineSimulationModal').then((m) => ({ default: m.PipelineSimulationModal })),
@@ -48,6 +52,7 @@ const NAV_ITEMS = [
   { id: 'solutions', label: 'Solutions' },
   { id: 'products', label: 'Produits' },
   { id: 'installation', label: 'Installation' },
+  { id: 'solaire', label: 'Solaire' },
   { id: 'news', label: 'Actualités' },
   { id: 'contact', label: 'Contact' },
 ];
@@ -100,8 +105,8 @@ const SOLUTIONS = [
   },
   {
     title: 'Solutions énergétiques',
-    subtitle: 'Des solutions innovantes pour une énergie plus propre.',
-    href: '#installation',
+    subtitle: 'Panneaux solaires : étude, fourniture et installation, avec ou sans batteries.',
+    href: '#solaire',
     img: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&q=80&w=800',
   },
   {
@@ -204,57 +209,6 @@ const INSTALLATION_FEATURES = [
 
 const SPEC_LABELS = { taille: 'Taille', pression: 'Pression', chapeau: 'Chapeau' } as const;
 
-const container = 'mx-auto w-full max-w-[1400px] px-5 sm:px-6 lg:px-10';
-
-// Unsplash serves any width on demand: let the browser pick the smallest adequate one.
-const unsplashSrcSet = (url: string, widths: number[]) =>
-  url.includes('images.unsplash.com') && /[?&]w=\d+/.test(url)
-    ? widths.map((w) => `${url.replace(/([?&])w=\d+/, `$1w=${w}`)} ${w}w`).join(', ')
-    : undefined;
-
-function Reveal({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-function Eyebrow({ children, centered = false }: { children: React.ReactNode; centered?: boolean }) {
-  return (
-    <p className={`flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-afro-blue ${centered ? 'justify-center' : ''}`}>
-      <span className="h-1.5 w-1.5 rounded-full bg-afro-green" aria-hidden="true" />
-      {children}
-    </p>
-  );
-}
-
-function SectionHeading({ id, eyebrow, title, highlight, lead, align = 'center' }: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  highlight?: string;
-  lead?: string;
-  align?: 'center' | 'left';
-}) {
-  const centered = align === 'center';
-  return (
-    <Reveal className={centered ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl'}>
-      <Eyebrow centered={centered}>{eyebrow}</Eyebrow>
-      <h2 id={id} className="mt-4 font-display text-3xl font-extrabold leading-[1.1] tracking-tight text-afro-ink md:text-4xl lg:text-[2.75rem]">
-        {title} {highlight && <span className="text-afro-blue">{highlight}</span>}
-      </h2>
-      {lead && <p className="mt-5 text-base leading-relaxed text-slate-600 md:text-lg">{lead}</p>}
-    </Reveal>
-  );
-}
-
 function PartnerLogo({ name, url }: { name: string; url: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
@@ -339,10 +293,6 @@ function NewsCard({ item }: { item: NewsItem }) {
   );
 }
 
-const btnPrimaryLook = 'items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-afro-blue text-sm font-semibold text-white shadow-[0_8px_24px_rgb(14,108,208,0.28)] transition-all hover:bg-afro-blue-dark hover:shadow-[0_10px_30px_rgb(14,108,208,0.35)]';
-const btnPrimary = `inline-flex h-12 px-6 ${btnPrimaryLook}`;
-const btnSecondary = 'inline-flex items-center justify-center gap-2 whitespace-nowrap h-12 rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-afro-ink transition-colors hover:border-afro-blue/40 hover:text-afro-blue';
-
 export default function LandingPage() {
   const {
     heroImage,
@@ -369,6 +319,7 @@ export default function LandingPage() {
   const [brandMascot, setBrandMascot] = useState<string | null>(null);
   const [isSimulationModalOpen, setIsSimulationModalOpen] = useState(false);
   const [isSimulatorLoaded, setIsSimulatorLoaded] = useState(false);
+  const [solarQuote, setSolarQuote] = useState<SolarQuoteRequest | null>(null);
 
   useEffect(() => {
     // The mascot managed in CMS > Identité stays local: a public visit must never write to the shared landing store.
@@ -433,6 +384,11 @@ export default function LandingPage() {
 
   const getProductImage = (id: string, defaultImage: string) =>
     productImages?.find((img) => img.id === id)?.url ?? defaultImage;
+  const solarImages = Object.fromEntries(
+    (['principal', 'industrie', 'agriculture', 'habitat'] as SolarImageSlot[])
+      .map((slot) => [slot, productImages?.find((img) => img.id === `solaire-${slot}`)?.url])
+      .filter(([, url]) => url),
+  ) as Partial<Record<SolarImageSlot, string>>;
 
   const phoneDisplay = formatPhoneMA(contactPhone);
   const phoneHref = `tel:${toInternationalPhoneMA(contactPhone)}`;
@@ -465,6 +421,14 @@ export default function LandingPage() {
       answer: "Oui. Nous concevons, réalisons et entretenons des réseaux de gaz industriels (inox, acier carbone, soudure TIG) et tertiaires (cuisines professionnelles, chaudières), avec électrovannes, détecteurs et systèmes de coupure d'urgence.",
     },
     {
+      question: 'Installez-vous des panneaux solaires ?',
+      answer: 'Oui. Nous concevons, fournissons et installons des systèmes photovoltaïques pour les sites industriels, les exploitations agricoles (pompage et irrigation solaires), les commerces, les bâtiments publics et les habitations, avec ou sans batteries. Estimez votre installation avec notre simulateur, puis demandez un devis.',
+    },
+    {
+      question: 'Faut-il des batteries avec des panneaux solaires ?',
+      answer: "Pas forcément. Sans batterie, les panneaux alimentent directement vos équipements en journée : c'est la solution la plus rentable pour les sites qui consomment surtout le jour. Les batteries stockent la production pour le soir et la nuit, et sont indispensables pour les sites isolés non raccordés au réseau.",
+    },
+    {
       question: "Quel est votre délai d'intervention ?",
       answer: "Notre service client répond en moins de 2 heures, du lundi au samedi de 8 h à 18 h, pour vos besoins d'approvisionnement comme pour les interventions techniques d'urgence.",
     },
@@ -491,7 +455,7 @@ export default function LandingPage() {
           opens: '08:00',
           closes: '18:00',
         }],
-        knowsAbout: ['Gaz butane', 'Gaz propane', 'Gaz industriels', 'Gaz alimentaires', 'Installation de réseaux de gaz'],
+        knowsAbout: ['Gaz butane', 'Gaz propane', 'Gaz industriels', 'Gaz alimentaires', 'Installation de réseaux de gaz', 'Panneaux solaires', 'Installation photovoltaïque', 'Pompage solaire', 'Batteries solaires'],
       },
       {
         '@type': 'WebSite',
@@ -675,8 +639,8 @@ export default function LandingPage() {
                   </span>
                 </h1>
                 <p className="mx-auto mt-6 max-w-[540px] text-lg leading-relaxed text-slate-600 lg:mx-0">
-                  AFRO Négoce fournit des solutions énergétiques fiables et durables : gaz LPG, gaz industriels et solutions
-                  énergétiques pour l'industrie et les professionnels.
+                  AFRO Négoce fournit des solutions énergétiques fiables et durables : gaz LPG, gaz industriels et panneaux
+                  solaires pour l'industrie, l'agriculture, les professionnels et les particuliers.
                 </p>
 
                 <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
@@ -824,6 +788,7 @@ export default function LandingPage() {
                       'Revendeur Butagaz : butane et propane pour les foyers et les professionnels',
                       'Gaz industriels et alimentaires de la gamme Air Liquide',
                       'Conception, installation et maintenance de réseaux de gaz',
+                      'Panneaux solaires : étude, fourniture et installation',
                       'Livraison réactive dans plus de 20 villes du Maroc',
                     ].map((point) => (
                       <li key={point} className="flex gap-3 text-slate-700">
@@ -1104,6 +1069,9 @@ export default function LandingPage() {
             </div>
           </section>
 
+          <SolarSection images={solarImages} onRequestQuote={(sector) => setSolarQuote({ sector })} />
+          <SolarSimulator onRequestQuote={(sector, summary) => setSolarQuote({ sector, summary })} />
+
           {/* News */}
           {news.length > 0 && (
             <section id="news" aria-labelledby="news-title" className="bg-afro-blue-50 py-20 lg:py-28">
@@ -1132,7 +1100,7 @@ export default function LandingPage() {
                   eyebrow="FAQ"
                   title="Questions"
                   highlight="fréquentes"
-                  lead="Tout ce qu'il faut savoir pour commander votre gaz ou lancer votre projet d'installation."
+                  lead="Tout ce qu'il faut savoir pour commander votre gaz ou lancer votre projet d'installation, gaz ou solaire."
                 />
                 <a href={phoneHref} className="mt-8 inline-flex items-center gap-3 rounded-xl bg-white px-5 py-3.5 font-semibold text-afro-ink shadow-sm ring-1 ring-slate-200/70 transition-colors hover:text-afro-blue">
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-afro-blue-50 text-afro-blue">
@@ -1232,7 +1200,7 @@ export default function LandingPage() {
               <div className="lg:col-span-4">
                 <SiteLogo size="lg" />
                 <p className="mt-5 max-w-sm leading-relaxed text-slate-600">
-                  Votre partenaire énergétique de confiance au Maroc. Distribution de gaz Butagaz et Air Liquide.
+                  Votre partenaire énergétique de confiance au Maroc. Distribution de gaz Butagaz et Air Liquide, énergie solaire.
                 </p>
                 <div className="mt-6 flex gap-3">
                   <a href={phoneHref} aria-label={`Appeler le ${phoneDisplay}`} className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-afro-blue shadow-sm ring-1 ring-slate-200/70 transition-colors hover:bg-afro-blue hover:text-white">
@@ -1261,6 +1229,7 @@ export default function LandingPage() {
                   <li><a href="#gamme-butagaz" className="transition-colors hover:text-afro-blue">Bouteilles de gaz Butagaz</a></li>
                   <li><a href="#gamme-air-liquide" className="transition-colors hover:text-afro-blue">Gaz industriels Air Liquide</a></li>
                   <li><a href="#installation" className="transition-colors hover:text-afro-blue">Installation de réseaux de gaz</a></li>
+                  <li><a href="#solaire" className="transition-colors hover:text-afro-blue">Panneaux solaires</a></li>
                   <li><Link to="/ecom" className="transition-colors hover:text-afro-blue">Pièces & matériel de gaz</Link></li>
                 </ul>
               </div>
@@ -1290,6 +1259,14 @@ export default function LandingPage() {
             </div>
           </div>
         </footer>
+
+        <SolarQuoteModal
+          request={solarQuote}
+          onClose={() => setSolarQuote(null)}
+          contactEmail={contactEmail}
+          phoneDisplay={phoneDisplay}
+          phoneHref={phoneHref}
+        />
 
         {isSimulatorLoaded && (
           <Suspense fallback={null}>
