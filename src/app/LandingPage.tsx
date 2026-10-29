@@ -1,28 +1,6 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'motion/react';
-import {
-  Phone,
-  Mail,
-  MapPin,
-  Clock,
-  CheckCircle2,
-  Check,
-  ArrowRight,
-  ShieldCheck,
-  ChevronDown,
-  Zap,
-  Leaf,
-  Activity,
-  Menu,
-  X,
-  Newspaper,
-  Headset,
-  Building2,
-  Factory,
-  Award,
-  Users,
-  HardHat,
-} from 'lucide-react';
+import { Phone, Mail, MapPin, Clock, ArrowRight, ChevronDown, Menu, X, Newspaper } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLandingStore } from '../stores/useLandingStore';
 import { usePageMeta, SITE_URL, SITE_NAME, HOME_TITLE, HOME_DESCRIPTION } from '../lib/seo';
@@ -74,20 +52,20 @@ const DEFAULT_PARTNERS = [
 ];
 
 const VALUES = [
-  { title: 'Fiabilité', desc: 'Des produits de qualité et un service fiable au quotidien.', icon: ShieldCheck },
-  { title: 'Sécurité', desc: 'La sécurité est au cœur de toutes nos opérations et engagements.', icon: CheckCircle2 },
-  { title: 'Performance', desc: 'Des solutions performantes pour optimiser vos processus industriels.', icon: Zap },
-  { title: 'Solutions durables', desc: 'Nous innovons pour une énergie plus propre et un avenir plus durable.', icon: Leaf },
-  { title: 'Proximité', desc: 'Un réseau de proximité pour être toujours plus proche de vous.', icon: MapPin },
-  { title: 'Accompagnement', desc: 'Nos experts vous accompagnent à chaque étape de vos projets.', icon: Headset },
+  { title: 'Fiabilité', desc: 'Des produits de qualité et un service fiable au quotidien.' },
+  { title: 'Sécurité', desc: 'La sécurité est au cœur de toutes nos opérations et engagements.' },
+  { title: 'Performance', desc: 'Des solutions performantes pour optimiser vos processus industriels.' },
+  { title: 'Solutions durables', desc: 'Nous innovons pour une énergie plus propre et un avenir plus durable.' },
+  { title: 'Proximité', desc: 'Un réseau de proximité pour être toujours plus proche de vous.' },
+  { title: 'Accompagnement', desc: 'Nos experts vous accompagnent à chaque étape de vos projets.' },
 ];
 
 const STATS = [
-  { value: '+15', label: "Années d'expertise", icon: Award },
-  { value: '+1\u00a0000', label: 'Clients satisfaits', icon: Users },
-  { value: '+20', label: 'Villes couvertes', icon: MapPin },
-  { value: '+50', label: 'Collaborateurs', icon: HardHat },
-  { value: '100%', label: 'Sécurité & qualité', icon: ShieldCheck },
+  { value: '+15', label: "Années d'expertise" },
+  { value: '+1\u00a0000', label: 'Clients satisfaits' },
+  { value: '+20', label: 'Villes couvertes' },
+  { value: '+50', label: 'Collaborateurs' },
+  { value: '100%', label: 'Sécurité & qualité' },
 ];
 
 const SOLUTIONS = [
@@ -202,9 +180,9 @@ const FOOD_GASES = [
 ];
 
 const INSTALLATION_FEATURES = [
-  { title: 'Réseaux industriels', desc: 'Réseaux en inox et acier carbone (soudure TIG), certifiés haute et basse pression.', icon: Factory },
-  { title: 'Secteur tertiaire', desc: 'Alimentation de cuisines professionnelles, chaudières, et réseaux cuivre/acier.', icon: Building2 },
-  { title: 'Systèmes de sécurité', desc: "Mise en place d'électrovannes, détecteurs et systèmes de coupure d'urgence.", icon: ShieldCheck },
+  { title: 'Réseaux industriels', desc: 'Réseaux en inox et acier carbone (soudure TIG), certifiés haute et basse pression.' },
+  { title: 'Secteur tertiaire', desc: 'Alimentation de cuisines professionnelles, chaudières, et réseaux cuivre/acier.' },
+  { title: 'Systèmes de sécurité', desc: "Mise en place d'électrovannes, détecteurs et systèmes de coupure d'urgence." },
 ];
 
 const SPEC_LABELS = { taille: 'Taille', pression: 'Pression', chapeau: 'Chapeau' } as const;
@@ -702,10 +680,7 @@ export default function LandingPage() {
                   <span className="block font-display text-3xl font-extrabold text-afro-blue">+20</span>
                   <span className="block text-xs font-medium text-slate-500">villes desservies</span>
                 </div>
-                <div className="flex items-center gap-3 rounded-2xl bg-white p-3.5 pr-5 shadow-[0_20px_50px_rgb(15,23,42,0.14)] ring-1 ring-slate-900/5 sm:absolute sm:-bottom-4 sm:-right-2">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-afro-green/20 text-afro-green-dark">
-                    <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-                  </span>
+                <div className="rounded-2xl bg-white px-5 py-4 shadow-[0_20px_50px_rgb(15,23,42,0.14)] ring-1 ring-slate-900/5 sm:absolute sm:-bottom-4 sm:-right-2">
                   <span className="text-left">
                     <span className="block text-xs font-medium text-slate-500">Partenaire officiel</span>
                     <span className="block font-display text-[15px] font-bold text-afro-ink">Butagaz & Air Liquide</span>
@@ -783,7 +758,7 @@ export default function LandingPage() {
                   <p className="mt-6 text-lg leading-relaxed text-slate-600">{aboutDescription}</p>
                 </Reveal>
                 <Reveal delay={0.1}>
-                  <ul className="mt-8 space-y-3.5">
+                  <ul className="mt-8 divide-y divide-slate-200 border-y border-slate-200">
                     {[
                       'Revendeur Butagaz : butane et propane pour les foyers et les professionnels',
                       'Gaz industriels et alimentaires de la gamme Air Liquide',
@@ -791,10 +766,7 @@ export default function LandingPage() {
                       'Panneaux solaires : étude, fourniture et installation',
                       'Livraison réactive dans plus de 20 villes du Maroc',
                     ].map((point) => (
-                      <li key={point} className="flex gap-3 text-slate-700">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-afro-green/20 text-afro-green-dark">
-                          <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
+                      <li key={point} className="py-3 text-slate-700">
                         {point}
                       </li>
                     ))}
@@ -813,14 +785,12 @@ export default function LandingPage() {
               <div>
                 <h3 className="sr-only">Nos engagements</h3>
                 <ul className="grid gap-4 sm:grid-cols-2">
-                  {VALUES.map(({ title, desc, icon: Icon }, i) => (
+                  {VALUES.map(({ title, desc }, i) => (
                     <li key={title}>
                       <Reveal delay={i * 0.05} className="h-full">
                         <div className="h-full rounded-2xl border border-slate-200/80 bg-white p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-afro-blue/25 hover:shadow-[0_20px_40px_rgb(14,108,208,0.1)]">
-                          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-afro-blue-50 text-afro-blue">
-                            <Icon className="h-5 w-5" aria-hidden="true" />
-                          </span>
-                          <h4 className="mt-5 font-display text-base font-bold text-afro-ink">{title}</h4>
+                          <span className="font-display text-sm font-bold text-afro-blue">{String(i + 1).padStart(2, '0')}</span>
+                          <h4 className="mt-3 font-display text-base font-bold text-afro-ink">{title}</h4>
                           <p className="mt-2 text-sm leading-relaxed text-slate-600">{desc}</p>
                         </div>
                       </Reveal>
@@ -842,9 +812,8 @@ export default function LandingPage() {
                 />
                 <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
                 <dl className="relative grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 lg:grid-cols-5 lg:divide-x lg:divide-white/15">
-                  {STATS.map(({ value, label, icon: Icon }, i) => (
+                  {STATS.map(({ value, label }, i) => (
                     <div key={label} className={`flex flex-col items-center text-center ${i === STATS.length - 1 ? 'col-span-2 md:col-span-1' : ''}`}>
-                      <Icon className="mb-3 h-6 w-6 text-afro-green" aria-hidden="true" />
                       <div className="flex flex-col-reverse">
                         <dt className="mt-1 text-sm text-white/80">{label}</dt>
                         <dd className="font-display text-4xl font-extrabold tracking-tight lg:text-5xl">{value}</dd>
@@ -1024,10 +993,7 @@ export default function LandingPage() {
                     referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-afro-navy/50 to-transparent" aria-hidden="true" />
-                  <div className="absolute bottom-5 left-5 flex items-center gap-3 rounded-2xl bg-white/95 p-3 pr-5 shadow-lg backdrop-blur">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-afro-green/20 text-afro-green-dark">
-                      <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                    </span>
+                  <div className="absolute bottom-5 left-5 rounded-2xl bg-white/95 px-5 py-3 shadow-lg backdrop-blur">
                     <span>
                       <span className="block text-xs font-medium text-slate-500">Qualité assurée</span>
                       <span className="block text-sm font-bold text-afro-ink">Certifié ISO 9001</span>
@@ -1047,12 +1013,9 @@ export default function LandingPage() {
                   sécurité, la rigueur technique et la conformité totale de vos installations.
                 </p>
 
-                <ul className="space-y-3">
-                  {INSTALLATION_FEATURES.map(({ title, desc, icon: Icon }) => (
-                    <li key={title} className="flex gap-4 rounded-2xl border border-slate-200/80 p-5 transition-all duration-300 hover:border-afro-blue/25 hover:shadow-[0_16px_40px_rgb(14,108,208,0.08)]">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-afro-blue-50 text-afro-blue">
-                        <Icon className="h-5 w-5" aria-hidden="true" />
-                      </span>
+                <ul className="divide-y divide-slate-200 border-y border-slate-200">
+                  {INSTALLATION_FEATURES.map(({ title, desc }) => (
+                    <li key={title} className="py-5">
                       <div>
                         <h4 className="mb-1 font-display font-bold text-afro-ink">{title}</h4>
                         <p className="text-sm leading-relaxed text-slate-600">{desc}</p>
@@ -1062,7 +1025,6 @@ export default function LandingPage() {
                 </ul>
 
                 <button type="button" onClick={openSimulator} className={`${btnPrimary} mt-8 w-full sm:w-auto`}>
-                  <Activity className="h-4 w-4" aria-hidden="true" />
                   Simulateur de capacité (pipeline)
                 </button>
               </Reveal>
@@ -1102,10 +1064,7 @@ export default function LandingPage() {
                   highlight="fréquentes"
                   lead="Tout ce qu'il faut savoir pour commander votre gaz ou lancer votre projet d'installation, gaz ou solaire."
                 />
-                <a href={phoneHref} className="mt-8 inline-flex items-center gap-3 rounded-xl bg-white px-5 py-3.5 font-semibold text-afro-ink shadow-sm ring-1 ring-slate-200/70 transition-colors hover:text-afro-blue">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-afro-blue-50 text-afro-blue">
-                    <Phone className="h-4 w-4" aria-hidden="true" />
-                  </span>
+                <a href={phoneHref} className="mt-8 inline-flex rounded-xl bg-white px-5 py-3.5 font-semibold text-afro-ink shadow-sm ring-1 ring-slate-200/70 transition-colors hover:text-afro-blue">
                   <span className="text-left">
                     <span className="block text-xs font-medium text-slate-500">Une autre question ?</span>
                     {phoneDisplay}
@@ -1167,9 +1126,6 @@ export default function LandingPage() {
                   </div>
 
                   <div className="w-full max-w-sm shrink-0 rounded-2xl bg-white p-8 shadow-2xl">
-                    <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-afro-blue-50 text-afro-blue">
-                      <Headset className="h-7 w-7" aria-hidden="true" />
-                    </span>
                     <h3 className="mb-5 font-display text-xl font-bold text-afro-ink">Service client</h3>
                     <ul className="space-y-4 text-sm text-slate-600">
                       <li className="flex gap-3">
@@ -1183,8 +1139,8 @@ export default function LandingPage() {
                         </a>
                       </li>
                     </ul>
-                    <p className="mt-6 flex items-center gap-2 rounded-xl bg-afro-green/15 px-4 py-2.5 text-sm font-semibold text-afro-green-dark">
-                      <Zap className="h-4 w-4" aria-hidden="true" /> Temps de réponse &lt; 2 h
+                    <p className="mt-6 rounded-xl bg-afro-green/15 px-4 py-2.5 text-sm font-semibold text-afro-green-dark">
+                      Temps de réponse &lt; 2 h
                     </p>
                   </div>
                 </div>

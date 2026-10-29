@@ -1,5 +1,4 @@
 import React, { useId, useMemo, useState } from 'react';
-import { BatteryCharging, Factory, FileText, House, Info, Leaf, Minus, Plus, RotateCcw, Store, Tractor, PlugZap, type LucideIcon } from 'lucide-react';
 import { container, Reveal, SectionHeading } from './shared';
 import { SEGMENT_SECTOR } from './solarContent';
 import {
@@ -18,7 +17,12 @@ export interface SummaryLine {
   value: string;
 }
 
-const SEGMENT_ICONS: Record<SolarSegment, LucideIcon> = { habitat: House, tertiaire: Store, industrie: Factory, agriculture: Tractor };
+const SEGMENT_EXAMPLES: Record<SolarSegment, string> = {
+  habitat: 'Villa, maison, appartement',
+  tertiaire: 'Boutique, bureaux, hôtel',
+  industrie: 'Usine, entrepôt, atelier',
+  agriculture: 'Irrigation, serre, élevage',
+};
 const MAX_PANELS = 5000;
 
 const nf = (value: number, digits = 0) => value.toLocaleString('fr-FR', { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -28,6 +32,14 @@ const fieldLabel = 'flex items-center gap-2.5 font-display text-[15px] font-bold
 const stepBadge = 'flex h-6 w-6 items-center justify-center rounded-full bg-afro-blue text-xs font-bold text-white';
 const optionBase = 'relative flex cursor-pointer rounded-xl border bg-white transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-afro-blue/40';
 const optionState = (checked: boolean) => (checked ? 'border-afro-blue bg-afro-blue-50/60 shadow-[0_6px_20px_rgb(14,108,208,0.12)]' : 'border-slate-200 hover:border-afro-blue/40');
+function RadioDot({ checked }: { checked: boolean }) {
+  return (
+    <span className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 ${checked ? 'border-afro-blue' : 'border-slate-300'}`} aria-hidden="true">
+      {checked && <span className="h-2 w-2 rounded-full bg-afro-blue" />}
+    </span>
+  );
+}
+
 const segmentedBtn = (active: boolean) =>
   `flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${active ? 'bg-white text-afro-blue shadow-sm' : 'text-slate-500 hover:text-afro-ink'}`;
 
@@ -138,17 +150,17 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
             {/* 1. Site */}
             <fieldset>
               <legend className={fieldLabel}><span className={stepBadge}>1</span> Type de site</legend>
-              <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {(Object.keys(SEGMENT_PROFILES) as SolarSegment[]).map((key) => {
-                  const Icon = SEGMENT_ICONS[key];
                   const checked = segment === key;
                   return (
-                    <label key={key} className={`${optionBase} ${optionState(checked)} flex-col items-start gap-3 p-4`}>
+                    <label key={key} className={`${optionBase} ${optionState(checked)} items-start gap-3 p-4`}>
                       <input type="radio" name={`${uid}-segment`} value={key} checked={checked} onChange={() => chooseSegment(key)} className="sr-only" />
-                      <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${checked ? 'bg-afro-blue text-white' : 'bg-afro-blue-50 text-afro-blue'}`}>
-                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      <RadioDot checked={checked} />
+                      <span>
+                        <span className="block text-sm font-semibold leading-snug text-afro-ink">{SEGMENT_PROFILES[key].label}</span>
+                        <span className="mt-1 block text-xs leading-snug text-slate-500">{SEGMENT_EXAMPLES[key]}</span>
                       </span>
-                      <span className="text-sm font-semibold leading-snug text-afro-ink">{SEGMENT_PROFILES[key].label}</span>
                     </label>
                   );
                 })}
@@ -219,12 +231,12 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
               <legend className={fieldLabel}><span className={stepBadge}>4</span> Besoin de batteries ?</legend>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {([
-                  { key: false, title: 'Sans batterie', desc: 'Autoconsommation en journée, raccordé au réseau.', icon: PlugZap },
-                  { key: true, title: 'Avec batteries', desc: 'Électricité le soir et la nuit, ou site isolé.', icon: BatteryCharging },
-                ] as const).map(({ key, title, desc, icon: Icon }) => {
+                  { key: false, title: 'Sans batterie', desc: 'Autoconsommation en journée, raccordé au réseau.' },
+                  { key: true, title: 'Avec batteries', desc: 'Électricité le soir et la nuit, ou site isolé.' },
+                ] as const).map(({ key, title, desc }) => {
                   const checked = (batteryMode !== 'none') === key;
                   return (
-                    <label key={title} className={`${optionBase} ${optionState(checked)} items-start gap-3.5 p-4`}>
+                    <label key={title} className={`${optionBase} ${optionState(checked)} items-start gap-3 p-4`}>
                       <input
                         type="radio"
                         name={`${uid}-battery`}
@@ -232,9 +244,7 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
                         onChange={() => { setBatteryMode(key ? 'night' : 'none'); setPanelsOverride(null); }}
                         className="sr-only"
                       />
-                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${checked ? 'bg-afro-blue text-white' : 'bg-afro-blue-50 text-afro-blue'}`}>
-                        <Icon className="h-5 w-5" aria-hidden="true" />
-                      </span>
+                      <RadioDot checked={checked} />
                       <span>
                         <span className="block text-sm font-semibold text-afro-ink">{title}</span>
                         <span className="mt-0.5 block text-sm leading-snug text-slate-500">{desc}</span>
@@ -275,7 +285,7 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
                     aria-label="Retirer un panneau"
                     className="flex h-11 w-11 items-center justify-center rounded-lg text-afro-ink transition-colors hover:bg-slate-100 disabled:opacity-40"
                   >
-                    <Minus className="h-4 w-4" aria-hidden="true" />
+                    <span className="text-xl leading-none" aria-hidden="true">−</span>
                   </button>
                   <label htmlFor={`${uid}-panels`} className="sr-only">Nombre de panneaux</label>
                   <input
@@ -295,7 +305,7 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
                     aria-label="Ajouter un panneau"
                     className="flex h-11 w-11 items-center justify-center rounded-lg text-afro-ink transition-colors hover:bg-slate-100 disabled:opacity-40"
                   >
-                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span className="text-xl leading-none" aria-hidden="true">+</span>
                   </button>
                 </div>
                 <div className="text-sm">
@@ -306,9 +316,9 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
                     <button
                       type="button"
                       onClick={() => setPanelsOverride(null)}
-                      className="mt-1 inline-flex items-center gap-1.5 font-semibold text-afro-blue hover:text-afro-blue-dark"
+                      className="mt-1 font-semibold text-afro-blue hover:text-afro-blue-dark"
                     >
-                      <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Revenir à la recommandation
+                      Revenir à la recommandation
                     </button>
                   )}
                 </div>
@@ -318,7 +328,7 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
             <details className="group rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
               <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
                 Hypothèses de calcul
-                <Plus className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-45" aria-hidden="true" />
+                <span className="text-lg leading-none text-slate-400 transition-transform group-open:rotate-45" aria-hidden="true">+</span>
               </summary>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
@@ -356,10 +366,10 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
               href="#resultats-simulation"
               className="sticky bottom-4 flex items-center justify-between gap-3 rounded-2xl bg-afro-navy px-4 py-3 text-white shadow-[0_16px_40px_rgb(11,31,58,0.35)] lg:hidden"
             >
-              <span className="text-sm">
+              <span className="whitespace-nowrap text-sm">
                 <span className="font-display text-lg font-bold">{recommended}</span> panneau{recommended > 1 ? 'x' : ''} · {coveragePct} % couverts
               </span>
-              <span className="text-sm font-semibold text-afro-green">Voir les résultats</span>
+              <span className="whitespace-nowrap text-sm font-semibold text-afro-green">Résultats ↓</span>
             </a>
           </form>
 
@@ -411,14 +421,12 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
                 ))}
               </dl>
 
-              <p className="mt-4 flex items-center gap-2 text-sm text-white/75">
-                <Leaf className="h-4 w-4 text-afro-green" aria-hidden="true" />
-                ≈ {nf(result.co2Tonnes, result.co2Tonnes < 10 ? 1 : 0)} t de CO₂ évitées par an
+              <p className="mt-4 text-sm text-white/75">
+                <span className="font-semibold text-afro-green">≈ {nf(result.co2Tonnes, result.co2Tonnes < 10 ? 1 : 0)} t de CO₂</span> évitées par an
               </p>
 
               {notice && (
-                <p className="mt-5 flex gap-2.5 rounded-xl bg-white/10 p-3.5 text-sm leading-relaxed text-white/85">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#FFD27A]" aria-hidden="true" />
+                <p className="mt-5 border-l-2 border-[#FFD27A] bg-white/[0.06] py-3 pl-4 pr-3 text-sm leading-relaxed text-white/85">
                   {notice}
                 </p>
               )}
@@ -428,7 +436,7 @@ export function SolarSimulator({ onRequestQuote }: { onRequestQuote: (sector: st
                 onClick={requestQuote}
                 className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-6 text-sm font-semibold text-afro-navy shadow-lg transition-all hover:-translate-y-0.5 hover:bg-afro-blue-50"
               >
-                <FileText className="h-4 w-4" aria-hidden="true" /> Recevoir un devis pour cette configuration
+                Recevoir un devis pour cette configuration
               </button>
               <p className="mt-4 text-xs leading-relaxed text-white/55">
                 Estimation indicative. Le dimensionnement définitif est établi après étude de votre site par nos techniciens.

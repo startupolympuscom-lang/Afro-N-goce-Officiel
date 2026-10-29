@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CheckCircle2, Copy, Mail, Phone, Sun, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { btnPrimary, btnSecondary } from './shared';
 import { SOLAR_SECTOR_OPTIONS } from './solarContent';
 import type { SummaryLine } from './SolarSimulator';
@@ -127,14 +127,9 @@ function QuoteDialog({ request, onClose, contactEmail, phoneDisplay, phoneHref }
         className="relative flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl sm:rounded-[1.75rem]"
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6 sm:px-8">
-          <div className="flex items-center gap-3.5">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FEF3D7] text-[#B7791F]">
-              <Sun className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 id={`${uid}-title`} className="font-display text-xl font-bold text-afro-ink">Demande de devis solaire</h2>
-              <p className="text-sm text-slate-500">Étude, fourniture et installation</p>
-            </div>
+          <div>
+            <h2 id={`${uid}-title`} className="font-display text-xl font-bold text-afro-ink">Demande de devis solaire</h2>
+            <p className="mt-0.5 text-sm text-slate-500">Étude, fourniture et installation</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fermer" className="-mr-2 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-afro-ink">
             <X className="h-5 w-5" aria-hidden="true" />
@@ -144,10 +139,7 @@ function QuoteDialog({ request, onClose, contactEmail, phoneDisplay, phoneHref }
         <div className="overflow-y-auto p-6 sm:px-8">
           {sentText ? (
             <div className="py-2 text-center">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-afro-green/20 text-afro-green-dark">
-                <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
-              </span>
-              <h3 className="mt-5 font-display text-lg font-bold text-afro-ink">Votre demande est prête</h3>
+              <h3 className="font-display text-lg font-bold text-afro-ink">Votre demande est prête</h3>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
                 Votre messagerie s'est ouverte avec la demande adressée à <span className="font-semibold text-afro-ink">{contactEmail}</span>.
                 Envoyez le message : notre équipe vous recontacte pour étudier votre projet.
@@ -156,10 +148,10 @@ function QuoteDialog({ request, onClose, contactEmail, phoneDisplay, phoneHref }
                 <p className="text-sm font-semibold text-afro-ink">Votre messagerie ne s'est pas ouverte ?</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button type="button" onClick={copyRequest} className={`${btnSecondary} h-11 px-4`}>
-                    <Copy className="h-4 w-4 text-afro-blue" aria-hidden="true" /> {copied ? 'Demande copiée' : 'Copier la demande'}
+                    {copied ? 'Demande copiée' : 'Copier la demande'}
                   </button>
                   <a href={phoneHref} className={`${btnSecondary} h-11 px-4`}>
-                    <Phone className="h-4 w-4 text-afro-blue" aria-hidden="true" /> {phoneDisplay}
+                    Appeler le {phoneDisplay}
                   </a>
                 </div>
               </div>
@@ -221,7 +213,7 @@ function QuoteDialog({ request, onClose, contactEmail, phoneDisplay, phoneHref }
               {error && <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-700">{error}</p>}
 
               <button type="submit" className={`${btnPrimary} w-full`}>
-                <Mail className="h-4 w-4" aria-hidden="true" /> Envoyer ma demande
+                Envoyer ma demande
               </button>
               <p className="text-center text-xs text-slate-500">
                 La demande s'ouvre dans votre messagerie, adressée à {contactEmail}. Vous pouvez aussi nous appeler au{' '}

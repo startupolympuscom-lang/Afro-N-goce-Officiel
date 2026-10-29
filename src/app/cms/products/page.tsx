@@ -39,7 +39,7 @@ export default function CMSProductsPage() {
   const imageGroups = [
     { brand: 'Butagaz' as const, title: 'Butagaz', hint: '' },
     { brand: 'Air Liquide' as const, title: 'Air Liquide', hint: '' },
-    { brand: 'Solaire' as const, title: 'Énergie solaire', hint: "Sans photo, la page d'accueil affiche les illustrations AFRO Négoce. Format paysage conseillé." },
+    { brand: 'Solaire' as const, title: 'Énergie solaire', hint: "Photos affichées dans la section solaire de la page d'accueil. Format paysage conseillé." },
   ];
 
   const handleFileUpload = (productId: string, file: File) => {
