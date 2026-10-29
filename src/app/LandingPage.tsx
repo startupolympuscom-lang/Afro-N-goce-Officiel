@@ -8,6 +8,7 @@ import { formatPhoneMA, toInternationalPhoneMA } from '../lib/formatters';
 import { SiteLogo } from '../components/Logo';
 import { container, unsplashSrcSet, Reveal, Eyebrow, SectionHeading, btnPrimaryLook, btnPrimary, btnSecondary } from '../components/landing/shared';
 import { SolarSection, type SolarImageSlot } from '../components/landing/SolarSection';
+import { PartnersSection } from '../components/landing/PartnersSection';
 import { SolarSimulator } from '../components/landing/SolarSimulator';
 import { SolarQuoteModal, type SolarQuoteRequest } from '../components/landing/SolarQuoteModal';
 
@@ -43,14 +44,6 @@ const LEGACY_HERO_IMAGES = ['photo-1516937941344-00b4e0337589', 'photo-154274417
 // The artwork's backdrop is off-white: fade its edges so no rectangle shows against the hero background.
 const HERO_EDGE_MASK = 'linear-gradient(to right, transparent, #000 5%, #000 96%, transparent), linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent)';
 const DEFAULT_MASCOT = 'https://static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_0.png';
-const DEFAULT_PARTNERS = [
-  { id: 'butagaz', name: 'Butagaz', url: 'https://upload.wikimedia.org/wikipedia/fr/thumb/3/3d/Logo_Butagaz.svg/1200px-Logo_Butagaz.svg.png' },
-  { id: 'air-liquide', name: 'Air Liquide', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Air_Liquide_logo.svg/2560px-Air_Liquide_logo.svg.png' },
-  { id: 'campingaz', name: 'Campingaz', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Campingaz_logo.svg/2560px-Campingaz_logo.svg.png' },
-  { id: 'gurtner', name: 'Gurtner', url: 'https://logo.clearbit.com/gurtner.fr' },
-  { id: 'nurgaz', name: 'Nurgaz', url: 'https://logo.clearbit.com/nurgaz.com.tr' },
-];
-
 const VALUES = [
   { title: 'Fiabilité', desc: 'Des produits de qualité et un service fiable au quotidien.' },
   { title: 'Sécurité', desc: 'La sécurité est au cœur de toutes nos opérations et engagements.' },
@@ -186,24 +179,6 @@ const INSTALLATION_FEATURES = [
 ];
 
 const SPEC_LABELS = { taille: 'Taille', pression: 'Pression', chapeau: 'Chapeau' } as const;
-
-function PartnerLogo({ name, url }: { name: string; url: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
-  return (
-    <li>
-      <img
-        src={url}
-        alt={`Logo ${name}`}
-        loading="lazy"
-        decoding="async"
-        onError={() => setFailed(true)}
-        className="h-7 w-auto max-w-[150px] object-contain opacity-50 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0 md:h-9"
-        referrerPolicy="no-referrer"
-      />
-    </li>
-  );
-}
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   return (
@@ -374,7 +349,6 @@ export default function LandingPage() {
   const hasCustomHero = !!heroImage && heroImage !== HERO_IMAGE && !LEGACY_HERO_IMAGES.some((id) => heroImage.includes(id));
   const heroSrc = hasCustomHero ? heroImage : HERO_IMAGE;
   const heroGases = (heroSubtitle || '').split(/[,·]/).map((s) => s.trim()).filter(Boolean);
-  const partners = partnerLogos.length > 0 ? partnerLogos : DEFAULT_PARTNERS;
   const navItems = news.length > 0 ? NAV_ITEMS : NAV_ITEMS.filter((item) => item.id !== 'news');
 
   const faqs = useMemo(() => [
@@ -616,12 +590,7 @@ export default function LandingPage() {
                     <span className="bg-gradient-to-r from-afro-blue to-[#2E8BEA] bg-clip-text text-transparent">les solutions pour demain.</span>
                   </span>
                 </h1>
-                <p className="mx-auto mt-6 max-w-[540px] text-lg leading-relaxed text-slate-600 lg:mx-0">
-                  AFRO Négoce fournit des solutions énergétiques fiables et durables : gaz LPG, gaz industriels et panneaux
-                  solaires pour l'industrie, l'agriculture, les professionnels et les particuliers.
-                </p>
-
-                <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
+                <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
                   <a href="#solutions" className={btnPrimary}>
                     Découvrir nos solutions <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </a>
@@ -674,32 +643,32 @@ export default function LandingPage() {
                     />
                   </>
                 )}
-                {/* Stacked under the image on phones, floating over its empty corners from sm up */}
-                <div className="mt-5 grid grid-cols-[auto_1fr] gap-3 sm:contents">
-                <div className="rounded-2xl bg-white px-5 py-4 text-left shadow-[0_20px_50px_rgb(15,23,42,0.14)] ring-1 ring-slate-900/5 sm:absolute sm:-left-4 sm:-top-6 lg:-top-10">
-                  <span className="block font-display text-3xl font-extrabold text-afro-blue">+20</span>
-                  <span className="block text-xs font-medium text-slate-500">villes desservies</span>
-                </div>
-                <div className="rounded-2xl bg-white px-5 py-4 shadow-[0_20px_50px_rgb(15,23,42,0.14)] ring-1 ring-slate-900/5 sm:absolute sm:-bottom-4 sm:-right-2">
-                  <span className="text-left">
-                    <span className="block text-xs font-medium text-slate-500">Partenaire officiel</span>
-                    <span className="block font-display text-[15px] font-bold text-afro-ink">Butagaz & Air Liquide</span>
-                  </span>
-                </div>
-                </div>
               </div>
             </div>
           </section>
 
-          {/* Partners */}
-          <section aria-label="Nos marques partenaires" className="border-y border-slate-100 bg-white py-10">
-            <div className={`${container} flex flex-col items-center gap-8 lg:flex-row lg:gap-16`}>
-              <p className="shrink-0 text-sm font-medium text-slate-500">Nos marques partenaires</p>
-              <ul className="flex flex-1 flex-wrap items-center justify-center gap-x-12 gap-y-6 lg:justify-around">
-                {partners.map((logo) => <PartnerLogo key={logo.id} name={logo.name} url={logo.url} />)}
-              </ul>
-            </div>
+          {/* Company statement */}
+          <section aria-labelledby="presentation-title" className="border-t border-slate-100 bg-white py-20 lg:py-24">
+            <Reveal className={`${container} grid gap-6 lg:grid-cols-[0.8fr_2fr] lg:gap-16`}>
+              <h2 id="presentation-title" className="flex items-center gap-2.5 self-start text-xs font-semibold uppercase tracking-[0.18em] text-afro-blue lg:pt-3">
+                <span className="h-1.5 w-1.5 rounded-full bg-afro-green" aria-hidden="true" />
+                AFRO Négoce en bref
+              </h2>
+              <div>
+                <p className="font-display text-2xl font-semibold leading-snug tracking-tight text-afro-ink md:text-3xl lg:text-[2.15rem] lg:leading-[1.3]">
+                  AFRO Négoce fournit des solutions énergétiques fiables et durables :{' '}
+                  <span className="text-afro-blue">gaz LPG, gaz industriels et panneaux solaires</span> pour l'industrie,
+                  l'agriculture, les professionnels et les particuliers.
+                </p>
+                <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-sm font-semibold">
+                  <a href="#solutions" className="text-afro-blue transition-colors hover:text-afro-blue-dark">Découvrir nos solutions →</a>
+                  <Link to="/notre-histoire" className="text-afro-blue transition-colors hover:text-afro-blue-dark">Notre histoire →</Link>
+                </div>
+              </div>
+            </Reveal>
           </section>
+
+          <PartnersSection brandLogos={partnerLogos} />
 
           {/* Solutions */}
           <section id="solutions" aria-labelledby="solutions-title" className="bg-afro-blue-50 py-20 lg:py-28">
