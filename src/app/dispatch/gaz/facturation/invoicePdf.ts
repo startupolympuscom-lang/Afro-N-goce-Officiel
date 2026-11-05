@@ -1,17 +1,14 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Company letterhead, a full A4 page (public/images/documents). Invoices are printed on top of it.
-export const LETTERHEAD_URL = '/images/documents/papier-en-tete.jpg';
-
 const PAGE_W = 210;
 const PAGE_H = 297;
-// Free area of the letterhead: below the header rule (57 mm) and above the footer rule (272 mm).
-const CONTENT_TOP = 66;
-const CONTENT_BOTTOM = 262;
 const MARGIN_X = 18;
+// Free area of a full-page letterhead image (header rule at 57 mm, footer rule at 272 mm)...
+const LETTERHEAD_AREA = { top: 66, bottom: 262 };
+// ...and of the header drawn for a company without one.
+const DRAWN_AREA = { top: 52, bottom: 270 };
 
-const TEAL: [number, number, number] = [0, 125, 115];
 const INK: [number, number, number] = [10, 28, 32];
 const MUTED: [number, number, number] = [100, 116, 139];
 
@@ -22,7 +19,19 @@ export interface InvoiceLine {
   total: number;
 }
 
+export interface InvoiceIssuer {
+  name: string;
+  /** Full A4 letterhead image (public/images/documents); without one a header is drawn. */
+  letterheadUrl?: string;
+  tagline?: string;
+  /** Contact lines for the drawn header. */
+  details: string[];
+  color: [number, number, number];
+  accent: [number, number, number];
+}
+
 export interface InvoiceInput {
+  issuer: InvoiceIssuer;
   client: { name: string; address?: string; city?: string; ice?: string; code?: string };
   /** Billing period, e.g. "NOVEMBRE 2026". */
   periodLabel: string;
@@ -38,9 +47,11 @@ export const formatAmount = (value: number) => {
   return `${value < 0 ? '-' : ''}${int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')},${dec}`;
 };
 
-let letterheadData: Promise<string> | null = null;
-function loadLetterhead() {
-  letterheadData ??= fetch(LETTERHEAD_URL)
+const letterheads = new Map<string, Promise<string>>();
+function loadLetterhead(url: string) {
+  const cached = letterheads.get(url);
+  if (cached) return cached;
+  const loading = fetch(url)
     .then((res) => {
       if (!res.ok) throw new Error(`Papier en-tête introuvable (${res.status})`);
       return res.blob();
@@ -52,21 +63,57 @@ function loadLetterhead() {
       reader.readAsDataURL(blob);
     }))
     .catch((error) => {
-      letterheadData = null;
+      letterheads.delete(url);
       throw error;
     });
-  return letterheadData;
+  letterheads.set(url, loading);
+  return loading;
+}
+
+function drawHeader(doc: jsPDF, issuer: InvoiceIssuer) {
+  const width = PAGE_W - 2 * MARGIN_X;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(...issuer.color);
+  doc.text(issuer.name, MARGIN_X, 24);
+  if (issuer.tagline) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text(issuer.tagline, MARGIN_X, 30);
+  }
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(71, 85, 105);
+  let y = 17;
+  issuer.details.slice(0, 5).forEach((detail) => {
+    doc.text(doc.splitTextToSize(detail, 78)[0], PAGE_W - MARGIN_X, y, { align: 'right' });
+    y += 4.4;
+  });
+  doc.setFillColor(...issuer.color);
+  doc.rect(MARGIN_X, 41, width * 0.62, 0.9, 'F');
+  doc.setFillColor(...issuer.accent);
+  doc.rect(MARGIN_X + width * 0.62, 41, width * 0.38, 0.9, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN_X, 279, PAGE_W - MARGIN_X, 279);
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text(issuer.name, PAGE_W / 2, 285, { align: 'center' });
 }
 
 export async function buildInvoicePdf(input: InvoiceInput) {
-  const letterhead = await loadLetterhead();
+  const { issuer } = input;
+  const letterhead = issuer.letterheadUrl ? await loadLetterhead(issuer.letterheadUrl) : null;
+  const { top: CONTENT_TOP, bottom: CONTENT_BOTTOM } = letterhead ? LETTERHEAD_AREA : DRAWN_AREA;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const decorated = new Set<number>();
   const decoratePage = () => {
     const page = doc.getCurrentPageInfo().pageNumber;
     if (decorated.has(page)) return;
     decorated.add(page);
-    doc.addImage(letterhead, 'JPEG', 0, 0, PAGE_W, PAGE_H, 'letterhead', 'FAST');
+    if (letterhead) doc.addImage(letterhead, 'JPEG', 0, 0, PAGE_W, PAGE_H, 'letterhead', 'FAST');
+    else drawHeader(doc, issuer);
   };
   decoratePage();
 
@@ -126,7 +173,7 @@ export async function buildInvoicePdf(input: InvoiceInput) {
     showHead: 'everyPage',
     showFoot: 'lastPage',
     styles: { font: 'helvetica', fontSize: 9.5, cellPadding: 3, textColor: INK, lineColor: [226, 232, 240], lineWidth: 0.2 },
-    headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+    headStyles: { fillColor: issuer.color, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fillColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [247, 250, 250] },
     footStyles: { fillColor: [255, 255, 255], textColor: INK, fontStyle: 'bold', fontSize: 11 },
