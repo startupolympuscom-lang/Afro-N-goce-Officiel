@@ -94,7 +94,7 @@ export const useLandingStore = create<LandingState>()(
       
       servicesTitle: "Installation de gaz Pipeline",
       servicesDescription: "Conception et réalisation de réseaux fluides haute performance. Une synergie entre sécurité absolue et maîtrise technique.",
-      pipelineImage: "https://images.unsplash.com/photo-1510152431055-6b5809757398?auto=format&fit=crop&q=80&w=1000",
+      pipelineImage: "/images/landing/installation-reseau-gaz.webp",
       
       butagazCardImage: "https://images.unsplash.com/photo-1517420812314-8549b17939df?auto=format&fit=crop&q=80&w=1000",
       airLiquideCardImage: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=1000",

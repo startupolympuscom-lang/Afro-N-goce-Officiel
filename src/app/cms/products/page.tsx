@@ -30,16 +30,13 @@ export default function CMSProductsPage() {
     { id: 'arcal-chrome', name: 'ARCAL™ Chrome (Air Liquide)', brand: 'Air Liquide' as const },
     { id: 'arcal-speed', name: 'ARCAL™ Speed (Air Liquide)', brand: 'Air Liquide' as const },
     { id: 'arcal-force', name: 'ARCAL™ Force (Air Liquide)', brand: 'Air Liquide' as const },
-    { id: 'solaire-principal', name: 'Visuel principal (section solaire)', brand: 'Solaire' as const },
-    { id: 'solaire-industrie', name: 'Secteur : sites industriels', brand: 'Solaire' as const },
-    { id: 'solaire-agriculture', name: 'Secteur : agriculture', brand: 'Solaire' as const },
-    { id: 'solaire-habitat', name: 'Secteur : habitat', brand: 'Solaire' as const },
+    { id: 'solaire-principal', name: 'Photo de la section solaire', brand: 'Solaire' as const },
   ];
 
   const imageGroups = [
     { brand: 'Butagaz' as const, title: 'Butagaz', hint: '' },
     { brand: 'Air Liquide' as const, title: 'Air Liquide', hint: '' },
-    { brand: 'Solaire' as const, title: 'Énergie solaire', hint: "Photos affichées dans la section solaire de la page d'accueil. Format paysage conseillé." },
+    { brand: 'Solaire' as const, title: 'Énergie solaire', hint: "Photo affichée sous le texte de la section solaire de la page d'accueil. Format paysage conseillé." },
   ];
 
   const handleFileUpload = (productId: string, file: File) => {

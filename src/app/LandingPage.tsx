@@ -7,9 +7,8 @@ import { usePageMeta, SITE_URL, SITE_NAME, HOME_TITLE, HOME_DESCRIPTION } from '
 import { formatPhoneMA, toInternationalPhoneMA } from '../lib/formatters';
 import { SiteLogo } from '../components/Logo';
 import { container, unsplashSrcSet, Reveal, Eyebrow, SectionHeading, btnPrimaryLook, btnPrimary, btnSecondary } from '../components/landing/shared';
-import { SolarSection, type SolarImageSlot } from '../components/landing/SolarSection';
+import { SolarSection } from '../components/landing/SolarSection';
 import { PartnersSection } from '../components/landing/PartnersSection';
-import { SolarSimulator } from '../components/landing/SolarSimulator';
 import { SolarQuoteModal, type SolarQuoteRequest } from '../components/landing/SolarQuoteModal';
 
 const PipelineSimulationModal = lazy(() =>
@@ -43,15 +42,13 @@ const HERO_SRCSET = [640, 960, 1536].map((w) => `/images/hero-afro-negoce-${w}.w
 const LEGACY_HERO_IMAGES = ['photo-1516937941344-00b4e0337589', 'photo-1542744173-8e7e53415bb0'];
 // The artwork's backdrop is off-white: fade its edges so no rectangle shows against the hero background.
 const HERO_EDGE_MASK = 'linear-gradient(to right, transparent, #000 5%, #000 96%, transparent), linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent)';
-const DEFAULT_MASCOT = 'https://static.antigravity.dev/ais-dev-4tcsojdavubvzawayoov4m-94120260995/input_file_0.png';
-const VALUES = [
-  { title: 'Fiabilité', desc: 'Des produits de qualité et un service fiable au quotidien.' },
-  { title: 'Sécurité', desc: 'La sécurité est au cœur de toutes nos opérations et engagements.' },
-  { title: 'Performance', desc: 'Des solutions performantes pour optimiser vos processus industriels.' },
-  { title: 'Solutions durables', desc: 'Nous innovons pour une énergie plus propre et un avenir plus durable.' },
-  { title: 'Proximité', desc: 'Un réseau de proximité pour être toujours plus proche de vous.' },
-  { title: 'Accompagnement', desc: 'Nos experts vous accompagnent à chaque étape de vos projets.' },
-];
+// Photo of the installation section, unless the CMS holds one picked for the site.
+const INSTALLATION_IMAGE = '/images/landing/installation-reseau-gaz.webp';
+const LEGACY_PIPELINE_IMAGES = ['photo-1510152431055-6b5809757398', 'static.antigravity.dev'];
+const BUTAGAZ_RANGE_IMAGE = '/images/landing/gamme-butagaz.webp';
+
+// The online shop opens in a new tab so visitors keep the site open.
+const SHOP_LINK = { href: '/ecom', target: '_blank', rel: 'noopener' } as const;
 
 const STATS = [
   { value: '+15', label: "Années d'expertise" },
@@ -64,27 +61,27 @@ const STATS = [
 const SOLUTIONS = [
   {
     title: 'Gaz LPG',
-    subtitle: 'Solutions pour les professionnels et les collectivités.',
+    subtitle: 'Bouteilles Butagaz pour les foyers, les professionnels et les collectivités.',
     href: '#gamme-butagaz',
-    img: 'https://images.unsplash.com/photo-1542744173-05336fcc7ad4?auto=format&fit=crop&q=80&w=800',
+    img: { src: '/images/landing/solution-gpl.webp', width: 636, height: 477, alt: 'Bouteilles de gaz butane et propane' },
   },
   {
     title: 'Gaz industriels',
-    subtitle: 'CO₂, O₂, N₂ et autres gaz pour vos applications industrielles.',
+    subtitle: 'Oxygène, azote, argon et CO₂ Air Liquide pour vos applications industrielles.',
     href: '#gamme-air-liquide',
-    img: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&q=80&w=800',
+    img: { src: '/images/landing/solution-gaz-industriels.webp', width: 400, height: 300, alt: 'Bouteille de gaz industriel devant un camion-citerne' },
   },
   {
-    title: 'Solutions énergétiques',
-    subtitle: 'Panneaux solaires : étude, fourniture et installation, avec ou sans batteries.',
+    title: 'Énergie solaire',
+    subtitle: 'Panneaux solaires avec ou sans batteries, étude et installation comprises.',
     href: '#solaire',
-    img: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&q=80&w=800',
+    img: { src: '/images/landing/solution-solaire.webp', width: 466, height: 350, alt: 'Panneaux solaires photovoltaïques' },
   },
   {
     title: 'Livraison & distribution',
     subtitle: 'Un service logistique fiable et réactif partout au Maroc.',
     href: '#contact',
-    img: 'https://images.unsplash.com/photo-1586528116311-ad8ed7c50a63?auto=format&fit=crop&q=80&w=800',
+    img: { src: '/images/landing/solution-livraison.webp', width: 516, height: 387, alt: 'Camion-citerne de livraison de gaz' },
   },
 ];
 
@@ -95,8 +92,6 @@ const BUTAGAZ_PRODUCTS = [
     type: 'Butane',
     weight: '3 kg',
     use: 'Idéal pour le camping et le petit bricolage.',
-    badge: 'bg-afro-blue',
-    image: 'https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_2.png',
   },
   {
     id: 'butane-12',
@@ -104,8 +99,6 @@ const BUTAGAZ_PRODUCTS = [
     type: 'Butane',
     weight: '12 kg',
     use: "Pour la cuisine et le chauffage d'appoint intérieur.",
-    badge: 'bg-afro-blue',
-    image: 'https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_1.png',
   },
   {
     id: 'propane-34',
@@ -113,8 +106,6 @@ const BUTAGAZ_PRODUCTS = [
     type: 'Propane',
     weight: '34 kg',
     use: 'Pour les besoins énergétiques élevés et le stockage extérieur.',
-    badge: 'bg-red-600',
-    image: 'https://static.antigravity.dev/ais-dev-l24zxqwrtw5n27s2s44wm6-94120260995/input_file_0.png',
   },
 ];
 
@@ -179,6 +170,25 @@ const INSTALLATION_FEATURES = [
 ];
 
 const SPEC_LABELS = { taille: 'Taille', pression: 'Pression', chapeau: 'Chapeau' } as const;
+
+// External product photos can disappear: drop the thumbnail rather than show a broken image.
+function ProductThumb({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-afro-blue-50 p-2">
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+        className="max-h-full max-w-full rounded-lg object-contain"
+        referrerPolicy="no-referrer"
+      />
+    </div>
+  );
+}
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   return (
@@ -250,8 +260,6 @@ export default function LandingPage() {
   const {
     heroImage,
     heroSubtitle,
-    aboutTitle,
-    aboutDescription,
     pipelineImage,
     contactPhone,
     contactEmail,
@@ -270,6 +278,7 @@ export default function LandingPage() {
   const [activeSection, setActiveSection] = useState('accueil');
   const [news, setNews] = useState<NewsItem[]>([]);
   const [brandMascot, setBrandMascot] = useState<string | null>(null);
+  const [mascotFailed, setMascotFailed] = useState(false);
   const [isSimulationModalOpen, setIsSimulationModalOpen] = useState(false);
   const [isSimulatorLoaded, setIsSimulatorLoaded] = useState(false);
   const [solarQuote, setSolarQuote] = useState<SolarQuoteRequest | null>(null);
@@ -335,13 +344,12 @@ export default function LandingPage() {
     setIsSimulationModalOpen(true);
   };
 
-  const getProductImage = (id: string, defaultImage: string) =>
-    productImages?.find((img) => img.id === id)?.url ?? defaultImage;
-  const solarImages = Object.fromEntries(
-    (['principal', 'industrie', 'agriculture', 'habitat'] as SolarImageSlot[])
-      .map((slot) => [slot, productImages?.find((img) => img.id === `solaire-${slot}`)?.url])
-      .filter(([, url]) => url),
-  ) as Partial<Record<SolarImageSlot, string>>;
+  // Photos uploaded in CMS > Images des produits
+  const productPhoto = (id: string) => productImages?.find((img) => img.id === id)?.url;
+  const getProductImage = (id: string, defaultImage: string) => productPhoto(id) ?? defaultImage;
+  const mascot = mascotFailed ? null : brandMascot || mascotImage;
+  const hasCustomPipeline = !!pipelineImage && !LEGACY_PIPELINE_IMAGES.some((id) => pipelineImage.includes(id));
+  const installationSrc = hasCustomPipeline ? pipelineImage : INSTALLATION_IMAGE;
 
   const phoneDisplay = formatPhoneMA(contactPhone);
   const phoneHref = `tel:${toInternationalPhoneMA(contactPhone)}`;
@@ -374,7 +382,7 @@ export default function LandingPage() {
     },
     {
       question: 'Installez-vous des panneaux solaires ?',
-      answer: 'Oui. Nous concevons, fournissons et installons des systèmes photovoltaïques pour les sites industriels, les exploitations agricoles (pompage et irrigation solaires), les commerces, les bâtiments publics et les habitations, avec ou sans batteries. Estimez votre installation avec notre simulateur, puis demandez un devis.',
+      answer: 'Oui. Nous concevons, fournissons et installons des systèmes photovoltaïques pour les sites industriels, les exploitations agricoles (pompage et irrigation solaires), les commerces, les bâtiments publics et les habitations, avec ou sans batteries. Estimez votre installation en quelques secondes, puis demandez un devis.',
     },
     {
       question: 'Faut-il des batteries avec des panneaux solaires ?',
@@ -408,6 +416,17 @@ export default function LandingPage() {
           closes: '18:00',
         }],
         knowsAbout: ['Gaz butane', 'Gaz propane', 'Gaz industriels', 'Gaz alimentaires', 'Installation de réseaux de gaz', 'Panneaux solaires', 'Installation photovoltaïque', 'Pompage solaire', 'Batteries solaires'],
+        hasOfferCatalog: {
+          '@type': 'OfferCatalog',
+          name: 'Produits et services AFRO Négoce',
+          itemListElement: [
+            { '@type': 'Offer', itemOffered: { '@type': 'Product', name: 'Bouteilles de gaz Butagaz : butane 3 kg, butane 12 kg, propane 34 kg' } },
+            { '@type': 'Offer', itemOffered: { '@type': 'Product', name: 'Gaz industriels et alimentaires Air Liquide' } },
+            { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Installation de réseaux de gaz industriels et tertiaires' } },
+            { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Étude, fourniture et installation de panneaux solaires' } },
+            { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Livraison de gaz partout au Maroc' } },
+          ],
+        },
       },
       {
         '@type': 'WebSite',
@@ -504,9 +523,10 @@ export default function LandingPage() {
             </nav>
 
             <div className="flex items-center gap-2">
-              <Link to="/ecom" className={`hidden h-11 px-5 lg:inline-flex ${btnPrimaryLook}`}>
+              <a {...SHOP_LINK} className={`hidden h-11 px-5 lg:inline-flex ${btnPrimaryLook}`}>
                 Pièces & matériel de gaz <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+                <span className="sr-only"> (nouvel onglet)</span>
+              </a>
               <a
                 href={phoneHref}
                 aria-label={`Appeler le ${phoneDisplay}`}
@@ -556,9 +576,10 @@ export default function LandingPage() {
                     <Link to="/afro-digital" onClick={() => setIsMenuOpen(false)} className={btnSecondary}>
                       Afro Digital
                     </Link>
-                    <Link to="/ecom" onClick={() => setIsMenuOpen(false)} className={btnPrimary}>
+                    <a {...SHOP_LINK} onClick={() => setIsMenuOpen(false)} className={btnPrimary}>
                       Pièces & matériel de gaz
-                    </Link>
+                      <span className="sr-only"> (nouvel onglet)</span>
+                    </a>
                   </div>
                 </div>
               </motion.nav>
@@ -648,7 +669,7 @@ export default function LandingPage() {
           </section>
 
           {/* Company statement */}
-          <section aria-labelledby="presentation-title" className="border-t border-slate-100 bg-white py-20 lg:py-24">
+          <section id="about" aria-labelledby="presentation-title" className="border-t border-slate-100 bg-white py-20 lg:py-24">
             <Reveal className={`${container} grid gap-6 lg:grid-cols-[0.8fr_2fr] lg:gap-16`}>
               <h2 id="presentation-title" className="flex items-center gap-2.5 self-start text-xs font-semibold uppercase tracking-[0.18em] text-afro-blue lg:pt-3">
                 <span className="h-1.5 w-1.5 rounded-full bg-afro-green" aria-hidden="true" />
@@ -661,8 +682,8 @@ export default function LandingPage() {
                   l'agriculture, les professionnels et les particuliers.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-sm font-semibold">
-                  <a href="#solutions" className="text-afro-blue transition-colors hover:text-afro-blue-dark">Découvrir nos solutions →</a>
-                  <Link to="/notre-histoire" className="text-afro-blue transition-colors hover:text-afro-blue-dark">Notre histoire →</Link>
+                  <a href="#solutions" className="inline-block py-2 text-afro-blue transition-colors hover:text-afro-blue-dark">Découvrir nos solutions →</a>
+                  <Link to="/notre-histoire" className="inline-block py-2 text-afro-blue transition-colors hover:text-afro-blue-dark">Notre histoire →</Link>
                 </div>
               </div>
             </Reveal>
@@ -690,14 +711,13 @@ export default function LandingPage() {
                       >
                         <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-afro-blue-50">
                           <img
-                            src={sol.img}
-                            srcSet={unsplashSrcSet(sol.img, [400, 600, 800])}
-                            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                            alt=""
+                            src={sol.img.src}
+                            width={sol.img.width}
+                            height={sol.img.height}
+                            alt={sol.img.alt}
                             loading="lazy"
                             decoding="async"
                             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            referrerPolicy="no-referrer"
                           />
                         </div>
                         <div className="flex flex-1 flex-col p-4 pt-5">
@@ -715,63 +735,8 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* About */}
-          <section id="about" aria-labelledby="about-title" className="bg-white py-20 lg:py-28">
-            <div className={`${container} grid items-start gap-14 lg:grid-cols-[1fr_1.1fr] lg:gap-20`}>
-              <div className="lg:sticky lg:top-28">
-                <Reveal>
-                  <Eyebrow>À propos d'AFRO Négoce</Eyebrow>
-                  <h2 id="about-title" className="mt-4 font-display text-3xl font-extrabold leading-[1.1] tracking-tight text-afro-ink md:text-4xl lg:text-[2.75rem]">
-                    {aboutTitle}
-                  </h2>
-                  <p className="mt-6 text-lg leading-relaxed text-slate-600">{aboutDescription}</p>
-                </Reveal>
-                <Reveal delay={0.1}>
-                  <ul className="mt-8 divide-y divide-slate-200 border-y border-slate-200">
-                    {[
-                      'Revendeur Butagaz : butane et propane pour les foyers et les professionnels',
-                      'Gaz industriels et alimentaires de la gamme Air Liquide',
-                      'Conception, installation et maintenance de réseaux de gaz',
-                      'Panneaux solaires : étude, fourniture et installation',
-                      'Livraison réactive dans plus de 20 villes du Maroc',
-                    ].map((point) => (
-                      <li key={point} className="py-3 text-slate-700">
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-                    <Link to="/notre-histoire" className={btnPrimary}>
-                      Découvrir notre histoire <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <a href="#contact" className={btnSecondary}>
-                      Nous contacter
-                    </a>
-                  </div>
-                </Reveal>
-              </div>
-
-              <div>
-                <h3 className="sr-only">Nos engagements</h3>
-                <ul className="grid gap-4 sm:grid-cols-2">
-                  {VALUES.map(({ title, desc }, i) => (
-                    <li key={title}>
-                      <Reveal delay={i * 0.05} className="h-full">
-                        <div className="h-full rounded-2xl border border-slate-200/80 bg-white p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-afro-blue/25 hover:shadow-[0_20px_40px_rgb(14,108,208,0.1)]">
-                          <span className="font-display text-sm font-bold text-afro-blue">{String(i + 1).padStart(2, '0')}</span>
-                          <h4 className="mt-3 font-display text-base font-bold text-afro-ink">{title}</h4>
-                          <p className="mt-2 text-sm leading-relaxed text-slate-600">{desc}</p>
-                        </div>
-                      </Reveal>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </section>
-
           {/* Key figures */}
-          <section aria-label="AFRO Négoce en chiffres" className="bg-white pb-20 lg:pb-28">
+          <section aria-label="AFRO Négoce en chiffres" className="bg-white py-20 lg:py-28">
             <div className={container}>
               <Reveal className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-afro-blue to-afro-blue-dark px-6 py-12 text-white shadow-[0_30px_60px_rgb(14,108,208,0.25)] sm:px-10 lg:py-14">
                 <div
@@ -806,65 +771,69 @@ export default function LandingPage() {
               />
 
               {/* Butagaz */}
-              <div id="gamme-butagaz" className="mt-16 scroll-mt-24">
-                <Reveal className="mb-8 flex flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
-                  <div>
-                    <h3 className="font-display text-2xl font-bold tracking-tight text-afro-ink lg:text-3xl">
-                      Gamme <span className="text-afro-blue">Butagaz</span>
-                    </h3>
-                    <p className="mt-3 max-w-2xl leading-relaxed text-slate-600">
-                      Revendeur exclusif, nous proposons des solutions Butagaz pour le chauffage, la cuisson et les besoins
-                      industriels. La confiance d'une marque iconique depuis 1976.
-                    </p>
-                  </div>
+              <div id="gamme-butagaz" className="mt-16 grid scroll-mt-24 items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+                <Reveal>
                   <img
-                    src={brandMascot || mascotImage || DEFAULT_MASCOT}
-                    alt="Mascotte Butagaz"
+                    src={BUTAGAZ_RANGE_IMAGE}
+                    width={632}
+                    height={664}
+                    alt="Bouteilles de gaz Butagaz : butane 3 kg, butane 12 kg et propane 34 kg"
                     loading="lazy"
                     decoding="async"
-                    className="h-auto w-20 shrink-0 lg:w-24"
-                    referrerPolicy="no-referrer"
+                    className="mx-auto h-auto w-full max-w-md rounded-[2rem] bg-white shadow-[0_24px_60px_rgb(14,108,208,0.12)] lg:max-w-none"
                   />
                 </Reveal>
-
-                <ul className="grid gap-6 md:grid-cols-3">
-                  {BUTAGAZ_PRODUCTS.map((product, i) => (
-                    <li key={product.id}>
-                      <Reveal delay={i * 0.08} className="h-full">
-                        <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_rgb(14,108,208,0.12)]">
-                          <div className="relative aspect-[4/3] bg-gradient-to-b from-white to-afro-blue-50 p-8">
+                <Reveal delay={0.1}>
+                  <div className="flex items-start justify-between gap-6">
+                    <div>
+                      <h3 className="font-display text-2xl font-bold tracking-tight text-afro-ink lg:text-3xl">
+                        Gamme <span className="text-afro-blue">Butagaz</span>
+                      </h3>
+                      <p className="mt-3 max-w-xl leading-relaxed text-slate-600">
+                        Revendeur exclusif, nous proposons des solutions Butagaz pour le chauffage, la cuisson et les besoins
+                        industriels. La confiance d'une marque iconique depuis 1976.
+                      </p>
+                    </div>
+                    {mascot && (
+                      <img
+                        src={mascot}
+                        alt="Mascotte Butagaz"
+                        loading="lazy"
+                        decoding="async"
+                        onError={() => setMascotFailed(true)}
+                        className="h-auto w-16 shrink-0 lg:w-20"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                  </div>
+                  <ul className="mt-8 divide-y divide-slate-200 border-y border-slate-200">
+                    {BUTAGAZ_PRODUCTS.map((product) => {
+                      const photo = productPhoto(product.id);
+                      return (
+                        <li key={product.id} className="flex items-center gap-5 py-5">
+                          {photo && (
                             <img
-                              src={getProductImage(product.id, product.image)}
+                              src={photo}
                               alt={`Bouteille de gaz Butagaz ${product.name}`}
                               loading="lazy"
                               decoding="async"
-                              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                              className="h-16 w-16 shrink-0 rounded-xl bg-white object-contain p-1 ring-1 ring-slate-200"
                               referrerPolicy="no-referrer"
                             />
-                            <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-xs font-semibold text-white ${product.badge}`}>
-                              {product.type}
-                            </span>
+                          )}
+                          <span className="w-[4.5rem] shrink-0 font-display text-3xl font-extrabold tracking-tight text-afro-blue">{product.weight}</span>
+                          <div className="min-w-0">
+                            <h4 className="font-display text-lg font-bold text-afro-ink">{product.name}</h4>
+                            <p className="mt-1 text-sm leading-relaxed text-slate-600">{product.use}</p>
+                            <a href="#contact" className="mt-1 inline-block py-1.5 text-sm font-semibold text-afro-blue transition-colors hover:text-afro-blue-dark">
+                              Commander →
+                            </a>
                           </div>
-                          <div className="flex flex-1 flex-col p-6">
-                            <div className="flex items-baseline justify-between gap-3">
-                              <h4 className="font-display text-lg font-bold text-afro-ink">{product.name}</h4>
-                              <span className="font-display text-2xl font-extrabold text-afro-blue">{product.weight}</span>
-                            </div>
-                            <p className="mt-2 mb-6 text-sm leading-relaxed text-slate-600">{product.use}</p>
-                            <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
-                              <span className="flex items-center gap-1.5 text-sm font-medium text-afro-green-dark">
-                                <span className="h-2 w-2 rounded-full bg-afro-green" aria-hidden="true" /> En stock
-                              </span>
-                              <a href="#contact" className="inline-flex items-center gap-1.5 text-sm font-semibold text-afro-blue transition-all hover:gap-2.5">
-                                Commander <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                              </a>
-                            </div>
-                          </div>
-                        </article>
-                      </Reveal>
-                    </li>
-                  ))}
-                </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Reveal>
               </div>
 
               {/* Air Liquide */}
@@ -884,6 +853,16 @@ export default function LandingPage() {
                     <li key={gas.id}>
                       <Reveal delay={i * 0.06} className="h-full">
                         <article className="flex h-full flex-col rounded-2xl bg-white p-6 ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_rgb(14,108,208,0.12)]">
+                          {productPhoto(gas.id) && (
+                            <img
+                              src={productPhoto(gas.id)}
+                              alt={`Bouteille de ${gas.name.toLowerCase()} Air Liquide`}
+                              loading="lazy"
+                              decoding="async"
+                              className="mb-5 h-36 w-full rounded-xl bg-afro-blue-50 object-contain p-2"
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
                           <div className="mb-5 flex items-start justify-between">
                             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-afro-blue to-afro-blue-dark text-xl font-bold text-white shadow-lg shadow-afro-blue/25" aria-hidden="true">
                               {gas.formula}
@@ -912,16 +891,7 @@ export default function LandingPage() {
                     <li key={gas.id}>
                       <Reveal delay={i * 0.08} className="h-full">
                         <article className="flex h-full flex-col items-center gap-6 rounded-2xl bg-white p-6 ring-1 ring-slate-200/70 transition-all duration-300 hover:shadow-[0_24px_50px_rgb(14,108,208,0.12)] sm:flex-row">
-                          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-afro-blue-50 p-2">
-                            <img
-                              src={getProductImage(gas.id, gas.image)}
-                              alt={`Gaz alimentaire ${gas.name}`}
-                              loading="lazy"
-                              decoding="async"
-                              className="max-h-full max-w-full rounded-lg object-contain"
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
+                          <ProductThumb src={getProductImage(gas.id, gas.image)} alt={`Gaz alimentaire ${gas.name}`} />
                           <div className="flex-1 text-center sm:text-left">
                             <div className="mb-2 flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
                               <h5 className="font-display text-lg font-bold text-afro-ink">{gas.name}</h5>
@@ -937,9 +907,10 @@ export default function LandingPage() {
                 </ul>
 
                 <div className="mt-14 text-center">
-                  <Link to="/ecom" className={btnPrimary}>
+                  <a {...SHOP_LINK} className={btnPrimary}>
                     Voir tous les produits <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
+                    <span className="sr-only"> (nouvel onglet)</span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -952,8 +923,8 @@ export default function LandingPage() {
                 <div className="absolute -inset-3 -rotate-2 rounded-[2.25rem] bg-afro-blue-50" aria-hidden="true" />
                 <div className="group relative aspect-[4/3] overflow-hidden rounded-[2rem] bg-afro-blue-50 shadow-2xl shadow-afro-blue/10">
                   <img
-                    src={pipelineImage}
-                    srcSet={unsplashSrcSet(pipelineImage, [640, 1000, 1400])}
+                    src={installationSrc}
+                    srcSet={unsplashSrcSet(installationSrc, [640, 1000, 1400])}
                     sizes="(min-width: 1024px) 50vw, 100vw"
                     alt="Installation d'un réseau de gaz industriel par AFRO Négoce"
                     loading="lazy"
@@ -961,7 +932,7 @@ export default function LandingPage() {
                     className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-105"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-afro-navy/50 to-transparent" aria-hidden="true" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-afro-navy/30 via-transparent to-transparent" aria-hidden="true" />
                   <div className="absolute bottom-5 left-5 rounded-2xl bg-white/95 px-5 py-3 shadow-lg backdrop-blur">
                     <span>
                       <span className="block text-xs font-medium text-slate-500">Qualité assurée</span>
@@ -1000,12 +971,11 @@ export default function LandingPage() {
             </div>
           </section>
 
-          <SolarSection images={solarImages} onRequestQuote={(sector) => setSolarQuote({ sector })} />
-          <SolarSimulator onRequestQuote={(sector, summary) => setSolarQuote({ sector, summary })} />
+          <SolarSection image={productPhoto('solaire-principal')} onRequestQuote={(sector, summary) => setSolarQuote({ sector, summary })} />
 
           {/* News */}
           {news.length > 0 && (
-            <section id="news" aria-labelledby="news-title" className="bg-afro-blue-50 py-20 lg:py-28">
+            <section id="news" aria-labelledby="news-title" className="bg-white py-20 lg:py-28">
               <div className={container}>
                 <SectionHeading id="news-title" eyebrow="Actualités" title="Actualités" highlight="& événements" />
                 <ul className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
@@ -1022,7 +992,7 @@ export default function LandingPage() {
           )}
 
           {/* FAQ */}
-          <section id="faq" aria-labelledby="faq-title" className={`py-20 lg:py-28 ${news.length > 0 ? 'bg-white' : 'bg-afro-blue-50'}`}>
+          <section id="faq" aria-labelledby="faq-title" className={`py-20 lg:py-28 ${news.length > 0 ? 'bg-afro-blue-50' : 'bg-white'}`}>
             <div className={`${container} grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20`}>
               <div className="lg:sticky lg:top-28 lg:self-start">
                 <SectionHeading
@@ -1103,7 +1073,7 @@ export default function LandingPage() {
                       </li>
                       <li className="flex gap-3">
                         <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-afro-blue" aria-hidden="true" />
-                        <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-afro-blue">
+                        <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="inline-block py-1 transition-colors hover:text-afro-blue">
                           {contactAddress}
                         </a>
                       </li>
@@ -1140,22 +1110,22 @@ export default function LandingPage() {
               <nav aria-label="Liens du pied de page" className="lg:col-span-2">
                 <h2 className="mb-5 text-sm font-semibold text-afro-ink">Navigation</h2>
                 <ul className="space-y-3 text-sm text-slate-600">
-                  <li><a href="#about" className="transition-colors hover:text-afro-blue">À propos</a></li>
-                  <li><Link to="/notre-histoire" className="transition-colors hover:text-afro-blue">Notre histoire</Link></li>
-                  <li><a href="#faq" className="transition-colors hover:text-afro-blue">FAQ</a></li>
-                  <li><a href="#contact" className="transition-colors hover:text-afro-blue">Contact</a></li>
-                  <li><Link to="/afro-digital" className="transition-colors hover:text-afro-blue">Afro Digital</Link></li>
+                  <li><a href="#about" className="inline-block py-1 transition-colors hover:text-afro-blue">À propos</a></li>
+                  <li><Link to="/notre-histoire" className="inline-block py-1 transition-colors hover:text-afro-blue">Notre histoire</Link></li>
+                  <li><a href="#faq" className="inline-block py-1 transition-colors hover:text-afro-blue">FAQ</a></li>
+                  <li><a href="#contact" className="inline-block py-1 transition-colors hover:text-afro-blue">Contact</a></li>
+                  <li><Link to="/afro-digital" className="inline-block py-1 transition-colors hover:text-afro-blue">Afro Digital</Link></li>
                 </ul>
               </nav>
 
               <div className="lg:col-span-3">
                 <h2 className="mb-5 text-sm font-semibold text-afro-ink">Nos activités</h2>
                 <ul className="space-y-3 text-sm text-slate-600">
-                  <li><a href="#gamme-butagaz" className="transition-colors hover:text-afro-blue">Bouteilles de gaz Butagaz</a></li>
-                  <li><a href="#gamme-air-liquide" className="transition-colors hover:text-afro-blue">Gaz industriels Air Liquide</a></li>
-                  <li><a href="#installation" className="transition-colors hover:text-afro-blue">Installation de réseaux de gaz</a></li>
-                  <li><a href="#solaire" className="transition-colors hover:text-afro-blue">Panneaux solaires</a></li>
-                  <li><Link to="/ecom" className="transition-colors hover:text-afro-blue">Pièces & matériel de gaz</Link></li>
+                  <li><a href="#gamme-butagaz" className="inline-block py-1 transition-colors hover:text-afro-blue">Bouteilles de gaz Butagaz</a></li>
+                  <li><a href="#gamme-air-liquide" className="inline-block py-1 transition-colors hover:text-afro-blue">Gaz industriels Air Liquide</a></li>
+                  <li><a href="#installation" className="inline-block py-1 transition-colors hover:text-afro-blue">Installation de réseaux de gaz</a></li>
+                  <li><a href="#solaire" className="inline-block py-1 transition-colors hover:text-afro-blue">Panneaux solaires</a></li>
+                  <li><a {...SHOP_LINK} className="inline-block py-1 transition-colors hover:text-afro-blue">Pièces & matériel de gaz<span className="sr-only"> (nouvel onglet)</span></a></li>
                 </ul>
               </div>
 
@@ -1178,8 +1148,8 @@ export default function LandingPage() {
             <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-8 text-center text-sm text-slate-500 md:flex-row md:text-left">
               <p>© {new Date().getFullYear()} {SITE_NAME}. Tous droits réservés.</p>
               <div className="flex flex-wrap justify-center gap-6">
-                <a href="#" className="transition-colors hover:text-afro-blue">Mentions légales</a>
-                <a href="#" className="transition-colors hover:text-afro-blue">Confidentialité</a>
+                <a href="#" className="inline-block py-1 transition-colors hover:text-afro-blue">Mentions légales</a>
+                <a href="#" className="inline-block py-1 transition-colors hover:text-afro-blue">Confidentialité</a>
               </div>
             </div>
           </div>

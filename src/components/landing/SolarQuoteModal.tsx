@@ -2,8 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { btnPrimary, btnSecondary } from './shared';
-import { SOLAR_SECTOR_OPTIONS } from './solarContent';
-import type { SummaryLine } from './SolarSimulator';
+import { SOLAR_PROJECT_TYPES, type SummaryLine } from './solarContent';
 
 export interface SolarQuoteRequest {
   sector?: string;
@@ -195,7 +194,7 @@ function QuoteDialog({ request, onClose, contactEmail, phoneDisplay, phoneHref }
                 <label htmlFor={`${uid}-sector`} className={labelClass}>Type de projet</label>
                 <select id={`${uid}-sector`} value={form.sector} onChange={update('sector')} className={inputClass}>
                   <option value="">Sélectionnez</option>
-                  {SOLAR_SECTOR_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  {SOLAR_PROJECT_TYPES.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </div>
               <div>

@@ -19,6 +19,7 @@ import { useDispatchGazStore } from '../../stores/useDispatchGazStore';
 import { useRbacStore } from '../../stores/useRbacStore';
 import { BrandMark } from '../Logo';
 import { cn } from '../../lib/utils';
+import { useAppViewport } from '../../lib/viewport';
 import { toast } from 'sonner';
 import { CommandPalette } from './CommandPalette';
 import { DISPATCH_ROLE_LABELS, findDispatchNavEntry, getDispatchNav, type DispatchNavSection } from './dispatchNav';
@@ -106,6 +107,7 @@ function DispatchSidebar({ sections, activePath, onNavigate, onClose }: {
 }
 
 export function DispatchLayout() {
+  useAppViewport();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
   const [currentPassword, setCurrentPassword] = React.useState('');
