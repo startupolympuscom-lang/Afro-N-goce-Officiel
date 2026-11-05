@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import { useDispatchGazStore, type GazClient, type StockDispatch } from '../../../../../stores/useDispatchGazStore';
+import { companyName } from '../../../../../lib/dispatchCompanies';
 import { useDispatchAuthStore } from '../../../../../stores/useDispatchAuthStore';
 import { isPointageOn, localDay, timestampForDay, todayLocal } from '../../../../../lib/dispatchDates';
 
@@ -282,7 +283,7 @@ export default function DispatchManualSalePage() {
                     >
                       <span className="flex items-center justify-between gap-3">
                         <span className="font-medium text-slate-900">{driver.prenom} {driver.nom}</span>
-                        <span className="text-xs text-slate-500">{driver.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Afro Négoce'}</span>
+                        <span className="text-xs text-slate-500">{companyName(driver.company)}</span>
                       </span>
                       <span className="mt-2 flex flex-wrap gap-1.5">
                         {driverLots.filter((l) => l.remaining > 0).map((l) => (

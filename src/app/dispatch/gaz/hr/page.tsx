@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDispatchGazStore, GazPaySlip } from '../../../../stores/useDispatchGazStore';
+import { getCompany } from '../../../../lib/dispatchCompanies';
 import { Users, FileText, Download, Calculator, Search, Filter, CheckCircle2, Trash2, QrCode, UserPlus, ChevronRight } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
@@ -124,8 +125,9 @@ export default function DispatchHRPage() {
     }
     
     // Company properties
-    const compName = selectedDriver.company === 'chakirine_gaz' ? 'CHAKIRINE GAZ' : 'STE. AFRO NÉGOCE';
-    const compCnssNum = selectedDriver.company === 'chakirine_gaz' ? '8425163' : '9764251';
+    const company = getCompany(selectedDriver.company);
+    const compName = company.legalName.toUpperCase();
+    const compCnssNum = company.cnssEmployeur || '-';
 
     // Calculations
     const totalCommission = payrollData.totalCommission;
@@ -278,8 +280,9 @@ export default function DispatchHRPage() {
     }
     
     // Company properties
-    const compName = selectedDriver.company === 'chakirine_gaz' ? 'CHAKIRINE GAZ' : 'STE. AFRO NÉGOCE';
-    const compCnssNum = selectedDriver.company === 'chakirine_gaz' ? '8425163' : '9764251';
+    const company = getCompany(selectedDriver.company);
+    const compName = company.legalName.toUpperCase();
+    const compCnssNum = company.cnssEmployeur || '-';
 
     const doc = new jsPDF();
     const yearNum = parseInt(month.split('-')[0]);
@@ -569,7 +572,7 @@ export default function DispatchHRPage() {
     doc.setFontSize(8.5);
     doc.setTextColor(100);
     doc.text('Mode de paiement : VIREMENT CHEZ COMPTE AGENCE', 14, finalCumulY + 12);
-    doc.text(`Licence accordée à : ${selectedDriver.company === 'chakirine_gaz' ? 'STE CHAKIRINE GAZ' : 'STE AFRO NÉGOCE'}`, 14, finalCumulY + 17);
+    doc.text(`Licence accordée à : STE ${getCompany(selectedDriver.company).name.toUpperCase()}`, 14, finalCumulY + 17);
     
     // Center signature area
     doc.setFont('helvetica', 'bold');
@@ -820,7 +823,7 @@ export default function DispatchHRPage() {
                     <option value="">Sélectionner un chauffeur...</option>
                     {drivers.map((d, dIdx) => (
                       <option key={`hr-driver-opt-${d.id || dIdx}-${dIdx}`} value={d.id}>
-                        {d.prenom} {d.nom} ({d.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Afro Négoce'})
+                        {d.prenom} {d.nom} ({getCompany(d.company).name})
                       </option>
                     ))}
                   </select>
@@ -860,10 +863,8 @@ export default function DispatchHRPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between border-b pb-2">
                     <span className="text-slate-500">Société Affiliée</span>
-                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded ${
-                      selectedDriver.company === 'chakirine_gaz' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {selectedDriver.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Ste. Afro Négoce'}
+                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded ${getCompany(selectedDriver.company).badge}`}>
+                      {getCompany(selectedDriver.company).legalName}
                     </span>
                   </div>
                   <div className="flex justify-between border-b pb-2">

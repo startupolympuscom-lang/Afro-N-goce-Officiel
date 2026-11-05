@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, ALL_COMPANIES_LABEL, getCompany, type CompanyId } from '../../../../lib/dispatchCompanies';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -65,19 +66,17 @@ export default function DispatchRapportsPage() {
     const avgBasket = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
     const transactionsCount = filteredSales.length;
 
-    // Daily Sales chart data
-    const dailyDataMap: Record<string, { date: string; Afro: number; Chakirine: number; Total: number }> = {};
+    // Daily Sales chart data, one series per company
+    const saleCompanyOf = (sale: { company?: string; driverId: string }) =>
+      (sale.company || drivers.find(d => d.id === sale.driverId)?.company || DEFAULT_COMPANY) as CompanyId;
+    const dailyDataMap: Record<string, { date: string; Total: number } & Partial<Record<CompanyId, number>>> = {};
     filteredSales.forEach(s => {
       const dateStr = new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
       if (!dailyDataMap[dateStr]) {
-        dailyDataMap[dateStr] = { date: dateStr, Afro: 0, Chakirine: 0, Total: 0 };
+        dailyDataMap[dateStr] = { date: dateStr, Total: 0, ...Object.fromEntries(DISPATCH_COMPANIES.map(c => [c.id, 0])) };
       }
-      const isAfro = !s.company || s.company === 'afro_negoce';
-      if (isAfro) {
-        dailyDataMap[dateStr].Afro += s.totalPrice;
-      } else {
-        dailyDataMap[dateStr].Chakirine += s.totalPrice;
-      }
+      const company = saleCompanyOf(s);
+      dailyDataMap[dateStr][company] = (dailyDataMap[dateStr][company] || 0) + s.totalPrice;
       dailyDataMap[dateStr].Total += s.totalPrice;
     });
 
@@ -104,20 +103,14 @@ export default function DispatchRapportsPage() {
     const productBreakdown = Object.values(productMap).sort((a, b) => b.Revenue - a.Revenue);
 
     // Company breakdown
-    let companyAfroRevenue = 0;
-    let companyChakirineRevenue = 0;
-    let companyAfroQty = 0;
-    let companyChakirineQty = 0;
-
-    filteredSales.forEach(s => {
-      const isAfro = !s.company || s.company === 'afro_negoce';
-      if (isAfro) {
-        companyAfroRevenue += s.totalPrice;
-        companyAfroQty += s.quantity;
-      } else {
-        companyChakirineRevenue += s.totalPrice;
-        companyChakirineQty += s.quantity;
-      }
+    const companies = DISPATCH_COMPANIES.map(c => {
+      const companySales = filteredSales.filter(sale => saleCompanyOf(sale) === c.id);
+      return {
+        id: c.id,
+        name: c.name,
+        revenue: companySales.reduce((sum, sale) => sum + sale.totalPrice, 0),
+        qty: companySales.reduce((sum, sale) => sum + sale.quantity, 0),
+      };
     });
 
     return {
@@ -127,12 +120,9 @@ export default function DispatchRapportsPage() {
       transactionsCount,
       salesTrend,
       productBreakdown,
-      companies: [
-        { name: 'Afro Négoce', revenue: companyAfroRevenue, qty: companyAfroQty },
-        { name: 'Chakirine Gaz', revenue: companyChakirineRevenue, qty: companyChakirineQty }
-      ]
+      companies,
     };
-  }, [sales, brands, filterByTimeRange]);
+  }, [sales, brands, drivers, filterByTimeRange]);
 
   // Dynamic HR & Employee Performance Metrics
   const rhMetrics = useMemo(() => {
@@ -154,7 +144,7 @@ export default function DispatchRapportsPage() {
       return {
         id: d.id,
         name: `${d.prenom} ${d.nom}`,
-        company: d.company === 'afro_negoce' ? 'Afro' : 'Chakirine',
+        company: getCompany(d.company).id,
         revenue,
         qty,
         salesCount,
@@ -340,28 +330,17 @@ export default function DispatchRapportsPage() {
     const netResult = salesTotal - expensesTotal;
     const outstandingCredit = clientsMetrics.totalGlobalCredit;
     
-    // Performance comparison Afro vs Chakirine
-    const comparisonData = [
-      {
-        name: 'AFRO NÉGOCE',
-        Ventes: salesMetrics.companies[0].revenue,
-        Crédit: clientsMetrics.clientPerformance.reduce((sum, c) => {
-          // simple approximation: credit belongs to corporate source if client is linked to that company's sales
-          const clientSales = sales.filter(s => s.clientId === c.id && (!s.company || s.company === 'afro_negoce'));
-          return sum + clientSales.filter(s => s.paymentMethod === 'credit' && s.status !== 'payé').reduce((total, s) => total + s.totalPrice, 0);
-        }, 0),
-        Volume: salesMetrics.companies[0].qty * 10 // scale for visual representation
-      },
-      {
-        name: 'CHAKIRINE GAZ',
-        Ventes: salesMetrics.companies[1].revenue,
-        Crédit: clientsMetrics.clientPerformance.reduce((sum, c) => {
-          const clientSales = sales.filter(s => s.clientId === c.id && s.company === 'chakirine_gaz');
-          return sum + clientSales.filter(s => s.paymentMethod === 'credit' && s.status !== 'payé').reduce((total, s) => total + s.totalPrice, 0);
-        }, 0),
-        Volume: salesMetrics.companies[1].qty * 10
-      }
-    ];
+    // Performance comparison between the companies
+    const clientIds = new Set(clientsMetrics.clientPerformance.map(c => c.id));
+    const comparisonData = salesMetrics.companies.map(c => ({
+      name: c.name.toUpperCase(),
+      Ventes: c.revenue,
+      Crédit: sales
+        .filter(s => clientIds.has(s.clientId) && (s.company || drivers.find(d => d.id === s.driverId)?.company || DEFAULT_COMPANY) === c.id)
+        .filter(s => s.paymentMethod === 'credit' && s.status !== 'payé')
+        .reduce((total, s) => total + s.totalPrice, 0),
+      Volume: c.qty * 10 // scale for visual representation
+    }));
 
     return {
       salesTotal,
@@ -370,7 +349,7 @@ export default function DispatchRapportsPage() {
       outstandingCredit,
       comparisonData
     };
-  }, [salesMetrics, caisseMetrics, clientsMetrics, sales]);
+  }, [salesMetrics, caisseMetrics, clientsMetrics, sales, drivers]);
 
   return (
     <div className="space-y-8 pb-20 font-sans" id="dispatch-reports-container">
@@ -385,7 +364,7 @@ export default function DispatchRapportsPage() {
               Rapports Analytiques & KPIs
             </h1>
             <p className="text-slate-500 text-sm mt-1 font-medium">
-              Suivi consolidé des performances commerciales, de la caisse, des RH et des clients de Afro Négoce & Chakirine.
+              Suivi consolidé des performances commerciales, de la caisse, des RH et des clients de {ALL_COMPANIES_LABEL}.
             </p>
           </div>
         </div>
@@ -534,14 +513,14 @@ export default function DispatchRapportsPage() {
             </div>
           </div>
 
-          {/* Visual Histogram comparison: AFRO vs CHAKIRINE */}
+          {/* Visual Histogram comparison between the companies */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="global-charts-grid">
             <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-indigo-500" />
-                    Comparatif Corporate: AFRO vs CHAKIRINE
+                    Comparatif des sociétés
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5 font-medium">Situation des ventes, crédit et volume comparés</p>
                 </div>
@@ -701,8 +680,9 @@ export default function DispatchRapportsPage() {
                       <YAxis stroke="#94a3b8" fontSize={10} />
                       <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.05)', color: '#0f172a' }} />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="Afro" name="Afro Négoce (MAD)" fill="#0B5C9C" stackId="a" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Chakirine" name="Chakirine Gaz (MAD)" fill="#87B6E0" stackId="a" radius={[4, 4, 0, 0]} />
+                      {DISPATCH_COMPANIES.map((c) => (
+                        <Bar key={c.id} dataKey={c.id} name={`${c.name} (MAD)`} fill={c.color} stackId="a" />
+                      ))}
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -804,7 +784,7 @@ export default function DispatchRapportsPage() {
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
                     <Bar dataKey="revenue" name="Ventes Générées (MAD)" fill="#0B5C9C" radius={[6, 6, 0, 0]}>
                       {rhMetrics.driverPerformance.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.company === 'Afro' ? '#0B5C9C' : '#87B6E0'} />
+                        <Cell key={`cell-${index}`} fill={getCompany(entry.company).color} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -828,7 +808,7 @@ export default function DispatchRapportsPage() {
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
                     <Bar dataKey="qty" name="Quantité Vendue (Bouteilles)" fill="#364C6C" radius={[6, 6, 0, 0]}>
                       {rhMetrics.driverPerformance.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.company === 'Afro' ? '#364C6C' : '#9AABC2'} />
+                        <Cell key={`cell-${index}`} fill={getCompany(entry.company).color} fillOpacity={0.75} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -860,11 +840,7 @@ export default function DispatchRapportsPage() {
                     <tr key={d.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4 text-sm font-semibold text-slate-900">{d.name}</td>
                       <td className="py-3 px-4 text-xs">
-                        {d.company === 'Afro' ? (
-                          <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase">AFRO</span>
-                        ) : (
-                          <span className="bg-amber-50 text-amber-800 border border-amber-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase">CHAKIRINE</span>
-                        )}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getCompany(d.company).badge}`}>{getCompany(d.company).short}</span>
                       </td>
                       <td className="py-3 px-4 text-sm text-center font-bold text-blue-700">{d.pointagesCount} jours</td>
                       <td className="py-3 px-4 text-sm text-center text-slate-600">{d.salesCount} ventes</td>

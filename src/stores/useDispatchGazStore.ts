@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { postgresStorage } from '../lib/postgresStorage';
 import { initialClients } from '../data/initialClients';
+import { COMPANY_IDS, DEFAULT_COMPANY, type CompanyId } from '../lib/dispatchCompanies';
+
+export type { CompanyId } from '../lib/dispatchCompanies';
 
 export interface DispatchGazDriver {
   id: string;
@@ -15,7 +18,7 @@ export interface DispatchGazDriver {
   cin?: string;
   speed?: number;
   stops?: number;
-  company?: 'afro_negoce' | 'chakirine_gaz';
+  company?: CompanyId;
 }
 
 export interface GazBrand {
@@ -76,7 +79,7 @@ export interface GazSale {
   status?: 'payé' | 'non payé';
   lat?: number;
   lng?: number;
-  company?: 'afro_negoce' | 'chakirine_gaz';
+  company?: CompanyId;
   isFactured?: boolean;
   /** 'manuelle' when office staff entered it for the driver (possibly for a past day); absent for the driver app. */
   source?: 'chauffeur' | 'manuelle';
@@ -111,7 +114,7 @@ export interface GazExpense {
   amount: number;
   reason: string;
   sourceAccount?: 'principale' | 'securitaire' | 'noir';
-  company?: 'afro_negoce' | 'chakirine_gaz';
+  company?: CompanyId;
 }
 
 export interface CaisseTransfer {
@@ -120,7 +123,7 @@ export interface CaisseTransfer {
   amount: number;
   toAccount: 'securitaire' | 'noir';
   reason?: string;
-  company?: 'afro_negoce' | 'chakirine_gaz';
+  company?: CompanyId;
 }
 
 export interface CaisseAlimentation {
@@ -130,7 +133,7 @@ export interface CaisseAlimentation {
   byWhom: string;
   reason?: string;
   type?: 'normal' | 'pret';
-  company?: 'afro_negoce' | 'chakirine_gaz';
+  company?: CompanyId;
 }
 
 export interface GazCommande {
@@ -179,7 +182,7 @@ export interface GlobalStockItem {
   full: number;
   empty: number;
   damaged?: number;
-  company?: 'afro_negoce' | 'chakirine_gaz';
+  company?: CompanyId;
 }
 
 export interface GlobalStockHistoryItem {
@@ -189,14 +192,14 @@ export interface GlobalStockHistoryItem {
   category: string;
   deltaFull: number;
   deltaEmpty: number;
-  company?: 'afro_negoce' | 'chakirine_gaz';
+  company?: CompanyId;
 }
 
 export interface StockActivityLog {
   id: string;
   date: string;
   action: 'set_global' | 'dispatch_driver' | 'dispatch_comptoir' | 'return_driver' | 'declare_damaged' | 'repair_damaged';
-  company: 'afro_negoce' | 'chakirine_gaz';
+  company: CompanyId;
   brandId?: string;
   category?: string;
   quantityFull?: number;
@@ -413,7 +416,7 @@ interface DispatchGazState {
   setClients: (clients: GazClient[]) => void;
 
   addSale: (sale: GazSale & { isConsignment?: boolean }) => void;
-  addComptoirSale: (sale: GazSale & { isConsignment?: boolean, company?: 'afro_negoce' | 'chakirine_gaz' }) => void;
+  addComptoirSale: (sale: GazSale & { isConsignment?: boolean, company?: CompanyId }) => void;
   deleteSale: (id: string) => void;
   updateSaleStatus: (id: string, status: 'payé' | 'non payé') => void;
   updateSaleFactured: (id: string, isFactured: boolean) => void;
@@ -425,10 +428,10 @@ interface DispatchGazState {
   updateStockSold: (driverId: string, brandId: string, category: string, quantity: number, isConsigned?: boolean) => void;
   validateStockDispatch: (id: string, returnedFull: number, returnedEmpty: number) => void;
   setGlobalStock: (items: GlobalStockItem[], historyItems?: GlobalStockHistoryItem[]) => void;
-  declareDamagedStock: (brandId: string, category: string, quantity: number, company: 'afro_negoce' | 'chakirine_gaz', source: 'empty' | 'full') => void;
-  repairDamagedStock: (brandId: string, category: string, quantity: number, type: 'full' | 'empty', company: 'afro_negoce' | 'chakirine_gaz') => void;
-  dispatchToComptoir: (brandId: string, category: string, quantity: number, company?: 'afro_negoce' | 'chakirine_gaz') => void;
-  updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean, company?: 'afro_negoce' | 'chakirine_gaz') => void;
+  declareDamagedStock: (brandId: string, category: string, quantity: number, company: CompanyId, source: 'empty' | 'full') => void;
+  repairDamagedStock: (brandId: string, category: string, quantity: number, type: 'full' | 'empty', company: CompanyId) => void;
+  dispatchToComptoir: (brandId: string, category: string, quantity: number, company?: CompanyId) => void;
+  updateComptoirStockSold: (brandId: string, category: string, quantity: number, isConsigned?: boolean, company?: CompanyId) => void;
   updateGPLConfig: (config: GPLConfig) => void;
   addStockActivity: (activity: Omit<StockActivityLog, 'id' | 'date'>) => void;
 
@@ -450,6 +453,16 @@ interface DispatchGazState {
   deleteCommande: (id: string) => void;
   updateCommandeStatus: (id: string, status: 'payé' | 'non payé') => void;
   resetData: () => void;
+}
+
+/** Adds a zero row for every company × brand × category missing from a stock table (new brand, new company). */
+export function fillStockRows(rows: GlobalStockItem[] = [], brands: GazBrand[] = []): GlobalStockItem[] {
+  const missing: GlobalStockItem[] = [];
+  COMPANY_IDS.forEach((company) => brands.forEach((brand) => brand.categories.forEach((category) => {
+    const exists = rows.some((r) => r.brandId === brand.id && r.category === category && (r.company || DEFAULT_COMPANY) === company);
+    if (!exists) missing.push({ brandId: brand.id, category, full: 0, empty: 0, company });
+  })));
+  return missing.length ? [...rows, ...missing] : rows;
 }
 
 export const useDispatchGazStore = create<DispatchGazState>()(
@@ -509,7 +522,10 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { brandId: 'b1', category: '34Kg', full: 50, empty: 20, company: 'afro_negoce' },
         { brandId: 'b1', category: '3Kg', full: 120, empty: 40, company: 'chakirine_gaz' },
         { brandId: 'b1', category: '12Kg', full: 180, empty: 60, company: 'chakirine_gaz' },
-        { brandId: 'b1', category: '34Kg', full: 40, empty: 15, company: 'chakirine_gaz' }
+        { brandId: 'b1', category: '34Kg', full: 40, empty: 15, company: 'chakirine_gaz' },
+        { brandId: 'b1', category: '3Kg', full: 0, empty: 0, company: 'bensaid_mek' },
+        { brandId: 'b1', category: '12Kg', full: 0, empty: 0, company: 'bensaid_mek' },
+        { brandId: 'b1', category: '34Kg', full: 0, empty: 0, company: 'bensaid_mek' }
       ] as GlobalStockItem[],
       globalStockHistory: [],
       stockActivities: [],
@@ -519,7 +535,10 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         { brandId: 'b1', category: '34Kg', full: 10, empty: 5, company: 'afro_negoce' },
         { brandId: 'b1', category: '3Kg', full: 30, empty: 5, company: 'chakirine_gaz' },
         { brandId: 'b1', category: '12Kg', full: 35, empty: 10, company: 'chakirine_gaz' },
-        { brandId: 'b1', category: '34Kg', full: 15, empty: 2, company: 'chakirine_gaz' }
+        { brandId: 'b1', category: '34Kg', full: 15, empty: 2, company: 'chakirine_gaz' },
+        { brandId: 'b1', category: '3Kg', full: 0, empty: 0, company: 'bensaid_mek' },
+        { brandId: 'b1', category: '12Kg', full: 0, empty: 0, company: 'bensaid_mek' },
+        { brandId: 'b1', category: '34Kg', full: 0, empty: 0, company: 'bensaid_mek' }
       ] as GlobalStockItem[],
       caisseSecuritaire: 0,
       caisseNoir: 0,
@@ -590,10 +609,15 @@ export const useDispatchGazStore = create<DispatchGazState>()(
 
       setGpsStatus: (status, error = null) => set({ gpsStatus: status, gpsError: error }),
 
-      addBrand: (brand) => set((state) => ({ brands: [...state.brands, brand] })),
-      updateBrand: (id, brand) => set((state) => ({
-        brands: state.brands.map(b => b.id === id ? { ...b, ...brand } : b)
-      })),
+      // A brand (or a category added to it) gets an empty stock line in every company's stock and comptoir
+      addBrand: (brand) => set((state) => {
+        const brands = [...state.brands, brand];
+        return { brands, globalStock: fillStockRows(state.globalStock, brands), comptoirStock: fillStockRows(state.comptoirStock, brands) };
+      }),
+      updateBrand: (id, brand) => set((state) => {
+        const brands = state.brands.map(b => b.id === id ? { ...b, ...brand } : b);
+        return { brands, globalStock: fillStockRows(state.globalStock, brands), comptoirStock: fillStockRows(state.comptoirStock, brands) };
+      }),
       deleteBrand: (id) => set((state) => ({ brands: state.brands.filter(b => b.id !== id) })),
 
       addZone: (zone) => set((state) => ({ zones: [...state.zones, zone] })),
@@ -885,7 +909,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         });
         return { globalStock: newStock };
       }),
-      dispatchToComptoir: (brandId, category, quantity, company: 'afro_negoce' | 'chakirine_gaz' = 'afro_negoce') => set((state) => {
+      dispatchToComptoir: (brandId, category, quantity, company: CompanyId = 'afro_negoce') => set((state) => {
         const newGlobalStock = state.globalStock.map(gs => {
           const gsCompany = gs.company || 'afro_negoce';
           if (gs.brandId === brandId && gs.category === category && gsCompany === company && gs.full >= quantity) {
@@ -903,7 +927,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         }
         return { globalStock: newGlobalStock, comptoirStock: newComptoir };
       }),
-      updateComptoirStockSold: (brandId, category, quantity, isConsigned, company: 'afro_negoce' | 'chakirine_gaz' = 'afro_negoce') => set((state) => {
+      updateComptoirStockSold: (brandId, category, quantity, isConsigned, company: CompanyId = 'afro_negoce') => set((state) => {
         const newComptoir = [...state.comptoirStock];
         const cIdx = newComptoir.findIndex(g => g.brandId === brandId && g.category === category && g.company === company);
         if (cIdx > -1) {
@@ -1080,9 +1104,9 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           locationHistory: generateMockLocationHistory(),
           alerts: [],
           pointages: [],
-          comptoirStock: [],
+          comptoirStock: fillStockRows([], state.brands),
           commandes: [],
-          globalStock: newGlobalStock,
+          globalStock: fillStockRows(newGlobalStock, state.brands),
           caisseSecuritaire: 0,
           caisseNoir: 0,
           caisseTransfers: [],
@@ -1096,6 +1120,15 @@ export const useDispatchGazStore = create<DispatchGazState>()(
     {
       name: 'dispatch-gaz-storage',
       storage: createJSONStorage(() => postgresStorage),
+      // Saved data may predate a brand or a company: complete the stock tables when loading
+      merge: (persisted, current) => {
+        const merged = { ...current, ...(persisted as Partial<DispatchGazState>) };
+        return {
+          ...merged,
+          globalStock: fillStockRows(merged.globalStock, merged.brands),
+          comptoirStock: fillStockRows(merged.comptoirStock, merged.brands),
+        };
+      },
     }
   )
 );

@@ -5,12 +5,15 @@ import { useDispatchAuthStore } from '../../../../../stores/useDispatchAuthStore
 import { ShoppingCart, CheckCircle2, MapPin, Navigation, Banknote, CreditCard, Receipt, AlertTriangle, Plus, Trash2, ShieldCheck, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, getCompany, type CompanyId } from '../../../../../lib/dispatchCompanies';
 
 export default function DispatchComptoirSalePage() {
   const navigate = useNavigate();
   const { user } = useDispatchAuthStore();
   const { clients, brands, prices, addComptoirSale, comptoirStock, gplConfig } = useDispatchGazStore();
   
+  // Each company has its own comptoir stock and caisse
+  const [company, setCompany] = useState<CompanyId>(DEFAULT_COMPANY);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [items, setItems] = useState([{ category: '', quantity: 1, isConsignment: false }]);
@@ -30,7 +33,7 @@ export default function DispatchComptoirSalePage() {
   };
 
   const checkStockAvailability = (brandId: string, category: string, quantity: number) => {
-    const stock = comptoirStock.find(s => s.brandId === brandId && s.category === category);
+    const stock = comptoirStock.find(s => s.brandId === brandId && s.category === category && (s.company || DEFAULT_COMPANY) === company);
     return stock && stock.full >= quantity;
   };
 
@@ -80,6 +83,7 @@ export default function DispatchComptoirSalePage() {
           totalPrice: (basePrice + consignmentPrice) * item.quantity,
           paymentMethod,
           isConsignment: item.isConsignment,
+          company,
           status: 'non payé'
         });
       });
@@ -121,11 +125,31 @@ export default function DispatchComptoirSalePage() {
             <CheckCircle2 className="w-8 h-8 text-emerald-600" />
           </div>
           <h2 className="text-xl font-bold text-emerald-900 mb-2">Vente enregistrée !</h2>
-          <p className="text-emerald-700">La transaction The comptoir has been updated.</p>
+          <p className="text-emerald-700">Le stock du comptoir {getCompany(company).name} a été mis à jour.</p>
         </div>
       ) : (
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <span id="comptoir-company" className="block text-sm font-medium text-slate-700 mb-2">Comptoir de la société</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-labelledby="comptoir-company">
+                {DISPATCH_COMPANIES.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={company === c.id}
+                    onClick={() => setCompany(c.id)}
+                    className={`px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      company === c.id ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-1 ring-indigo-600' : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Client Comptoir</label>
               <select 
@@ -172,7 +196,7 @@ export default function DispatchComptoirSalePage() {
                 
                 {items.map((item, index) => {
                   const itemPrice = getItemPrice(item.category);
-                  const stockLeft = comptoirStock.find(s => s.brandId === selectedBrandId && s.category === item.category)?.full || 0;
+                  const stockLeft = comptoirStock.find(s => s.brandId === selectedBrandId && s.category === item.category && (s.company || DEFAULT_COMPANY) === company)?.full || 0;
                   return (
                     <div key={index} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
                       {items.length > 1 && (

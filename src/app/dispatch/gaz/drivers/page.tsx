@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDispatchGazStore, DispatchGazDriver } from '../../../../stores/useDispatchGazStore';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, ALL_COMPANIES_LABEL, getCompany, type CompanyId } from '../../../../lib/dispatchCompanies';
 
 export default function DispatchDriversPage() {
   const { drivers, addDriver, updateDriver, deleteDriver } = useDispatchGazStore();
@@ -118,11 +119,11 @@ export default function DispatchDriversPage() {
     }
   };
 
-  const [companyFilter, setCompanyFilter] = useState<'all' | 'afro_negoce' | 'chakirine_gaz'>('all');
+  const [companyFilter, setCompanyFilter] = useState<'all' | CompanyId>('all');
 
   const filteredDrivers = drivers.filter(d => {
     if (companyFilter === 'all') return true;
-    return d.company === companyFilter;
+    return (d.company || DEFAULT_COMPANY) === companyFilter;
   });
 
   return (
@@ -130,7 +131,7 @@ export default function DispatchDriversPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Chauffeurs / Vendeurs</h1>
-          <p className="text-sm text-slate-500">Gérez vos chauffeurs par entité (Ste. Afro Négoce & Chakirine Gaz)</p>
+          <p className="text-sm text-slate-500">Gérez vos chauffeurs par société ({ALL_COMPANIES_LABEL})</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -139,8 +140,7 @@ export default function DispatchDriversPage() {
             className="px-3 py-2 border border-slate-300 rounded-xl bg-white text-sm font-medium text-slate-700 outline-none"
           >
             <option value="all">Toutes les sociétés</option>
-            <option value="afro_negoce">Ste. Afro Négoce</option>
-            <option value="chakirine_gaz">Chakirine Gaz</option>
+            {DISPATCH_COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.legalName}</option>)}
           </select>
           <button 
             onClick={() => setIsAdding(true)}
@@ -183,8 +183,7 @@ export default function DispatchDriversPage() {
                 onChange={e => setFormData({...formData, company: e.target.value as any})} 
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white outline-none"
               >
-                <option value="afro_negoce">Ste. Afro Négoce</option>
-                <option value="chakirine_gaz">Chakirine Gaz</option>
+                {DISPATCH_COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.legalName}</option>)}
               </select>
             </div>
             <div>
@@ -225,11 +224,19 @@ export default function DispatchDriversPage() {
                   <div className="font-medium text-slate-900">{driver.prenom} {driver.nom}</div>
                 </td>
                 <td className="p-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    driver.company === 'chakirine_gaz' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {driver.company === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Ste. Afro Négoce'}
-                  </span>
+                  {/* The company can be changed here: the driver's next dispatches and sales follow it */}
+                  <select
+                    value={driver.company || DEFAULT_COMPANY}
+                    onChange={(e) => {
+                      const company = e.target.value as CompanyId;
+                      updateDriver(driver.id, { company });
+                      toast.success(`${driver.prenom} ${driver.nom} rattaché à ${getCompany(company).name}`);
+                    }}
+                    aria-label={`Société de ${driver.prenom} ${driver.nom}`}
+                    className={`rounded-full border-0 py-1 pl-2.5 pr-7 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 ${getCompany(driver.company).badge}`}
+                  >
+                    {DISPATCH_COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.legalName}</option>)}
+                  </select>
                 </td>
                 <td className="p-4">
                   <div className="text-sm text-slate-600">{driver.email}</div>

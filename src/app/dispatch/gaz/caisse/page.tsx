@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { AfroNegoceLogo } from '../../../../components/Logo';
 import { formatMAD, formatDatetime } from '../../../../lib/formatters';
 import { toast } from 'sonner';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, getCompany, type CompanyId } from '../../../../lib/dispatchCompanies';
 import { CaissePnLView } from './CaissePnLView';
 
 export default function DispatchCaissePage() {
@@ -113,7 +114,7 @@ export default function DispatchCaissePage() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const [selectedCompany, setSelectedCompany] = useState<'afro_negoce' | 'chakirine_gaz'>('afro_negoce');
+  const [selectedCompany, setSelectedCompany] = useState<CompanyId>(DEFAULT_COMPANY);
 
   const salesToday = useMemo(() => {
     return sales.filter(s => s.date.startsWith(today));
@@ -143,7 +144,7 @@ export default function DispatchCaissePage() {
   const expensesTodayCompany = useMemo(() => {
     return expensesToday.filter(e => {
       const driver = drivers.find(d => d.id === e.driverId);
-      const expCompany = driver?.company || 'afro_negoce';
+      const expCompany = e.company || driver?.company || DEFAULT_COMPANY;
       return expCompany === selectedCompany;
     });
   }, [expensesToday, drivers, selectedCompany]);
@@ -251,7 +252,7 @@ export default function DispatchCaissePage() {
     const doc = new jsPDF();
     const now = new Date().toLocaleString();
     
-    const renderReportForCompany = (comp: 'afro_negoce' | 'chakirine_gaz' | 'global', isFirstPage: boolean) => {
+    const renderReportForCompany = (comp: CompanyId | 'global', isFirstPage: boolean) => {
       if (!isFirstPage) {
         doc.addPage();
       }
@@ -264,7 +265,7 @@ export default function DispatchCaissePage() {
       
       const compExpenses = comp === 'global' ? expensesToday : expensesToday.filter(e => {
         const driver = drivers.find(d => d.id === e.driverId);
-        const expCompany = driver?.company || 'afro_negoce';
+        const expCompany = e.company || driver?.company || DEFAULT_COMPANY;
         return expCompany === comp;
       });
       
@@ -288,7 +289,9 @@ export default function DispatchCaissePage() {
       const totalTransNoir = compTransfers.filter(t => t.toAccount === 'noir').reduce((sum, t) => sum + t.amount, 0);
       const soldeDispo = solde - (totalTransSec + totalTransNoir);
 
-      const title = comp === 'global' ? 'RAPPORT DE CAISSE GLOBAL (AFRO + CHAKIRINE)' : (comp === 'chakirine_gaz' ? 'CHAKIRINE GAZ - Rapport de Caisse' : 'STE. AFRO NÉGOCE - Rapport de Caisse');
+      const title = comp === 'global'
+        ? `RAPPORT DE CAISSE GLOBAL (${DISPATCH_COMPANIES.map((c) => c.short.toUpperCase()).join(' + ')})`
+        : `${getCompany(comp).legalName.toUpperCase()} - Rapport de Caisse`;
 
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
@@ -390,8 +393,7 @@ export default function DispatchCaissePage() {
     };
 
     renderReportForCompany('global', true);
-    renderReportForCompany('afro_negoce', false);
-    renderReportForCompany('chakirine_gaz', false);
+    DISPATCH_COMPANIES.forEach((c) => renderReportForCompany(c.id, false));
 
     doc.save(`rapport-caisse-complet-${today}.pdf`);
   };
@@ -603,27 +605,20 @@ export default function DispatchCaissePage() {
         </div>
 
         {mainView === 'journal' && (
-          <div className="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-auto max-w-md border border-slate-200/50">
-            <button
-              onClick={() => setSelectedCompany('afro_negoce')}
-              className={`flex-1 sm:flex-none px-6 py-2 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-                selectedCompany === 'afro_negoce'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Ste. Afro Négoce
-            </button>
-            <button
-              onClick={() => setSelectedCompany('chakirine_gaz')}
-              className={`flex-1 sm:flex-none px-6 py-2 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-                selectedCompany === 'chakirine_gaz'
-                  ? 'bg-amber-500 text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Chakirine Gaz
-            </button>
+          <div className="grid grid-cols-3 sm:flex bg-slate-100 p-1 rounded-2xl w-full sm:w-auto border border-slate-200/50">
+            {DISPATCH_COMPANIES.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCompany(c.id)}
+                className={`px-2 sm:px-4 py-2 text-center text-[11px] sm:text-xs leading-tight font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer sm:whitespace-nowrap ${
+                  selectedCompany === c.id
+                    ? 'bg-slate-900 text-white shadow-md'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -1284,10 +1279,19 @@ export default function DispatchCaissePage() {
               {/* This is the printable ticket section */}
               <div id="printable-ticket" className="bg-white p-4 border border-dashed border-slate-300 rounded font-mono text-black">
                 <div className="text-center pb-4 border-b border-dashed border-slate-300 mb-4">
-                  <div className="flex justify-center mb-2">
-                    <AfroNegoceLogo className="w-10 h-10" />
-                  </div>
-                  <h4 className="text-sm font-black uppercase">AFRO NÉGOCE</h4>
+                  {(() => {
+                    const ticketCompany = getCompany(ticketToPrint.company || drivers.find(d => d.id === ticketToPrint.driverId)?.company);
+                    return (
+                      <>
+                        {ticketCompany.id === 'afro_negoce' && (
+                          <div className="flex justify-center mb-2">
+                            <AfroNegoceLogo className="w-10 h-10" />
+                          </div>
+                        )}
+                        <h4 className="text-sm font-black uppercase">{ticketCompany.name}</h4>
+                      </>
+                    );
+                  })()}
                   <p className="text-[9px] text-gray-500">TICKET DE REÇU - GAZ</p>
                 </div>
                 
@@ -1373,10 +1377,19 @@ export default function DispatchCaissePage() {
               {/* This is the printable ticket section */}
               <div id="printable-ticket" className="bg-white p-4 border border-dashed border-slate-300 rounded font-mono text-black">
                 <div className="text-center pb-4 border-b border-dashed border-slate-300 mb-4">
-                  <div className="flex justify-center mb-2">
-                    <AfroNegoceLogo className="w-10 h-10" />
-                  </div>
-                  <h4 className="text-sm font-black uppercase">AFRO NÉGOCE</h4>
+                  {(() => {
+                    const ticketCompany = getCompany(expenseToPrint.company || drivers.find(d => d.id === expenseToPrint.driverId)?.company);
+                    return (
+                      <>
+                        {ticketCompany.id === 'afro_negoce' && (
+                          <div className="flex justify-center mb-2">
+                            <AfroNegoceLogo className="w-10 h-10" />
+                          </div>
+                        )}
+                        <h4 className="text-sm font-black uppercase">{ticketCompany.name}</h4>
+                      </>
+                    );
+                  })()}
                   <p className="text-[9px] text-red-600 font-bold border border-red-200 px-2 py-1 bg-red-50 rounded mt-1 uppercase">TICKET DE SORTIE CAISSE</p>
                 </div>
                 

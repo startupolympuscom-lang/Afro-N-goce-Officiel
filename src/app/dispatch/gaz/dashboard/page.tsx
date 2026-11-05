@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatchGazStore, DashboardWidget, DEFAULT_DASHBOARD_WIDGETS, GlobalStockItem } from '../../../../stores/useDispatchGazStore';
+import { ALL_COMPANIES_LABEL, companyName } from '../../../../lib/dispatchCompanies';
 import {
   Wallet, TrendingUp, Receipt, Scale, ArrowUpRight, ArrowDownRight, Minus,
   Plus, X, GripVertical, Settings2, Save, Info, ChevronRight, type LucideIcon
@@ -28,7 +29,6 @@ const MUTED = '#CBD5E1';
 const cardClass = 'bg-white rounded-xl border border-slate-200 shadow-xs h-full';
 const axisTick = { fontSize: 12, fill: '#94a3b8' };
 const tooltipStyle = { backgroundColor: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgb(15 23 42 / 0.08)', fontSize: 12 };
-const COMPANY_LABELS: Record<string, string> = { afro_negoce: 'Afro Négoce', chakirine_gaz: 'Chakirine Gaz' };
 const PAYMENT_LABELS: Record<string, string> = { espece: 'Espèces', cheque: 'Chèque', credit: 'Crédit' };
 const TITLES = new Map(DEFAULT_DASHBOARD_WIDGETS.map(w => [w.id, w.title]));
 
@@ -272,7 +272,7 @@ export default function DispatchDashboardPage() {
                           <div className="h-full rounded-full bg-blue-600" style={{ width: `${best > 0 ? (driver.revenue / best) * 100 : 0}%` }} />
                         </div>
                         <p className="text-xs text-slate-500 whitespace-nowrap">
-                          {driver.qty} bouteille{driver.qty > 1 ? 's' : ''}{driver.company ? ` · ${COMPANY_LABELS[driver.company]}` : ''}
+                          {driver.qty} bouteille{driver.qty > 1 ? 's' : ''}{driver.company ? ` · ${companyName(driver.company)}` : ''}
                         </p>
                       </div>
                     </div>
@@ -457,7 +457,7 @@ export default function DispatchDashboardPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tableau de bord</h1>
           <p className="text-slate-500 mt-1">
             <span className="first-letter:uppercase inline-block">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-            <span className="hidden sm:inline"> · Afro Négoce et Chakirine Gaz</span>
+            <span className="hidden sm:inline"> · {ALL_COMPANIES_LABEL}</span>
           </p>
         </div>
 

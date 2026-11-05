@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore, GazClient, GazSale } from '../../../../stores/useDispatchGazStore';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, getCompany } from '../../../../lib/dispatchCompanies';
 import { Plus, Trash2, MapPin, Edit2, Search, X, RefreshCw, History, Calendar, Truck, Coins, DollarSign, CheckCircle2, XCircle, FileCheck2, Building2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -118,37 +119,21 @@ export default function DispatchClientsPage() {
     
     const clientSales = sales.filter(s => s.clientId === historyClientId);
     
-    let totalAfro = 0;
-    let totalChakirine = 0;
-    let paidAfro = 0;
-    let paidChakirine = 0;
-    let creditAfro = 0;
-    let creditChakirine = 0;
     let invoicedTotal = 0;
     let nonInvoicedTotal = 0;
     let totalQty = 0;
+    // Account situation per company (sales of a company's drivers or comptoir)
+    const byCompany = DISPATCH_COMPANIES.map(c => ({ id: c.id, name: c.name, color: c.color, total: 0, paid: 0, credit: 0 }));
 
     clientSales.forEach(s => {
       totalQty += s.quantity;
-      const isAfro = !s.company || s.company === 'afro_negoce';
+      const companyId = s.company || drivers.find(d => d.id === s.driverId)?.company || DEFAULT_COMPANY;
+      const row = byCompany.find(c => c.id === companyId) ?? byCompany[0];
       const isPaid = s.paymentMethod !== 'credit' || s.status === 'payé';
       const amount = s.totalPrice;
 
-      if (isAfro) {
-        totalAfro += amount;
-        if (isPaid) {
-          paidAfro += amount;
-        } else {
-          creditAfro += amount;
-        }
-      } else {
-        totalChakirine += amount;
-        if (isPaid) {
-          paidChakirine += amount;
-        } else {
-          creditChakirine += amount;
-        }
-      }
+      row.total += amount;
+      if (isPaid) row.paid += amount; else row.credit += amount;
 
       if (s.isFactured) {
         invoicedTotal += amount;
@@ -157,17 +142,12 @@ export default function DispatchClientsPage() {
       }
     });
 
-    const grandTotal = totalAfro + totalChakirine;
-    const grandPaid = paidAfro + paidChakirine;
-    const grandCredit = creditAfro + creditChakirine;
+    const grandTotal = byCompany.reduce((sum, c) => sum + c.total, 0);
+    const grandPaid = byCompany.reduce((sum, c) => sum + c.paid, 0);
+    const grandCredit = byCompany.reduce((sum, c) => sum + c.credit, 0);
 
     return {
-      totalAfro,
-      totalChakirine,
-      paidAfro,
-      paidChakirine,
-      creditAfro,
-      creditChakirine,
+      byCompany,
       invoicedTotal,
       nonInvoicedTotal,
       grandTotal,
@@ -176,7 +156,7 @@ export default function DispatchClientsPage() {
       totalQty,
       count: clientSales.length
     };
-  }, [sales, historyClientId]);
+  }, [sales, drivers, historyClientId]);
 
   const clientHistory = useMemo(() => {
     if (!historyClientId) return [];
@@ -463,7 +443,7 @@ export default function DispatchClientsPage() {
 
             {/* Situation overview cards */}
             {clientSituation && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 border-b border-slate-200 shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 p-6 bg-slate-50 border-b border-slate-200 shrink-0">
                 {/* Global Situation Card */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                   <div>
@@ -480,29 +460,22 @@ export default function DispatchClientsPage() {
                   </div>
                 </div>
 
-                {/* Afro Negoce Card */}
-                <div className="bg-orange-50/40 p-4 rounded-2xl border border-orange-100 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-wider block">AFRO NÉGOCE</span>
-                    <span className="text-lg font-black text-slate-950 block mt-1">{clientSituation.totalAfro.toFixed(2)} MAD</span>
+                {/* One card per company */}
+                {clientSituation.byCompany.map((c) => (
+                  <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="w-1.5 h-3 rounded-sm" style={{ backgroundColor: c.color }} />
+                        {c.name}
+                      </span>
+                      <span className="text-lg font-black text-slate-950 block mt-1">{c.total.toFixed(2)} MAD</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2 pt-1 border-t border-slate-100">
+                      <span className="text-[10px] font-medium text-slate-500">Payé: <strong className="text-slate-700">{c.paid.toFixed(0)}</strong></span>
+                      <span className="text-[10px] font-bold text-red-700">Crédit: {c.credit.toFixed(0)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center mt-2 pt-1 border-t border-orange-100/50">
-                    <span className="text-[10px] font-medium text-slate-500">Payé: <strong className="text-slate-700">{clientSituation.paidAfro.toFixed(0)}</strong></span>
-                    <span className="text-[10px] font-bold text-red-700">Crédit: {clientSituation.creditAfro.toFixed(0)}</span>
-                  </div>
-                </div>
-
-                {/* Chakirine Gaz Card */}
-                <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">CHAKIRINE GAZ</span>
-                    <span className="text-lg font-black text-slate-950 block mt-1">{clientSituation.totalChakirine.toFixed(2)} MAD</span>
-                  </div>
-                  <div className="flex justify-between items-center mt-2 pt-1 border-t border-emerald-100/50">
-                    <span className="text-[10px] font-medium text-slate-500">Payé: <strong className="text-slate-700">{clientSituation.paidChakirine.toFixed(0)}</strong></span>
-                    <span className="text-[10px] font-bold text-red-700">Crédit: {clientSituation.creditChakirine.toFixed(0)}</span>
-                  </div>
-                </div>
+                ))}
 
                 {/* Billing Card */}
                 <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-sm flex flex-col justify-between">
@@ -584,15 +557,9 @@ export default function DispatchClientsPage() {
                             <span className="block text-[10px] text-slate-400">{new Date(sale.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</span>
                           </td>
                           <td className="p-4">
-                            {saleCompany === 'afro_negoce' ? (
-                              <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-orange-100 text-orange-700 border border-orange-200">
-                                AFRO
-                              </span>
-                            ) : (
-                              <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                CHAKIRINE
-                              </span>
-                            )}
+                            <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${getCompany(saleCompany).badge}`}>
+                              {getCompany(saleCompany).short}
+                            </span>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2 text-sm font-medium text-slate-700">

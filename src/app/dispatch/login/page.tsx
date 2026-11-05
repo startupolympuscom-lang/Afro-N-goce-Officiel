@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ALL_COMPANIES_LABEL } from '../../../lib/dispatchCompanies';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { AlertCircle, ArrowLeft, Eye, EyeOff, Radar, Truck, Wallet } from 'lucide-react';
@@ -79,7 +80,7 @@ export default function DispatchLoginPage() {
             La distribution de gaz, pilotée de bout en bout.
           </h1>
           <p className="mt-4 text-sidebar-text text-lg max-w-md">
-            Ventes, tournées, stocks et caisse réunis pour les équipes Afro Négoce et Chakirine Gaz.
+            Ventes, tournées, stocks et caisse réunis pour les équipes {ALL_COMPANIES_LABEL}.
           </p>
         </div>
 

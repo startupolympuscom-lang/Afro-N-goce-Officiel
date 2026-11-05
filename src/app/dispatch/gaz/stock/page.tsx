@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, companyName, companyShort, type CompanyId } from '../../../../lib/dispatchCompanies';
 
 export default function DispatchStockPage() {
   const { 
@@ -27,7 +28,7 @@ export default function DispatchStockPage() {
   } = useDispatchGazStore();
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'audit'>('dashboard');
-  const [selectedCompany, setSelectedCompany] = useState<'all' | 'afro_negoce' | 'chakirine_gaz'>('all');
+  const [selectedCompany, setSelectedCompany] = useState<'all' | CompanyId>('all');
 
   const [isDispatching, setIsDispatching] = useState(false);
   const [isDispatchingComptoir, setIsDispatchingComptoir] = useState(false);
@@ -36,7 +37,7 @@ export default function DispatchStockPage() {
 
   const [damagedStockForm, setDamagedStockForm] = useState({
     action: 'declare' as 'declare' | 'repair',
-    company: 'afro_negoce' as 'afro_negoce' | 'chakirine_gaz',
+    company: DEFAULT_COMPANY as CompanyId,
     brandId: '',
     category: '',
     quantity: 0,
@@ -45,7 +46,7 @@ export default function DispatchStockPage() {
   });
 
   const [globalStockForm, setGlobalStockForm] = useState<GlobalStockItem[]>(globalStock);
-  const [selectedModalCompany, setSelectedModalCompany] = useState<'all' | 'afro_negoce' | 'chakirine_gaz'>('all');
+  const [selectedModalCompany, setSelectedModalCompany] = useState<'all' | CompanyId>('all');
   const [securityCode, setSecurityCode] = useState("");
   const [validationForm, setValidationForm] = useState<{ [key: string]: { returnedFull: number, returnedEmpty: number } }>({});
 
@@ -57,64 +58,9 @@ export default function DispatchStockPage() {
 
   const [comptoirFormData, setComptoirFormData] = useState({
     brandId: '',
-    company: 'afro_negoce' as 'afro_negoce' | 'chakirine_gaz',
+    company: DEFAULT_COMPANY as CompanyId,
     items: [{ category: '', quantity: 0 }]
   });
-
-  // Self-heal: ensure that all default globalStock and comptoirStock items are initialized in the persistent store.
-  // This handles situations where previous states without 'chakirine_gaz' entries were cached in the browser.
-  React.useEffect(() => {
-    const defaultGlobal = [
-      { brandId: 'b1', category: '3Kg', full: 100, empty: 50, company: 'afro_negoce' },
-      { brandId: 'b1', category: '12Kg', full: 200, empty: 80, company: 'afro_negoce' },
-      { brandId: 'b1', category: '34Kg', full: 50, empty: 20, company: 'afro_negoce' },
-      { brandId: 'b1', category: '3Kg', full: 120, empty: 40, company: 'chakirine_gaz' },
-      { brandId: 'b1', category: '12Kg', full: 180, empty: 60, company: 'chakirine_gaz' },
-      { brandId: 'b1', category: '34Kg', full: 40, empty: 15, company: 'chakirine_gaz' }
-    ];
-
-    const defaultComptoir = [
-      { brandId: 'b1', category: '3Kg', full: 20, empty: 10, company: 'afro_negoce' },
-      { brandId: 'b1', category: '12Kg', full: 40, empty: 15, company: 'afro_negoce' },
-      { brandId: 'b1', category: '34Kg', full: 10, empty: 5, company: 'afro_negoce' },
-      { brandId: 'b1', category: '3Kg', full: 30, empty: 5, company: 'chakirine_gaz' },
-      { brandId: 'b1', category: '12Kg', full: 35, empty: 10, company: 'chakirine_gaz' },
-      { brandId: 'b1', category: '34Kg', full: 15, empty: 2, company: 'chakirine_gaz' }
-    ];
-
-    let updated = false;
-    const currentStock = [...globalStock];
-    const currentComptoir = [...(comptoirStock || [])];
-
-    defaultGlobal.forEach(defItem => {
-      const exists = currentStock.some(
-        g => g.brandId === defItem.brandId && 
-             g.category === defItem.category && 
-             (g.company === defItem.company || (!g.company && defItem.company === 'afro_negoce'))
-      );
-      if (!exists) {
-        currentStock.push(defItem);
-        updated = true;
-      }
-    });
-
-    defaultComptoir.forEach(defItem => {
-      const exists = currentComptoir.some(
-        g => g.brandId === defItem.brandId && 
-             g.category === defItem.category && 
-             (g.company === defItem.company || (!g.company && defItem.company === 'afro_negoce'))
-      );
-      if (!exists) {
-        currentComptoir.push(defItem);
-        updated = true;
-      }
-    });
-
-    if (updated) {
-      useDispatchGazStore.setState({ globalStock: currentStock, comptoirStock: currentComptoir });
-      setGlobalStockForm(currentStock.map(g => ({ ...g, full: 0, empty: 0 })));
-    }
-  }, [globalStock, comptoirStock]);
 
   // Ensure we get today's date in local date consistently
   const getLocalDateStr = () => {
@@ -161,7 +107,7 @@ export default function DispatchStockPage() {
         const gs = globalStock.find(g => g.brandId === formData.brandId && g.category === item.category && (g.company || 'afro_negoce') === driverCompany);
         if (!gs || gs.full < item.quantity) {
           insufficient = true;
-          toast.error(`Stock global insuffisant pour ${item.category} (${driverCompany === 'chakirine_gaz' ? 'Chakirine' : 'Afro'})`);
+          toast.error(`Stock global insuffisant pour ${item.category} (${companyShort(driverCompany)})`);
         }
       });
 
@@ -219,7 +165,7 @@ export default function DispatchStockPage() {
         const gs = globalStock.find(g => g.brandId === comptoirFormData.brandId && g.category === item.category && (g.company || 'afro_negoce') === comp);
         if (!gs || gs.full < item.quantity) {
           insufficient = true;
-          toast.error(`Stock global insuffisant pour ${item.category} (${comp === 'chakirine_gaz' ? 'Chakirine' : 'Afro'})`);
+          toast.error(`Stock global insuffisant pour ${item.category} (${companyShort(comp)})`);
         }
       });
 
@@ -378,7 +324,7 @@ export default function DispatchStockPage() {
       if (a.quantityEmpty) quantityStr.push(`${a.quantityEmpty} Vd`);
       if (a.quantityDamaged) quantityStr.push(`${a.quantityDamaged} Endm`);
       
-      const company = a.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
+      const company = companyShort(a.company);
       
       let actionStr = a.action;
       if (a.action === 'set_global') actionStr = 'Ajustement Global';
@@ -421,7 +367,7 @@ export default function DispatchStockPage() {
     
     const stockBody = globalStock.map(gs => {
       const brand = brands.find(b => b.id === gs.brandId)?.name || gs.brandId;
-      const company = gs.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
+      const company = companyShort(gs.company);
       return [
         company,
         brand,
@@ -498,10 +444,10 @@ export default function DispatchStockPage() {
   // Compute live statistics filtered by company
   const kpiTotals = useMemo(() => {
     const filteredGlobal = globalStock.filter(
-      item => selectedCompany === 'all' || item.company === selectedCompany
+      item => selectedCompany === 'all' || (item.company || DEFAULT_COMPANY) === selectedCompany
     );
     const filteredComptoir = (comptoirStock || []).filter(
-      item => selectedCompany === 'all' || item.company === selectedCompany
+      item => selectedCompany === 'all' || (item.company || DEFAULT_COMPANY) === selectedCompany
     );
 
     const globalFull = filteredGlobal.reduce((sum, item) => sum + item.full, 0);
@@ -535,7 +481,7 @@ export default function DispatchStockPage() {
             Gestion des Stocks GPL
           </h1>
           <p className="text-slate-500 text-xs mt-1 font-medium">
-            Pilotez vos parcs de bouteilles (Afro Négoce / Chakirine) et validez les retours chauffeurs.
+            Pilotez les parcs de bouteilles de chaque société et validez les retours chauffeurs.
           </p>
         </div>
 
@@ -639,36 +585,19 @@ export default function DispatchStockPage() {
               Filtrer par société :
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setSelectedCompany('all')}
-                className={`flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-lg border transition-all cursor-pointer ${
-                  selectedCompany === 'all'
-                    ? 'bg-slate-900 border-slate-900 text-white'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Toutes
-              </button>
-              <button
-                onClick={() => setSelectedCompany('afro_negoce')}
-                className={`flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-lg border transition-all cursor-pointer ${
-                  selectedCompany === 'afro_negoce'
-                    ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Ste. Afro Négoce
-              </button>
-              <button
-                onClick={() => setSelectedCompany('chakirine_gaz')}
-                className={`flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-lg border transition-all cursor-pointer ${
-                  selectedCompany === 'chakirine_gaz'
-                    ? 'bg-amber-500 border-amber-500 text-white shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Chakirine Gaz
-              </button>
+              {[{ id: 'all' as const, name: 'Toutes' }, ...DISPATCH_COMPANIES].map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedCompany(c.id)}
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-lg border transition-all cursor-pointer ${
+                    selectedCompany === c.id
+                      ? 'bg-slate-900 border-slate-900 text-white'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -721,29 +650,32 @@ export default function DispatchStockPage() {
           {/* STOCK GRID PANELS */}
           <div className="space-y-8">
             
-            {/* PANEL: AFRO NEGOCE STOCK */}
-            {(selectedCompany === 'all' || selectedCompany === 'afro_negoce') && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                    <span className="w-2.5 h-5 bg-blue-600 rounded-md inline-block"></span>
-                    Stock Principal : Ste. Afro Négoce
-                  </h3>
-                  <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
-                    Dépôt Central
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {globalStock
-                    .filter(item => item.company === 'afro_negoce' || !item.company)
-                    .map((item, idx) => {
+            {/* One central stock panel per company */}
+            {DISPATCH_COMPANIES.filter((c) => selectedCompany === 'all' || selectedCompany === c.id).map((company) => {
+              const rows = globalStock.filter((item) => (item.company || DEFAULT_COMPANY) === company.id);
+              return (
+                <div key={`stock-${company.id}`} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-5 rounded-md inline-block" style={{ backgroundColor: company.color }}></span>
+                      Stock Principal : {company.legalName}
+                    </h3>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
+                      Dépôt Central
+                    </span>
+                  </div>
+
+                  {rows.length === 0 ? (
+                    <p className="text-sm text-slate-500">Aucune marque configurée. Ajoutez-en dans Paramètres GPL.</p>
+                  ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {rows.map((item, idx) => {
                       const brand = brands.find(b => b.id === item.brandId);
                       return (
-                        <div key={`an-stock-${idx}`} className="bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 relative overflow-hidden hover:bg-slate-50 transition-colors">
+                        <div key={`${company.id}-stock-${item.brandId}-${item.category}-${idx}`} className="bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 relative overflow-hidden hover:bg-slate-50 transition-colors">
                           <div className="flex justify-between items-start mb-2">
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[9px] font-bold rounded">
-                              {brand?.name || 'Butagaz'}
+                            <span className={`px-2 py-0.5 text-[9px] font-bold rounded ${company.badge}`}>
+                              {brand?.name || item.brandId}
                             </span>
                             <span className="text-xl font-black text-slate-800">{item.category}</span>
                           </div>
@@ -765,57 +697,11 @@ export default function DispatchStockPage() {
                         </div>
                       );
                     })}
+                  </div>
+                  )}
                 </div>
-              </div>
-            )}
-
-            {/* PANEL: CHAKIRINE GAZ STOCK */}
-            {(selectedCompany === 'all' || selectedCompany === 'chakirine_gaz') && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                    <span className="w-2.5 h-5 bg-amber-500 rounded-md inline-block"></span>
-                    Stock Principal : Chakirine Gaz
-                  </h3>
-                  <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
-                    Dépôt Central
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {globalStock
-                    .filter(item => item.company === 'chakirine_gaz')
-                    .map((item, idx) => {
-                      const brand = brands.find(b => b.id === item.brandId);
-                      return (
-                        <div key={`cg-stock-${idx}`} className="bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 relative overflow-hidden hover:bg-slate-50 transition-colors">
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
-                              {brand?.name || 'Butagaz'}
-                            </span>
-                            <span className="text-xl font-black text-slate-800">{item.category}</span>
-                          </div>
-
-                          <div className="grid grid-cols-3 gap-2 mt-4">
-                            <div className="bg-emerald-50/75 p-2 rounded-lg border border-emerald-100 flex flex-col items-center">
-                              <span className="text-[9px] font-bold text-emerald-600 uppercase">Pleines</span>
-                              <span className="text-lg font-black text-emerald-800 mt-1">{item.full}</span>
-                            </div>
-                            <div className="bg-slate-100/75 p-2 rounded-lg border border-slate-200/60 flex flex-col items-center">
-                              <span className="text-[9px] font-bold text-slate-500 uppercase">Vides</span>
-                              <span className="text-lg font-black text-slate-700 mt-1">{item.empty}</span>
-                            </div>
-                            <div className={`p-2 rounded-lg border flex flex-col items-center ${item.damaged && item.damaged > 0 ? 'bg-rose-50 border-rose-100' : 'bg-slate-100/30 border-slate-100/80 opacity-40'}`}>
-                              <span className={`text-[9px] font-bold uppercase ${item.damaged && item.damaged > 0 ? 'text-rose-600' : 'text-slate-400'}`}>Avaries</span>
-                              <span className={`text-lg font-black mt-1 ${item.damaged && item.damaged > 0 ? 'text-rose-800' : 'text-slate-400'}`}>{item.damaged || 0}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
+              );
+            })}
 
             {/* PANEL: COMPTOIR STOCK */}
             <div className="bg-slate-900 text-white p-6 rounded-2xl border border-slate-800 shadow-md">
@@ -829,24 +715,22 @@ export default function DispatchStockPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* SUB-PANEL: COMPTOIR AFRO */}
-                {(selectedCompany === 'all' || selectedCompany === 'afro_negoce') && (
-                  <div className="space-y-3">
+              <div className="space-y-6">
+                {DISPATCH_COMPANIES.filter((c) => selectedCompany === 'all' || selectedCompany === c.id).map((company) => (
+                  <div key={`comptoir-${company.id}`} className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <span className="w-1.5 h-3 bg-blue-500 rounded-sm"></span>
-                      Comptoir : Ste. Afro Négoce
+                      <span className="w-1.5 h-3 rounded-sm" style={{ backgroundColor: company.color }}></span>
+                      Comptoir : {company.legalName}
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                       {(comptoirStock || [])
-                        .filter(item => item.company === 'afro_negoce' || !item.company)
+                        .filter(item => (item.company || DEFAULT_COMPANY) === company.id)
                         .map((item, idx) => {
                           const brand = brands.find(b => b.id === item.brandId);
                           return (
-                            <div key={`comptoir-an-${idx}`} className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800">
+                            <div key={`comptoir-${company.id}-${item.brandId}-${item.category}-${idx}`} className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800">
                               <div className="flex justify-between items-center text-xs">
-                                <span className="text-[9px] font-semibold text-indigo-300 uppercase">{brand?.name}</span>
+                                <span className="text-[9px] font-semibold text-indigo-300 uppercase">{brand?.name || item.brandId}</span>
                                 <span className="font-extrabold">{item.category}</span>
                               </div>
                               <div className="grid grid-cols-2 gap-1.5 mt-3 text-center">
@@ -864,43 +748,7 @@ export default function DispatchStockPage() {
                         })}
                     </div>
                   </div>
-                )}
-
-                {/* SUB-PANEL: COMPTOIR CHAKIRINE */}
-                {(selectedCompany === 'all' || selectedCompany === 'chakirine_gaz') && (
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <span className="w-1.5 h-3 bg-amber-500 rounded-sm"></span>
-                      Comptoir : Chakirine Gaz
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {(comptoirStock || [])
-                        .filter(item => item.company === 'chakirine_gaz')
-                        .map((item, idx) => {
-                          const brand = brands.find(b => b.id === item.brandId);
-                          return (
-                            <div key={`comptoir-cg-${idx}`} className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800">
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-[9px] font-semibold text-indigo-300 uppercase">{brand?.name}</span>
-                                <span className="font-extrabold">{item.category}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-1.5 mt-3 text-center">
-                                <div className="bg-green-500/10 p-1.5 rounded border border-green-500/20">
-                                  <div className="text-[8px] text-green-400 font-bold uppercase">Pleines</div>
-                                  <div className="text-sm font-black text-green-300 mt-0.5">{item.full}</div>
-                                </div>
-                                <div className="bg-slate-700/50 p-1.5 rounded border border-slate-700">
-                                  <div className="text-[8px] text-slate-400 font-bold uppercase">Vides</div>
-                                  <div className="text-sm font-black text-slate-300 mt-0.5">{item.empty}</div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-
+                ))}
               </div>
             </div>
 
@@ -957,7 +805,7 @@ export default function DispatchStockPage() {
                           <div className="text-[11px] text-slate-500 font-bold mt-0.5">
                             {brand?.name} - <span className="font-mono text-blue-700 bg-blue-50 px-1 py-0.5 rounded">{dispatch.category}</span>
                             <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                              {driver?.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro'}
+                              {companyShort(driver?.company)}
                             </span>
                           </div>
                         </td>
@@ -1082,7 +930,7 @@ export default function DispatchStockPage() {
                             {driver?.prenom} {driver?.nom}
                           </div>
                           <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
-                            Société: {driver?.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro'}
+                            Société: {companyShort(driver?.company)}
                           </span>
                         </td>
                         <td className="p-4">
@@ -1195,7 +1043,7 @@ export default function DispatchStockPage() {
                       if (a.quantityEmpty) quantityStr.push(`${a.quantityEmpty} Vides`);
                       if (a.quantityDamaged) quantityStr.push(`${a.quantityDamaged} Avariées`);
                       
-                      const company = a.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
+                      const company = companyShort(a.company);
                       
                       let actionStr = a.action;
                       let badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200';
@@ -1273,7 +1121,7 @@ export default function DispatchStockPage() {
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {globalStockHistory.slice().reverse().map((hLine, idx) => {
                       const brand = brands.find(b => b.id === hLine.brandId);
-                      const company = hLine.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro';
+                      const company = companyShort(hLine.company);
                       return (
                         <tr key={`history-row-${hLine.id || idx}-${idx}`} className="hover:bg-slate-50/30 transition-colors">
                           <td className="p-4 text-slate-400 font-mono text-xs">{new Date(hLine.date).toLocaleString('fr-FR')}</td>
@@ -1323,39 +1171,20 @@ export default function DispatchStockPage() {
 
             {/* Company selector tabs for defining stock */}
             <div className="px-6 border-b border-slate-100 bg-slate-50/50 flex gap-4 pt-1">
-              <button
-                type="button"
-                onClick={() => setSelectedModalCompany('all')}
-                className={`pb-3 pt-3 font-bold text-xs uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                  selectedModalCompany === 'all'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Toutes les Sociétés
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedModalCompany('afro_negoce')}
-                className={`pb-3 pt-3 font-bold text-xs uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                  selectedModalCompany === 'afro_negoce'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Ste. Afro Négoce
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedModalCompany('chakirine_gaz')}
-                className={`pb-3 pt-3 font-bold text-xs uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                  selectedModalCompany === 'chakirine_gaz'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Chakirine Gaz
-              </button>
+              {[{ id: 'all' as const, name: 'Toutes les Sociétés' }, ...DISPATCH_COMPANIES].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedModalCompany(c.id)}
+                  className={`pb-3 pt-3 font-bold text-xs uppercase tracking-wider border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                    selectedModalCompany === c.id
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
             </div>
             
             <form onSubmit={handleGlobalStockSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -1371,15 +1200,22 @@ export default function DispatchStockPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {globalStockForm
                   .map((item, idx) => ({ item, originalIdx: idx }))
-                  .filter(({ item }) => selectedModalCompany === 'all' || item.company === selectedModalCompany)
+                  .filter(({ item }) => selectedModalCompany === 'all' || (item.company || DEFAULT_COMPANY) === selectedModalCompany)
+                  .sort((a, b) => {
+                    const order = (c?: string) => DISPATCH_COMPANIES.findIndex((x) => x.id === (c || DEFAULT_COMPANY));
+                    const brandName = (id: string) => brands.find((br) => br.id === id)?.name || id;
+                    return order(a.item.company) - order(b.item.company)
+                      || brandName(a.item.brandId).localeCompare(brandName(b.item.brandId))
+                      || (parseFloat(a.item.category) || 0) - (parseFloat(b.item.category) || 0);
+                  })
                   .map(({ item, originalIdx }) => {
                     const brand = brands.find(b => b.id === item.brandId);
-                    const companyName = item.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro Négoce';
+                    const companyLabel = companyName(item.company);
                     const actualStock = globalStock.find(g => g.brandId === item.brandId && g.category === item.category && g.company === item.company);
                     return (
                       <div key={`stock-grid-${item.brandId}-${item.category}-${item.company}-${originalIdx}`} className="bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 space-y-3 relative overflow-hidden group hover:bg-slate-50 transition-colors">
                         <div className="absolute top-0 right-0 bg-slate-200 text-slate-600 px-2 py-0.5 text-[8px] font-black uppercase rounded-bl">
-                          {companyName}
+                          {companyLabel}
                         </div>
                         <div className="flex justify-between items-center pt-2">
                           <div className="font-extrabold text-slate-900 text-sm">{brand?.name} - {item.category}</div>
@@ -1497,8 +1333,7 @@ export default function DispatchStockPage() {
                     onChange={e => setDamagedStockForm({...damagedStockForm, company: e.target.value as any})}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
-                    <option value="afro_negoce">Afro Négoce</option>
-                    <option value="chakirine_gaz">Chakirine Gaz</option>
+                    {DISPATCH_COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -1655,7 +1490,7 @@ export default function DispatchStockPage() {
                     <option value="">Sélectionner...</option>
                     {drivers.map(d => (
                       <option key={d.id} value={d.id}>
-                        {d.prenom} {d.nom} ({d.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro'})
+                        {d.prenom} {d.nom} ({companyShort(d.company)})
                       </option>
                     ))}
                   </select>
@@ -1814,8 +1649,7 @@ export default function DispatchStockPage() {
                     }}
                     className="w-full px-4 py-2.5 border border-indigo-200 rounded-xl bg-slate-50 focus:bg-white font-bold text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   >
-                    <option value="afro_negoce">Ste. Afro Négoce</option>
-                    <option value="chakirine_gaz">Chakirine Gaz</option>
+                    {DISPATCH_COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.legalName}</option>)}
                   </select>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, getCompany, ALL_COMPANIES_LABEL, type CompanyId } from '../../../../lib/dispatchCompanies';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -22,7 +23,7 @@ import {
 import { formatMAD } from '../../../../lib/formatters';
 
 interface CaissePnLViewProps {
-  initialCompany?: 'afro_negoce' | 'chakirine_gaz';
+  initialCompany?: CompanyId;
 }
 
 function escapeHtml(str?: string | number | null): string {
@@ -44,7 +45,7 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
     brands = [] 
   } = useDispatchGazStore();
 
-  const [companyFilter, setCompanyFilter] = useState<'all' | 'afro_negoce' | 'chakirine_gaz'>(initialCompany);
+  const [companyFilter, setCompanyFilter] = useState<'all' | CompanyId>(initialCompany);
   const [periodFilter, setPeriodFilter] = useState<'today' | 'month' | 'year' | 'all' | 'custom'>('month');
   const [isPrinting, setIsPrinting] = useState(false);
   
@@ -74,17 +75,17 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
   const getCompanyForSale = (sale: any) => {
     if (sale.company) return sale.company;
     const d = drivers.find(drv => drv.id === sale.driverId);
-    return d?.company || 'afro_negoce';
+    return d?.company || DEFAULT_COMPANY;
   };
 
   const getCompanyForExpense = (exp: any) => {
     if (exp.company) return exp.company;
     const d = drivers.find(drv => drv.id === exp.driverId);
-    return d?.company || 'afro_negoce';
+    return d?.company || DEFAULT_COMPANY;
   };
 
   const getCompanyForAlimentation = (alim: any) => {
-    return alim.company || 'afro_negoce';
+    return alim.company || DEFAULT_COMPANY;
   };
 
   // Filtered collections
@@ -290,9 +291,8 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
   };
 
   const getCompanyLabel = () => {
-    if (companyFilter === 'afro_negoce') return 'Sté. Afro Négoce';
-    if (companyFilter === 'chakirine_gaz') return 'Chakirine Gaz';
-    return 'Consolidé (Afro Négoce & Chakirine Gaz)';
+    if (companyFilter !== 'all') return getCompany(companyFilter).legalName;
+    return `Consolidé (${ALL_COMPANIES_LABEL})`;
   };
 
   const generatePrintPnLHtml = (): string => {
@@ -913,29 +913,21 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
         <div className="flex flex-wrap items-center gap-3">
           
           {/* Company filter */}
-          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setCompanyFilter('afro_negoce')}
-              className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-                companyFilter === 'afro_negoce'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Afro Négoce
-            </button>
-            <button
-              type="button"
-              onClick={() => setCompanyFilter('chakirine_gaz')}
-              className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-                companyFilter === 'chakirine_gaz'
-                  ? 'bg-amber-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Chakirine Gaz
-            </button>
+          <div className="flex max-w-full overflow-x-auto bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            {DISPATCH_COMPANIES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCompanyFilter(c.id)}
+                className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+                  companyFilter === c.id
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => setCompanyFilter('all')}
@@ -1504,10 +1496,8 @@ export function CaissePnLView({ initialCompany = 'afro_negoce' }: CaissePnLViewP
                         <span className="text-[10px] text-slate-400">{item.driver.phone || item.driver.telephone || 'Sans tel'}</span>
                       </td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          item.driver.company === 'chakirine_gaz' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {item.driver.company === 'chakirine_gaz' ? 'Chakirine' : 'Afro Négoce'}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getCompany(item.driver.company).badge}`}>
+                          {getCompany(item.driver.company).short}
                         </span>
                       </td>
                       <td className="p-3 text-center font-bold text-slate-700">

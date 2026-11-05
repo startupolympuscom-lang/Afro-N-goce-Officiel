@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useCarburantStore } from '../../../../stores/useCarburantStore';
 import { useChargeVariableStore } from '../../../../stores/useChargeVariableStore';
 import { useDispatchGazStore, ComptaDocument } from '../../../../stores/useDispatchGazStore';
+import { DISPATCH_COMPANIES, DEFAULT_COMPANY, companyName, type CompanyId } from '../../../../lib/dispatchCompanies';
 import { useDispatchAuthStore } from '../../../../stores/useDispatchAuthStore';
 import { 
   FileText, 
@@ -45,7 +46,7 @@ export default function DispatchComptaPage() {
   } = useDispatchGazStore();
 
   // Filters & State
-  const [selectedCompany, setSelectedCompany] = useState<'afro_negoce' | 'chakirine_gaz'>('afro_negoce');
+  const [selectedCompany, setSelectedCompany] = useState<CompanyId>(DEFAULT_COMPANY);
   const [filterMonth, setFilterMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [docSearch, setDocSearch] = useState('');
   const [docTypeFilter, setDocTypeFilter] = useState<string>('all');
@@ -75,7 +76,7 @@ export default function DispatchComptaPage() {
     // Filter by selected month and active company drivers
     const filteredTickets = carburantTickets.filter(t => {
       const driver = drivers.find(d => d.id === t.chauffeurId);
-      const companyMatches = driver ? driver.company === selectedCompany : true;
+      const companyMatches = driver ? (driver.company || DEFAULT_COMPANY) === selectedCompany : true;
       return (t.createdAt?.startsWith(filterMonth) || t.dateHeure?.startsWith(filterMonth)) && companyMatches;
     });
     
@@ -99,7 +100,7 @@ export default function DispatchComptaPage() {
 
   // 2. DISPATCH DRIVER SALES & COUNTER (COMPTOIR) STOCK/SALES
   const salesAnalysis = useMemo(() => {
-    const filteredSales = sales.filter(s => s.date?.startsWith(filterMonth) && s.company === selectedCompany);
+    const filteredSales = sales.filter(s => s.date?.startsWith(filterMonth) && (s.company || drivers.find(d => d.id === s.driverId)?.company || DEFAULT_COMPANY) === selectedCompany);
     
     // Distinguish comptoir (counter desk) sales vs driver deliveries.
     // Chauffeurs have IDs matching drivers database list, while comptoir salesperson id is not there or role is vendeur.
@@ -153,7 +154,7 @@ export default function DispatchComptaPage() {
     // paySlips is filtered by the month and driver company
     const filteredSlips = paySlips.filter(p => {
       const driver = drivers.find(d => d.id === p.driverId);
-      return p.month === filterMonth && (driver?.company === selectedCompany);
+      return p.month === filterMonth && !!driver && (driver.company || DEFAULT_COMPANY) === selectedCompany;
     });
     const totalPayrollPaid = filteredSlips.reduce((sum, p) => sum + (p.totalCommission || 0), 0);
 
@@ -297,7 +298,7 @@ export default function DispatchComptaPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_2px_15px_-4px_rgba(0,0,0,0.03)]">
         <div>
           <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 shadow-sm mb-3">
-            <Scale className="w-3.5 h-3.5" /> Fiduciaire {selectedCompany === 'chakirine_gaz' ? 'Chakirine Gaz' : 'Afro Négoce'}
+            <Scale className="w-3.5 h-3.5" /> Fiduciaire {companyName(selectedCompany)}
           </span>
           <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
             Comptabilité & Correspondance
@@ -309,27 +310,20 @@ export default function DispatchComptaPage() {
 
         {/* Global Period & Company Selector */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
-            <button
-              onClick={() => setSelectedCompany('afro_negoce')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                selectedCompany === 'afro_negoce'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Afro Négoce
-            </button>
-            <button
-              onClick={() => setSelectedCompany('chakirine_gaz')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                selectedCompany === 'chakirine_gaz'
-                  ? 'bg-amber-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Chakirine Gaz
-            </button>
+          <div className="flex max-w-full overflow-x-auto bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+            {DISPATCH_COMPANIES.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCompany(c.id)}
+                className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  selectedCompany === c.id
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
           </div>
 
           <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 p-2 rounded-2xl shadow-sm">

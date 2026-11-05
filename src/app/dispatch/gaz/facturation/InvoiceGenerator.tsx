@@ -51,8 +51,8 @@ export function InvoiceGenerator() {
 
   // Sales of the chosen company in the chosen month
   const monthSales = useMemo(
-    () => (sales as Sale[]).filter((s) => s.date?.startsWith(month) && (!company.salesOf || saleCompany(s, drivers) === company.salesOf)),
-    [sales, drivers, month, company.salesOf],
+    () => (sales as Sale[]).filter((s) => s.date?.startsWith(month) && saleCompany(s, drivers) === company.id),
+    [sales, drivers, month, company.id],
   );
   const monthClients = useMemo(() => {
     const ids = new Set(monthSales.map((s) => s.clientId));
@@ -193,11 +193,6 @@ export function InvoiceGenerator() {
                 </button>
               ))}
             </div>
-            {!company.salesOf && (
-              <p className="mt-2.5 text-xs leading-relaxed text-slate-500">
-                Aucun chauffeur n'est rattaché à {company.name} : les ventes des deux sociétés sont proposées.
-              </p>
-            )}
 
             <div className="mt-5 grid gap-5 border-t border-slate-100 pt-5 md:grid-cols-2">
               <div>
