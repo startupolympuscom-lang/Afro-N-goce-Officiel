@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
-import { Calendar, Building2, FileText, Printer, CheckSquare, Square, ArrowLeft, Plus, Trash2, Send } from 'lucide-react';
+import { Calendar, Building2, FileText, CheckSquare, Square, ArrowLeft, Plus, Trash2, Send } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { toast } from 'sonner';
+import { LETTERHEAD_URL, downloadInvoicePdf, formatAmount, printInvoicePdf, type InvoiceInput } from './invoicePdf';
 
 export default function DispatchFacturationPage() {
   const { clients, sales, brands, factureRequests, addFactureRequest, deleteFactureRequest } = useDispatchGazStore();
@@ -18,6 +20,7 @@ export default function DispatchFacturationPage() {
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedSaleIds, setSelectedSaleIds] = useState<Set<string>>(new Set());
   const [showInvoice, setShowInvoice] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const months = useMemo(() => {
     const uniqueMonths = new Set<string>();
@@ -85,8 +88,44 @@ export default function DispatchFacturationPage() {
     };
   }, [clientSalesForMonth, selectedSaleIds, selectedClientId, selectedMonth]);
 
-  const handlePrint = () => {
-    window.print();
+  const periodLabel = format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy', { locale: fr }).toUpperCase();
+
+  const invoiceInput = (): InvoiceInput | null => {
+    if (!invoiceData || !selectedClient) return null;
+    return {
+      client: {
+        name: selectedClient.name,
+        address: selectedClient.address,
+        city: selectedClient.city,
+        ice: selectedClient.ice,
+        code: selectedClient.code,
+      },
+      periodLabel,
+      issuedOn: new Date(),
+      lines: invoiceData.items.map((item) => ({
+        label: `${brands.find((b) => b.id === item.brandId)?.name || item.brandId} - ${item.category}`,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.totalPrice,
+      })),
+      total: invoiceData.totalAmount,
+      fileName: `Facture_${selectedClient.name.replace(/[^\p{L}\p{N}]+/gu, '-')}_${selectedMonth}.pdf`,
+    };
+  };
+
+  // Invoices are generated as PDF on the company letterhead
+  const generate = async (action: 'download' | 'print') => {
+    const input = invoiceInput();
+    if (!input) return;
+    setIsGenerating(true);
+    try {
+      await (action === 'download' ? downloadInvoicePdf(input) : printInvoicePdf(input));
+    } catch (error) {
+      console.error(error);
+      toast.error("La facture n'a pas pu être générée. Réessayez.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const toggleSale = (saleId: string) => {
@@ -271,79 +310,76 @@ export default function DispatchFacturationPage() {
               <ArrowLeft className="w-5 h-5" />
               Modifier la sélection
             </button>
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
-            >
-              <Printer className="w-5 h-5" />
-              Imprimer la facture
-            </button>
-          </div>
-
-          <div className="print-area">
-            {/* INVOICE CONTENT */}
-            <div className="mx-auto bg-white" style={{ minHeight: '297mm', padding: '0', display: 'flex', flexDirection: 'column' }}>
-              {/* Header space for letterhead (adjust margin in CSS below) */}
-              <div className="print-header-space" style={{ height: '3.5cm' }}></div>
-              
-              <div className="flex-1 px-8 pb-8">
-                <div className="flex justify-between items-start mb-12">
-                  <div>
-                    <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tighter uppercase">FACTURE</h2>
-                    <p className="text-slate-500">Mois: <span className="font-bold text-slate-900">{format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy', { locale: fr }).toUpperCase()}</span></p>
-                    <p className="text-slate-500">Date d'édition: <span className="font-bold text-slate-900">{format(new Date(), 'dd/MM/yyyy')}</span></p>
-                  </div>
-                  
-                  <div className="text-right border border-slate-200 p-4 rounded-xl min-w-[300px]">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Facturé à</p>
-                    <h3 className="text-xl font-bold text-slate-900 uppercase">{selectedClient.name}</h3>
-                    {selectedClient.address && <p className="text-slate-600 font-medium">{selectedClient.address}</p>}
-                    <p className="text-slate-600 font-medium">{selectedClient.city}</p>
-                    {selectedClient.ice && <p className="text-slate-500 text-sm mt-1">ICE: <span className="font-medium text-slate-800">{selectedClient.ice}</span></p>}
-                    {selectedClient.code && <p className="text-slate-500 text-sm">Code Client: <span className="font-medium text-slate-800">{selectedClient.code}</span></p>}
-                  </div>
-                </div>
-
-                <div className="mb-8">
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2">Résumé des consommations</h4>
-                  <table className="w-full text-left font-medium text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-slate-500">
-                        <th className="py-3 px-2">Article</th>
-                        <th className="py-3 px-2 text-right">Quantité</th>
-                        <th className="py-3 px-2 text-right">Prix Unitaire</th>
-                        <th className="py-3 px-2 text-right">Total (MAD)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoiceData.items.map((item, idx) => {
-                        const brand = brands.find(b => b.id === item.brandId);
-                        return (
-                          <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                            <td className="py-3 px-2 font-bold text-slate-900">{brand?.name || item.brandId} - {item.category}</td>
-                            <td className="py-3 px-2 text-right">{item.quantity}</td>
-                            <td className="py-3 px-2 text-right">{item.unitPrice.toFixed(2)}</td>
-                            <td className="py-3 px-2 text-right font-bold text-slate-900">{item.totalPrice.toFixed(2)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-slate-900">
-                        <td colSpan={3} className="py-4 px-2 text-right font-black uppercase text-slate-500 tracking-widest">Montant Total :</td>
-                        <td className="py-4 px-2 text-right font-black text-2xl text-slate-900">{invoiceData.totalAmount.toFixed(2)} MAD</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-
-                {/* Removed Détail des bons de livraison as requested */}
-              </div>
-              
-              {/* Footer space for letterhead */}
-              <div className="print-footer-space" style={{ height: '3.5cm' }}></div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => generate('print')}
+                disabled={isGenerating}
+                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Imprimer
+              </button>
+              <button
+                onClick={() => generate('download')}
+                disabled={isGenerating}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {isGenerating ? 'Génération…' : 'Télécharger le PDF'}
+              </button>
             </div>
           </div>
+
+          {/* Preview on the letterhead; the PDF uses the same layout (content between the header and footer rules) */}
+          <div className="mx-auto w-full max-w-[794px] shadow-lg ring-1 ring-slate-200" style={{ containerType: 'inline-size' }}>
+            <div className="relative bg-white bg-cover bg-top" style={{ aspectRatio: '210 / 297', backgroundImage: `url(${LETTERHEAD_URL})` }}>
+              <div className="absolute overflow-hidden text-slate-900" style={{ top: '22.2%', bottom: '11.8%', left: '8.6%', right: '8.6%', fontSize: '1.5cqw' }}>
+                <div className="flex items-start justify-between gap-[3cqw]">
+                  <div>
+                    <h2 className="font-bold tracking-tight" style={{ fontSize: '3.6cqw', lineHeight: 1.1 }}>FACTURE</h2>
+                    <p className="mt-[1.4cqw] text-slate-500">Période : <span className="font-bold text-slate-900">{periodLabel}</span></p>
+                    <p className="text-slate-500">Date d'édition : <span className="font-bold text-slate-900">{format(new Date(), 'dd/MM/yyyy')}</span></p>
+                  </div>
+                  <div className="w-[40%] rounded-[0.6cqw] border border-slate-300 bg-white p-[1.6cqw]">
+                    <p className="font-bold text-slate-500" style={{ fontSize: '1.1cqw' }}>FACTURÉ À</p>
+                    <p className="font-bold uppercase" style={{ fontSize: '1.8cqw' }}>{selectedClient.name}</p>
+                    {selectedClient.address && <p className="text-slate-600">{selectedClient.address}</p>}
+                    {selectedClient.city && <p className="text-slate-600">{selectedClient.city}</p>}
+                    {selectedClient.ice && <p className="text-slate-600">ICE : {selectedClient.ice}</p>}
+                    {selectedClient.code && <p className="text-slate-600">Code client : {selectedClient.code}</p>}
+                  </div>
+                </div>
+
+                <table className="mt-[3cqw] w-full border-collapse">
+                  <thead>
+                    <tr className="text-left text-white" style={{ backgroundColor: '#007D73' }}>
+                      <th className="px-[1.2cqw] py-[0.9cqw] font-bold">Article</th>
+                      <th className="px-[1.2cqw] py-[0.9cqw] font-bold text-right">Quantité</th>
+                      <th className="px-[1.2cqw] py-[0.9cqw] font-bold text-right">Prix unitaire (MAD)</th>
+                      <th className="px-[1.2cqw] py-[0.9cqw] font-bold text-right">Total (MAD)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoiceData.items.map((item, idx) => (
+                      <tr key={idx} className="border-b border-slate-200 bg-white/90">
+                        <td className="px-[1.2cqw] py-[0.9cqw] font-bold">{brands.find((b) => b.id === item.brandId)?.name || item.brandId} - {item.category}</td>
+                        <td className="px-[1.2cqw] py-[0.9cqw] text-right">{item.quantity}</td>
+                        <td className="px-[1.2cqw] py-[0.9cqw] text-right">{formatAmount(item.unitPrice)}</td>
+                        <td className="px-[1.2cqw] py-[0.9cqw] text-right">{formatAmount(item.totalPrice)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-white/90">
+                      <td colSpan={3} className="px-[1.2cqw] py-[1.2cqw] text-right font-bold" style={{ fontSize: '1.8cqw' }}>Montant total</td>
+                      <td className="px-[1.2cqw] py-[1.2cqw] text-right font-bold whitespace-nowrap" style={{ fontSize: '1.8cqw' }}>{formatAmount(invoiceData.totalAmount)} MAD</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+          {invoiceData.items.length > 14 && (
+            <p className="mt-3 text-center text-sm text-slate-500">Aperçu de la première page : le PDF ajoute les pages suivantes avec le papier en-tête.</p>
+          )}
         </div>
       )}
       </>
@@ -463,26 +499,6 @@ export default function DispatchFacturationPage() {
         </div>
       )}
 
-      {/* Embedded print styles */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-area, .print-area * {
-            visibility: visible;
-          }
-          .print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          @page {
-            margin: 0; /* Remove default browser margins so letterhead space acts as exact margin */
-          }
-        }
-      `}} />
     </div>
   );
 }
