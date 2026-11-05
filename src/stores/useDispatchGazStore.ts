@@ -78,6 +78,12 @@ export interface GazSale {
   lng?: number;
   company?: 'afro_negoce' | 'chakirine_gaz';
   isFactured?: boolean;
+  /** 'manuelle' when office staff entered it for the driver (possibly for a past day); absent for the driver app. */
+  source?: 'chauffeur' | 'manuelle';
+  /** Dispatch whose stock the sale was taken from, when known. */
+  dispatchId?: string;
+  recordedAt?: string;
+  recordedBy?: string;
 }
 
 export interface Convoyeur {
@@ -164,6 +170,7 @@ export interface StockDispatch {
   returnedFull?: number;  // New: Returned at end of day
   returnedEmpty?: number; // New: Returned empty at end of day
   isValidated?: boolean;  // New: Validated by admin
+  validatedAt?: string;
 }
 
 export interface GlobalStockItem {
@@ -407,6 +414,7 @@ interface DispatchGazState {
 
   addSale: (sale: GazSale & { isConsignment?: boolean }) => void;
   addComptoirSale: (sale: GazSale & { isConsignment?: boolean, company?: 'afro_negoce' | 'chakirine_gaz' }) => void;
+  deleteSale: (id: string) => void;
   updateSaleStatus: (id: string, status: 'payé' | 'non payé') => void;
   updateSaleFactured: (id: string, isFactured: boolean) => void;
   addExpense: (expense: GazExpense) => void;
@@ -627,9 +635,12 @@ export const useDispatchGazStore = create<DispatchGazState>()(
         const driverCompany = driver?.company || 'afro_negoce';
         const saleWithCompany = { ...sale, company: sale.company || driverCompany };
 
-        // Also update stock sold
+        // Also update stock sold: the dispatch named by the sale (a past day's, possibly validated), else the open one
         const newStockDispatches = state.stockDispatches.map(sd => {
-          if (sd.driverId === sale.driverId && sd.brandId === sale.brandId && sd.category === sale.category && !sd.isValidated) {
+          const isSource = sale.dispatchId
+            ? sd.id === sale.dispatchId
+            : sd.driverId === sale.driverId && sd.brandId === sale.brandId && sd.category === sale.category && !sd.isValidated;
+          if (isSource) {
             if (sale.isConsignment) {
               return { ...sd, soldConsigned: (sd.soldConsigned || 0) + sale.quantity };
             } else {
@@ -669,6 +680,23 @@ export const useDispatchGazStore = create<DispatchGazState>()(
           newComptoir[cIdx].full -= sale.quantity;
         }
         return { sales: [...state.sales, saleWithCompany], comptoirStock: newComptoir };
+      }),
+      deleteSale: (id) => set((state) => {
+        const sale = state.sales.find(s => s.id === id) as (GazSale & { isConsignment?: boolean }) | undefined;
+        if (!sale) return state;
+        // Give the bottles back to the dispatch they were taken from
+        let restored = false;
+        const stockDispatches = state.stockDispatches.map(sd => {
+          const isSource = sale.dispatchId
+            ? sd.id === sale.dispatchId
+            : !restored && sd.driverId === sale.driverId && sd.brandId === sale.brandId && sd.category === sale.category && !sd.isValidated;
+          if (!isSource) return sd;
+          restored = true;
+          return sale.isConsignment
+            ? { ...sd, soldConsigned: Math.max(0, (sd.soldConsigned || 0) - sale.quantity) }
+            : { ...sd, sold: Math.max(0, sd.sold - sale.quantity) };
+        });
+        return { sales: state.sales.filter(s => s.id !== id), stockDispatches };
       }),
       updateSaleStatus: (id, status) => set((state) => ({
         sales: state.sales.map(s => s.id === id ? { ...s, status } : s)
@@ -799,7 +827,7 @@ export const useDispatchGazStore = create<DispatchGazState>()(
 
         const newStockDispatches = state.stockDispatches.map(sd => {
           if (sd.id === id) {
-            return { ...sd, returnedFull, returnedEmpty, isValidated: true };
+            return { ...sd, returnedFull, returnedEmpty, isValidated: true, validatedAt: new Date().toISOString() };
           }
           return sd;
         });

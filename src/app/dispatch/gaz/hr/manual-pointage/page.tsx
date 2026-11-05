@@ -4,27 +4,36 @@ import { Users, Save, CheckCircle2, Truck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { isPointageOn, timestampForDay, todayLocal } from '../../../../../lib/dispatchDates';
 
 export default function DispatchManualPointagePage() {
-  const { drivers, convoyeurs, pointages, addPointage, hasPointageToday } = useDispatchGazStore();
+  const { drivers, convoyeurs, pointages, addPointage } = useDispatchGazStore();
   const navigate = useNavigate();
-  
-  const todayDateStr = new Date().toISOString().split('T')[0];
+  const [searchParams] = useSearchParams();
 
-  const availableDrivers = drivers.filter(d => d.status === 'actif' && !hasPointageToday(d.id));
+  // Without driver phones, check-ins are entered here, also for a day that was missed.
+  const today = todayLocal();
+  const requestedDay = searchParams.get('date');
+  const [day, setDay] = useState(requestedDay && requestedDay <= today ? requestedDay : today);
+  const isPastDay = day < today;
+  const dayLabel = new Date(`${day}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const availableDrivers = drivers.filter(d => d.status === 'actif' && !pointages.some(p =>
+    isPointageOn(p, day) && (p.driverId === d.id || (!!d.email && p.driverId === d.email))
+  ));
   
   const takenConvoyeursIds = React.useMemo(() => {
-    const todayPointages = pointages.filter(p => p.date === todayDateStr);
+    const dayPointages = pointages.filter(p => isPointageOn(p, day));
     const taken = new Set<string>();
-    todayPointages.forEach(p => {
+    dayPointages.forEach(p => {
       if (p.convoyeurId) taken.add(p.convoyeurId);
       if (p.convoyeursIds) {
         p.convoyeursIds.forEach(id => taken.add(id));
       }
     });
     return taken;
-  }, [pointages, todayDateStr]);
+  }, [pointages, day]);
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [selectedConvoyeursIds, setSelectedConvoyeursIds] = useState<string[]>([]);
@@ -52,17 +61,21 @@ export default function DispatchManualPointagePage() {
       return;
     }
 
-    const now = new Date();
     addPointage({
       id: nanoid(),
       driverId: selectedDriverId,
       convoyeursIds: isAlone ? [] : selectedConvoyeursIds,
-      date: now.toISOString().split('T')[0],
-      timestamp: now.toISOString()
+      date: day,
+      timestamp: timestampForDay(day)
     });
 
-    toast.success('Pointage enregistré. Veuillez maintenant affecter le stock.');
-    navigate('/dispatch/gaz/stock');
+    if (isPastDay) {
+      toast.success(`Pointage enregistré pour le ${dayLabel}.`);
+      navigate(`/dispatch/gaz/stock/manual-sale?date=${day}&driver=${selectedDriverId}`);
+    } else {
+      toast.success('Pointage enregistré. Veuillez maintenant affecter le stock.');
+      navigate('/dispatch/gaz/stock');
+    }
   };
 
   return (
@@ -78,10 +91,25 @@ export default function DispatchManualPointagePage() {
 
       <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-8 space-y-8">
         <div>
+          <label htmlFor="pointage-day" className="block text-sm font-medium text-slate-700 mb-2">Date du pointage</label>
+          <input
+            id="pointage-day"
+            type="date"
+            max={today}
+            value={day}
+            onChange={(e) => { if (e.target.value && e.target.value <= today) { setDay(e.target.value); setSelectedDriverId(''); setSelectedConvoyeursIds([]); setIsAlone(false); } }}
+            className="w-full sm:w-64 px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+          {isPastDay && (
+            <p className="mt-2 text-sm text-amber-700">Pointage d'une journée passée : le {dayLabel}.</p>
+          )}
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">Choisir le chauffeur</label>
           {availableDrivers.length === 0 ? (
             <div className="p-4 bg-orange-50 text-orange-700 border border-orange-200 rounded-xl">
-              Tous les chauffeurs actifs ont déjà pointé aujourd'hui.
+              Tous les chauffeurs actifs ont déjà pointé {isPastDay ? 'ce jour-là' : "aujourd'hui"}.
             </div>
           ) : (
             <select
