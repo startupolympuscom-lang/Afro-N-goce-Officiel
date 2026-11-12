@@ -30,6 +30,7 @@ const DispatchRapportsPage = React.lazy(() => import('./app/dispatch/gaz/rapport
 const DispatchCaissePage = React.lazy(() => import('./app/dispatch/gaz/caisse/page'));
 const DispatchCommandePage = React.lazy(() => import('./app/dispatch/gaz/commande/page'));
 const DispatchComptaPage = React.lazy(() => import('./app/dispatch/gaz/compta/page'));
+const DispatchTresoreriePage = React.lazy(() => import('./app/dispatch/gaz/tresorerie/page'));
 const DispatchLivePage = React.lazy(() => import('./app/dispatch/gaz/live/page'));
 const DispatchHRPage = React.lazy(() => import('./app/dispatch/gaz/hr/page'));
 const DispatchHRPointagePage = React.lazy(() => import('./app/dispatch/gaz/hr/pointage/page'));
@@ -128,6 +129,7 @@ export default function App() {
             <Route path="caisse" element={<DispatchCaissePage />} />
             <Route path="commande" element={<DispatchCommandePage />} />
             <Route path="compta" element={<DispatchComptaPage />} />
+            <Route path="tresorerie" element={<DispatchTresoreriePage />} />
             <Route path="live" element={<DispatchLivePage />} />
             <Route path="hr" element={<DispatchHRPage />} />
             <Route path="hr/pointage" element={<DispatchHRPointagePage />} />

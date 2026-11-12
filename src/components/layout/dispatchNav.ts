@@ -19,6 +19,7 @@ import {
   QrCode,
   Flame,
   History,
+  Gauge,
   type LucideIcon,
 } from 'lucide-react';
 import { DispatchRole } from '../../stores/useDispatchAuthStore';
@@ -67,6 +68,7 @@ export const DISPATCH_NAV: DispatchNavSection[] = [
     items: [
       { pageId: 'caisse', name: 'Caisse', path: '/dispatch/gaz/caisse', icon: Wallet },
       { pageId: 'compta', name: 'Comptabilité', path: '/dispatch/gaz/compta', icon: Calculator },
+      { pageId: 'tresorerie', name: 'Simulation trésorerie', path: '/dispatch/gaz/tresorerie', icon: Gauge },
     ],
   },
   {
@@ -104,10 +106,10 @@ export const DISPATCH_ROLE_LABELS: Record<DispatchRole, string> = {
 
 // Pages each role can reach before access-control (RBAC) rules apply.
 const ROLE_PAGES: Record<Exclude<DispatchRole, 'admin' | 'driver'>, string[]> = {
-  comptable: ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard', 'facturation', 'rapports'],
+  comptable: ['compta', 'caisse', 'commande', 'stock', 'hr', 'dashboard', 'facturation', 'rapports', 'tresorerie'],
   stock_superviseur: ['stock', 'manual_sale', 'commande'],
   vendeur_comptoir: ['comptoir_sale', 'driver_history'],
-  caissier: ['caisse'],
+  caissier: ['caisse', 'tresorerie'],
 };
 
 const DRIVER_PAGES = ['driver_pointage', 'driver_sale', 'driver_history'];

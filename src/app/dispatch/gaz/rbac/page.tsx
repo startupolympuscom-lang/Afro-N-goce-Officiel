@@ -85,6 +85,7 @@ export default function DispatchRbacPage() {
     { id: 'caisse', label: 'Caisse' },
     { id: 'commande', label: 'Commandes' },
     { id: 'compta', label: 'Comptabilité' },
+    { id: 'tresorerie', label: 'Simulation trésorerie' },
     { id: 'rbac', label: 'Contrôle d\'accès' },
     { id: 'comptoir_sale', label: 'Vente Comptoir' },
     { id: 'driver_pointage', label: 'Pointage Chauffeur' },
