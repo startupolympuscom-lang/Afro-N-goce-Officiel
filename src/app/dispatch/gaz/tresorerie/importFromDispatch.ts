@@ -7,7 +7,7 @@ import type { DispatchGazDriver, GazCommande, GazPaySlip, GazSale } from '../../
 import type { ApprovisionnementStation, LeasingContrat, TicketCarburant, Vehicule } from '../../../../types';
 import type { ChargeVariable } from '../../../../stores/useChargeVariableStore';
 import { DEFAULT_COMPANY, getCompany } from '../../../../lib/dispatchCompanies';
-import { daysIn, type BankProduct, type ChargeRecurrente, type Echeance, type SimScenario } from '../../../../lib/tresorerieSim';
+import { countDays, daysIn, newDepense, type BankProduct, type Depense, type FlowCategory, type SimScenario } from '../../../../lib/tresorerieSim';
 
 export interface DispatchData {
   sales: GazSale[];
@@ -63,13 +63,21 @@ export function importFromDispatch(base: SimScenario, data: DispatchData, today 
     return !!parc && normalize(parc).includes(normalize(company!.short));
   };
 
-  // Keep the rows typed by hand, replace the previous import
+  // Keep the rows typed by hand, replace the previous import (empty standard rows are filled in place)
   const scenario: SimScenario = {
     ...base,
     encaissements: base.encaissements.filter((r) => r.source !== 'import'),
-    echeances: base.echeances.filter((r) => r.source !== 'import'),
-    charges: base.charges.filter((r) => r.source !== 'import'),
+    // Rows added by a previous import are rebuilt; standard rows (gaz, gasoil…) are refreshed in place
+    depenses: base.depenses.filter((r) => !r.id.startsWith('imp-')).map((r) => ({ ...r })),
     bankProducts: base.bankProducts.filter((r) => r.source !== 'import'),
+  };
+  const scale = n / WINDOW_DAYS;
+  /** Puts the amount on the standard row of the category (same label), else adds a row. */
+  const fill = (category: FlowCategory, monthlyAmount: number, patch: Partial<Depense> = {}) => {
+    const row = scenario.depenses.find((d) => d.category === category && !d.paid && (!patch.label || d.label === patch.label))
+      ?? scenario.depenses.find((d) => d.category === category && !d.paid && d.monthlyAmount === 0);
+    if (row) Object.assign(row, { monthlyAmount, source: 'import', ...patch });
+    else scenario.depenses.push(newDepense(n, { category, monthlyAmount, source: 'import', ...patch, id: `imp-${nanoid(8)}` }));
   };
 
   // 1. Sales: average per working day and share paid in cash
@@ -77,12 +85,13 @@ export function importFromDispatch(base: SimScenario, data: DispatchData, today 
   const salesTotal = sales.reduce((sum, s) => sum + s.totalPrice, 0);
   const workDaysInWindow = countWeekdays(windowStart, windowEnd, base.workDays);
   if (salesTotal > 0 && workDaysInWindow > 0) {
-    scenario.dailySales = Math.round(salesTotal / workDaysInWindow / 10) * 10;
+    const perDay = salesTotal / workDaysInWindow;
+    scenario.monthlyTurnover = Math.round((perDay * countDays(base.month, base.workDays)) / 100) * 100;
     const cash = sales.filter((s) => s.paymentMethod !== 'credit').reduce((sum, s) => sum + s.totalPrice, 0);
     scenario.cashSharePct = Math.round((cash / salesTotal) * 100);
-    notes.push(`Ventes ${periodLabel} : ${fmt(salesTotal)}, soit ${fmt(scenario.dailySales)} par jour travaillé, ${scenario.cashSharePct} % au comptant.`);
+    notes.push(`Chiffre d'affaires : ${fmt(salesTotal)} ${periodLabel}, soit ${fmt(perDay)} par jour travaillé et ${fmt(scenario.monthlyTurnover)} sur le mois simulé ; ${scenario.cashSharePct} % payés comptant.`);
   } else {
-    notes.push(`Aucune vente trouvée ${periodLabel} : saisissez les ventes journalières à la main.`);
+    notes.push(`Aucune vente trouvée ${periodLabel} : saisissez le chiffre d'affaires du mois à la main.`);
   }
   const overdue = data.sales.filter((s) => (all || saleCompany(s) === base.company) && s.paymentMethod === 'credit' && s.status !== 'payé' && s.date.slice(0, 10) < ymd(monthStart));
   const overdueTotal = overdue.reduce((sum, s) => sum + s.totalPrice, 0);
@@ -94,55 +103,50 @@ export function importFromDispatch(base: SimScenario, data: DispatchData, today 
   if (all) {
     const bySupplier = new Map<string, number>();
     data.commandes.filter((c) => inWindow(c.date)).forEach((c) => bySupplier.set(c.supplierId || 'Fournisseur gaz', (bySupplier.get(c.supplierId || 'Fournisseur gaz') ?? 0) + c.totalPrice));
-    const paymentDays = Math.max(1, countWeekdays(windowStart, windowEnd, [1, 4]));
     bySupplier.forEach((total, supplier) => {
-      scenario.charges.push({
-        id: nanoid(), label: `Achats gaz - ${supplier}`, category: 'fournisseur_gaz', amount: Math.round(total / paymentDays),
-        frequency: 'hebdomadaire', weekdays: [1, 4], day: 1, source: 'import',
-      } satisfies ChargeRecurrente);
-      notes.push(`Commandes ${supplier} ${periodLabel} : ${fmt(total)}, réglées les lundis et jeudis.`);
+      fill('fournisseur_gaz', Math.round(total * scale), { supplier, label: 'Paiement gaz' });
+      notes.push(`Achats gaz ${supplier} : ${fmt(total)} ${periodLabel}, soit ${fmt(total * scale)} sur le mois (réglés jusqu'ici les lundis et jeudis).`);
     });
     const unpaid = new Map<string, number>();
     data.commandes.filter((c) => c.status === 'non payé' && c.date.slice(0, 10) < ymd(monthStart))
       .forEach((c) => unpaid.set(c.supplierId || 'Fournisseur gaz', (unpaid.get(c.supplierId || 'Fournisseur gaz') ?? 0) + c.totalPrice));
     unpaid.forEach((total, supplier) => {
-      scenario.echeances.push({ id: nanoid(), label: 'Commandes non payées (arriérés)', supplier, category: 'fournisseur_gaz', amount: Math.round(total), day: 1, source: 'import' } satisfies Echeance);
-      notes.push(`Arriérés ${supplier} : ${fmt(total)} placés au 1er du mois.`);
+      scenario.depenses.push(newDepense(n, { id: `imp-${nanoid(8)}`, label: 'Arriérés gaz (commandes non payées)', supplier, category: 'fournisseur_gaz', monthlyAmount: Math.round(total), days: [1], source: 'import' }));
+      notes.push(`Arriérés ${supplier} : ${fmt(total)} de commandes non payées, ajoutés comme échéance à placer.`);
     });
   } else {
-    notes.push("Les commandes gaz ne sont pas rattachées à une société : ajoutez les échéances fournisseurs de cette société dans « Fournisseurs & échéances ».");
+    notes.push("Les commandes gaz ne sont pas rattachées à une société : saisissez le paiement gaz de cette société à la main.");
   }
 
-  // 3. Gasoil: fuel bought outside (daily average) and internal station deliveries (same dates next month)
+  // 3. Gasoil: fuel bought at stations (monthly average) and internal station deliveries (same dates)
   const externalFuel = data.tickets.filter((t) => t.lieu !== 'interne' && inWindow(t.dateHeure || t.createdAt) && vehicleOfCompany(t.vehiculeId));
   const fuelTotal = externalFuel.reduce((sum, t) => sum + (t.coutTotal || 0), 0);
-  if (fuelTotal > 0 && workDaysInWindow > 0) {
-    scenario.charges.push({ id: nanoid(), label: 'Gasoil stations (moyenne FleetOps)', category: 'gasoil', amount: Math.round(fuelTotal / workDaysInWindow), frequency: 'quotidienne', weekdays: [], day: 1, source: 'import' });
-    notes.push(`Gasoil en station ${periodLabel} : ${fmt(fuelTotal)}.`);
+  if (fuelTotal > 0) {
+    fill('gasoil', Math.round(fuelTotal * scale), { label: 'Gasoil' });
+    notes.push(`Gasoil en station : ${fmt(fuelTotal)} ${periodLabel}, soit ${fmt(fuelTotal * scale)} sur le mois.`);
   }
-  if (all) {
-    data.stationSupplies.filter((a) => inWindow(a.date)).forEach((a) => {
-      const day = Math.min(n, new Date(a.date).getDate());
-      scenario.echeances.push({ id: nanoid(), label: `Approvisionnement station (${Math.round(a.volume)} L)`, supplier: a.fournisseur || 'Fournisseur gasoil', category: 'gasoil', amount: Math.round(a.coutTotal), day, source: 'import' });
-    });
-  }
-  if (fuelTotal === 0 && !(all && data.stationSupplies.some((a) => inWindow(a.date)))) {
-    notes.push('Aucune dépense de gasoil trouvée dans FleetOps : ajoutez le gasoil dans « Charges récurrentes ».');
-  }
+  const supplies = all ? data.stationSupplies.filter((a) => inWindow(a.date)) : [];
+  supplies.forEach((a) => {
+    scenario.depenses.push(newDepense(n, {
+      id: `imp-${nanoid(8)}`, label: `Approvisionnement station (${Math.round(a.volume)} L)`, supplier: a.fournisseur || 'Fournisseur gasoil', category: 'gasoil',
+      monthlyAmount: Math.round(a.coutTotal), days: [Math.min(n, new Date(a.date).getDate())], source: 'import',
+    }));
+  });
+  if (supplies.length) notes.push(`${supplies.length} approvisionnement(s) de la station interne repris comme échéances gasoil.`);
+  if (fuelTotal === 0 && supplies.length === 0) notes.push('Aucune dépense de gasoil trouvée dans FleetOps : saisissez le gasoil du mois.');
 
-  // 4. Salaries: last payslips of the company's drivers, paid at the end of the month
+  // 4. Salaries: last payslips of the company's drivers
   const months = Array.from(new Set(data.paySlips.map((p) => p.month))).filter((mo) => mo < base.month).sort();
   const lastMonth = months[months.length - 1];
-  if (lastMonth) {
-    const slips = data.paySlips.filter((p) => p.month === lastMonth && (all || (data.drivers.find((d) => d.id === p.driverId)?.company || DEFAULT_COMPANY) === base.company));
-    const total = slips.reduce((sum, p) => sum + (p.totalCommission || 0), 0);
-    if (total > 0) {
-      scenario.echeances.push({ id: nanoid(), label: `Salaires chauffeurs (base ${lastMonth})`, supplier: 'Personnel', category: 'salaires', amount: Math.round(total), day: n, source: 'import' });
-      notes.push(`Salaires : ${fmt(total)} d'après les bulletins de ${lastMonth}, placés le ${n}. Pensez à la CNSS (avant le 10).`);
-    }
+  const slips = lastMonth ? data.paySlips.filter((p) => p.month === lastMonth && (all || (data.drivers.find((d) => d.id === p.driverId)?.company || DEFAULT_COMPANY) === base.company)) : [];
+  const salaries = slips.reduce((sum, p) => sum + (p.totalCommission || 0), 0);
+  if (salaries > 0) {
+    fill('salaires', Math.round(salaries), { label: 'Salaires' });
+    notes.push(`Salaires : ${fmt(salaries)} d'après les bulletins de ${lastMonth}.`);
   } else {
-    notes.push('Aucun bulletin de paie trouvé : ajoutez les salaires et la CNSS dans « Fournisseurs & échéances ».');
+    notes.push('Aucun bulletin de paie trouvé : saisissez les salaires du mois.');
   }
+  notes.push('CNSS et impôts ne sont pas calculés automatiquement : saisissez leurs montants et leurs dates limites.');
 
   // 5. Leasing contracts running this month (bank instalments)
   data.leasing.filter((c) => c.dateDebut?.slice(0, 7) <= base.month && (!c.dateFin || c.dateFin.slice(0, 7) >= base.month) && vehicleOfCompany(c.vehiculeId))
@@ -153,12 +157,12 @@ export function importFromDispatch(base: SimScenario, data: DispatchData, today 
       } satisfies BankProduct);
     });
 
-  // 6. Other variable charges of the vehicles (daily average)
+  // 6. Other variable charges of the vehicles (monthly average)
   const variable = data.variableCharges.filter((c) => inWindow(c.date) && vehicleOfCompany(c.vehiculeId));
   const variableTotal = variable.reduce((sum, c) => sum + (c.montant || 0), 0);
-  if (variableTotal > 0 && workDaysInWindow > 0) {
-    scenario.charges.push({ id: nanoid(), label: 'Charges variables véhicules (moyenne FleetOps)', category: 'autre', amount: Math.round(variableTotal / workDaysInWindow), frequency: 'quotidienne', weekdays: [], day: 1, source: 'import' });
-    notes.push(`Charges variables véhicules ${periodLabel} : ${fmt(variableTotal)}.`);
+  if (variableTotal > 0) {
+    fill('autre', Math.round(variableTotal * scale), { label: 'Charges diverses' });
+    notes.push(`Charges diverses des véhicules : ${fmt(variableTotal)} ${periodLabel}.`);
   }
 
   return { scenario, notes };

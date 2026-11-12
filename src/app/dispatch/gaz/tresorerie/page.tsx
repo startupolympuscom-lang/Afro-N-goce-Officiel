@@ -8,20 +8,19 @@ import { useChargeVariableStore } from '../../../../stores/useChargeVariableStor
 import { useVehiculeStore } from '../../../../stores/useVehiculeStore';
 import { scenarioKey, useTresorerieSimStore } from '../../../../stores/useTresorerieSimStore';
 import { DISPATCH_COMPANIES, type CompanyId } from '../../../../lib/dispatchCompanies';
-import { DEFAULT_LEVERS, newScenario, simulate, suggestPaymentPlan, type SimLevers, type SimResult, type SimScenario } from '../../../../lib/tresorerieSim';
+import {
+  DEFAULT_LEVERS, daysIn, newScenario, normalizeScenario, optimizeSchedule, simulate,
+  type SimLevers, type SimResult, type SimScenario,
+} from '../../../../lib/tresorerieSim';
 import { importFromDispatch } from './importFromDispatch';
 import { SolvencyGauge } from './SolvencyGauge';
 import { BalanceChart, FlowsChart } from './TreasuryCharts';
-import { BankEditor, ChargesEditor, EcheancesEditor, EncaissementsEditor } from './ScenarioEditors';
-import { Meter, NumberInput, SERIES, STATUS, card, fmtMAD, fmtPct, inputClass } from './ui';
+import { BankEditor, DepensesEditor, EncaissementsEditor } from './ScenarioEditors';
+import { EcheancesCalendar } from './EcheancesCalendar';
+import { FormulaPanel } from './FormulaPanel';
+import { Meter, NumberInput, SERIES, STATUS, WeekdayPicker, card, fmtMAD, fmtPct, inputClass } from './ui';
 
-type Tab = 'echeances' | 'charges' | 'encaissements' | 'banque';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'echeances', label: 'Fournisseurs & échéances' },
-  { id: 'charges', label: 'Charges récurrentes (gasoil…)' },
-  { id: 'encaissements', label: 'Ventes & encaissements' },
-  { id: 'banque', label: 'Produits bancaires' },
-];
+type Tab = 'encaissements' | 'banque';
 
 const STATUS_BADGE: Record<SimResult['days'][number]['status'], { label: string; color: string }> = {
   ok: { label: 'Normal', color: STATUS.good },
@@ -64,10 +63,22 @@ function Tile({ label, amount, sub, tone }: { label: string; amount: number; sub
       </p>
       {sub && (
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-          {tone && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS[tone] }} />}
+          {tone && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS[tone] }} />}
           {sub}
         </p>
       )}
+    </div>
+  );
+}
+
+function SectionTitle({ id, title, subtitle, action }: { id: string; title: string; subtitle?: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 p-5">
+      <div>
+        <h2 id={id} className="text-base font-semibold text-slate-900">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+      </div>
+      {action}
     </div>
   );
 }
@@ -83,7 +94,7 @@ export default function DispatchTresoreriePage() {
   const { contrats } = useLeasingStore();
   const { charges: variableCharges } = useChargeVariableStore();
   const { vehicules } = useVehiculeStore();
-  const { scenarios, saveScenario, removeScenario } = useTresorerieSimStore();
+  const { saveScenario, removeScenario } = useTresorerieSimStore();
   const hydrated = useStoreHydrated();
 
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -91,14 +102,16 @@ export default function DispatchTresoreriePage() {
   const key = scenarioKey(month, company);
   const [draft, setDraft] = useState<SimScenario | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [tab, setTab] = useState<Tab>('echeances');
+  const [tab, setTab] = useState<Tab>('encaissements');
   const [importNotes, setImportNotes] = useState<string[]>([]);
   const [showDays, setShowDays] = useState(false);
+  const [showFormulas, setShowFormulas] = useState(true);
 
-  // Load the simulation of the chosen month and company
+  // Load the simulation of the chosen month and company (older simulations are converted)
   useEffect(() => {
     if (!hydrated) return;
-    setDraft(useTresorerieSimStore.getState().scenarios[key] ?? newScenario(month, company));
+    const stored = useTresorerieSimStore.getState().scenarios[key];
+    setDraft(stored ? normalizeScenario(stored) : newScenario(month, company));
     setDirty(false);
     setImportNotes([]);
   }, [key, hydrated]);
@@ -120,7 +133,7 @@ export default function DispatchTresoreriePage() {
   const setLever = (patch: Partial<SimLevers>) => draft && change({ levers: { ...draft.levers, ...patch } });
 
   const result = useMemo(() => (draft ? simulate(draft) : null), [draft]);
-  const plan = useMemo(() => (draft && result && result.firstRuptureDay !== null ? suggestPaymentPlan(draft) : null), [draft, result]);
+  const best = useMemo(() => (draft ? optimizeSchedule(draft) : null), [draft]);
 
   const runImport = () => {
     if (!draft) return;
@@ -128,7 +141,7 @@ export default function DispatchTresoreriePage() {
       sales, drivers, commandes: commandes || [], paySlips: paySlips || [], tickets: tickets || [],
       stationSupplies: stationInterne?.historique || [], leasing: contrats || [], variableCharges: variableCharges || [], vehicules: vehicules || [],
     });
-    setDraft(scenario);
+    setDraft(normalizeScenario(scenario));
     setDirty(true);
     setImportNotes(notes);
     toast.success('Simulation pré-remplie à partir des données réelles (rien n’a été modifié dans Afro Dispatch).');
@@ -142,18 +155,20 @@ export default function DispatchTresoreriePage() {
     setImportNotes([]);
   };
 
-  const applyPlan = () => {
-    if (!draft || !plan) return;
-    const moves = plan.moves.filter((mv) => mv.toDay !== null);
+  const applyBest = () => {
+    if (!draft || !best) return;
+    const n = daysIn(draft.month);
+    const delay = Math.round(draft.levers.supplierDelayDays);
     change({
-      echeances: draft.echeances.map((e) => {
-        const mv = moves.find((x) => x.echeanceId === e.id);
-        if (!mv) return e;
-        const shift = e.category === 'fournisseur_gaz' ? Math.round(draft.levers.supplierDelayDays) : 0;
-        return { ...e, day: mv.toDay! - shift };
+      depenses: draft.depenses.map((d) => {
+        const days = best.days[d.id];
+        if (!days) return d;
+        // Planned days are stored before the negotiated delay; payments moved to next month keep their day
+        const shift = d.category === 'fournisseur_gaz' ? delay : 0;
+        return { ...d, days: days.map((day, i) => (day > n ? d.days[i] : Math.max(1, day - shift))), source: 'manuel' };
       }),
     });
-    toast.success('Plan de paiement appliqué à la simulation.');
+    toast.success('Meilleurs jours appliqués aux échéances de la simulation.');
   };
 
   const addOverdraft = (amount: number) => {
@@ -167,17 +182,21 @@ export default function DispatchTresoreriePage() {
     setTab('banque');
   };
 
-  if (!draft || !result) {
+  if (!draft || !result || !best) {
     return <div className="p-8 text-sm text-slate-500">Chargement de la simulation…</div>;
   }
 
   const r = result;
+  const b = best.result;
   const share = (id: string) => r.outByCategory.find((c) => c.id === id)?.share ?? 0;
   const salaries = r.outByCategory.find((c) => c.id === 'salaires')?.amount ?? 0;
-  const neededOverdraft = Math.ceil(r.grossNeed / 1000) * 1000;
+  const monthResult = r.turnover - r.totalExpenses;
+  const isEmpty = draft.monthlyTurnover === 0 && draft.depenses.every((d) => d.monthlyAmount === 0);
+  const missing = best.recommendations.filter((x) => x.status === 'manque');
+  const neededOverdraft = Math.ceil(b.grossNeed / 1000) * 1000;
   const verdict =
     r.level === 'critique' && r.firstRuptureDay
-      ? `À partir du ${dateLabel(month, r.firstRuptureDay)}, la caisse ne peut plus payer toutes les échéances : il manque ${fmtMAD(r.uncoveredNeed)} au pire moment.`
+      ? `Avec les jours prévus, la caisse ne peut plus tout payer à partir du ${dateLabel(month, r.firstRuptureDay)} (il manque ${fmtMAD(r.uncoveredNeed)}).`
       : r.daysInOverdraft > 0
         ? `Les paiements passent grâce au découvert : ${r.daysInOverdraft} jour(s) à découvert, jusqu'à ${fmtMAD(r.grossNeed)}.`
         : r.daysBelowReserve > 0
@@ -191,7 +210,7 @@ export default function DispatchTresoreriePage() {
         <div>
           <span className="inline-block rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Simulation : aucune donnée réelle n’est modifiée</span>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Simulation de trésorerie</h1>
-          <p className="mt-1 text-sm text-slate-500">Anticipez chaque jour du mois : ce qui rentre, ce qui sort, et si la caisse peut payer fournisseurs, gasoil et salaires à leur échéance.</p>
+          <p className="mt-1 text-sm text-slate-500">Simulez un mois de travail : chiffre d'affaires, paiement gaz, gasoil, salaires, CNSS, impôts, charges diverses, et trouvez le meilleur jour pour chaque échéance.</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-xs font-medium text-slate-500">
@@ -214,9 +233,9 @@ export default function DispatchTresoreriePage() {
         </div>
       </div>
 
-      {draft.dailySales === 0 && draft.echeances.length === 0 && draft.charges.length === 0 && draft.encaissements.length === 0 && (
+      {isEmpty && (
         <div className={`${card} flex flex-wrap items-center justify-between gap-3 p-4`}>
-          <p className="text-sm text-slate-600">Simulation vide : pré-remplissez-la avec les ventes, commandes fournisseurs, gasoil, salaires et leasing réels, puis ajustez les montants et les dates.</p>
+          <p className="text-sm text-slate-600">Saisissez le chiffre d'affaires et les dépenses du mois, ou pré-remplissez la simulation avec les ventes, commandes gaz, gasoil, salaires et leasing réels.</p>
           <button type="button" onClick={runImport} className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">Pré-remplir</button>
         </div>
       )}
@@ -234,31 +253,53 @@ export default function DispatchTresoreriePage() {
       )}
 
       {/* Key figures */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <div className={`${card} p-4`}>
-            <label htmlFor="opening" className="text-xs font-medium text-slate-500">Solde au 1er (caisse + banque)</label>
-            <NumberInput id="opening" value={draft.openingBalance} step={1000} onChange={(openingBalance) => change({ openingBalance })} className="mt-1 text-base font-bold" />
-          </div>
-          <Tile label="Solde en fin de mois" amount={r.closingBalance} sub={r.closingBalance < 0 ? 'Négatif' : undefined} tone={r.closingBalance < 0 ? 'critical' : undefined} />
-          <Tile label="Encaissements du mois" amount={r.totalIn - r.bankIn} sub={r.bankIn > 0 ? `+ ${fmtMAD(r.bankIn)} de la banque` : `dont ventes ${fmtMAD(r.salesIn)}`} />
-          <Tile label="Décaissements du mois" amount={r.totalOut} sub={r.deferredToNextMonth > 0 ? `${fmtMAD(r.deferredToNextMonth)} reportés` : undefined} />
-          <Tile label="Point le plus bas" amount={r.minBalance} sub={`le ${r.minBalanceDay}`} tone={r.minBalance + r.overdraftLimit < 0 ? 'critical' : r.minBalance < draft.minReserve ? 'warning' : undefined} />
-          <Tile
-            label="Besoin de financement"
-            amount={r.uncoveredNeed}
-            sub={r.overdraftLimit > 0 ? `découvert de ${fmtMAD(r.overdraftLimit)} déjà compté` : 'aucun découvert saisi'}
-            tone={r.uncoveredNeed > 0 ? 'critical' : undefined}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <Tile label="Chiffre d'affaires du mois" amount={r.turnover} sub={`${fmtMAD(r.dailySales)} par jour travaillé`} />
+        <Tile label="Dépenses du mois" amount={r.totalExpenses} sub={r.turnover > 0 ? `${fmtPct(r.totalExpenses / r.turnover)} du CA` : undefined} />
+        <Tile label="Résultat du mois (CA − dépenses)" amount={monthResult} sub={monthResult < 0 ? 'Les dépenses dépassent le CA' : undefined} tone={monthResult < 0 ? 'critical' : undefined} />
+        <Tile label="Solde en fin de mois" amount={r.closingBalance} sub={r.deferredToNextMonth > 0 ? `${fmtMAD(r.deferredToNextMonth)} reportés` : undefined} tone={r.closingBalance < 0 ? 'critical' : undefined} />
+        <Tile label="Point le plus bas" amount={r.minBalance} sub={`le ${r.minBalanceDay}`} tone={r.minBalance + r.overdraftLimit < 0 ? 'critical' : r.minBalance < draft.minReserve ? 'warning' : undefined} />
+        <Tile label="Besoin de financement" amount={r.uncoveredNeed} sub={r.overdraftLimit > 0 ? `découvert de ${fmtMAD(r.overdraftLimit)} compté` : 'aucun découvert saisi'} tone={r.uncoveredNeed > 0 ? 'critical' : undefined} />
+      </div>
 
-      {/* Gauge and levers */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Turnover, gauge, levers */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className={`${card} p-5`} aria-labelledby="ca-title">
+          <h2 id="ca-title" className="text-sm font-semibold text-slate-900">Chiffre d'affaires et caisse</h2>
+          <div className="mt-4 space-y-4">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">Chiffre d'affaires du mois (MAD)</span>
+              <NumberInput value={draft.monthlyTurnover} min={0} step={1000} onChange={(monthlyTurnover) => change({ monthlyTurnover })} className="text-base font-semibold" />
+              <span className="mt-1 block text-xs text-slate-500">= {fmtMAD(r.dailySales)} par jour travaillé ({r.workDaysCount} jours){draft.levers.salesPct !== 0 ? `, levier ventes inclus` : ''}</span>
+            </label>
+            <div>
+              <span className="mb-1 block text-xs font-medium text-slate-500">Jours travaillés</span>
+              <WeekdayPicker label="Jours travaillés" value={draft.workDays} onChange={(workDays) => change({ workDays })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-500">Solde au 1er (caisse + banque)</span>
+                <NumberInput value={draft.openingBalance} step={1000} onChange={(openingBalance) => change({ openingBalance })} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-500">Seuil de sécurité</span>
+                <NumberInput value={draft.minReserve} min={0} step={500} onChange={(minReserve) => change({ minReserve })} />
+              </label>
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={draft.includePriorCredit} onChange={(e) => change({ includePriorCredit: e.target.checked })} className="mt-0.5 h-4 w-4 accent-blue-600" />
+              <span className="text-slate-600">Encaisser au début du mois les ventes à crédit du mois précédent</span>
+            </label>
+          </div>
+        </section>
+
         <section className={`${card} p-5`} aria-labelledby="gauge-title">
-          <h2 id="gauge-title" className="text-sm font-semibold text-slate-900">Indice de solvabilité</h2>
+          <h2 id="gauge-title" className="text-sm font-semibold text-slate-900">Indice de solvabilité (jours prévus)</h2>
           <div className="mt-3"><SolvencyGauge result={r} /></div>
           <p className="mt-3 text-center text-sm text-slate-600">{verdict}</p>
+          {b.score !== r.score && <p className="mt-1 text-center text-sm text-slate-600">Avec les meilleurs jours : <strong className="text-slate-900">{b.score}</strong> sur 100.</p>}
           <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
-            <Meter label="Couverture des paiements" value={r.scoreParts.coverage} display={fmtPct(r.coverage)} hint="(Solde au 1er + encaissements) / décaissements du mois" />
+            <Meter label="Couverture des paiements" value={r.scoreParts.coverage} display={fmtPct(r.coverage)} hint="(Solde au 1er + encaissements) / paiements du mois" />
             <Meter label="Jours sans rupture" value={r.scoreParts.noRupture} display={`${r.daysInMonth - r.ruptureDays} / ${r.daysInMonth}`} hint="Jours où toutes les échéances peuvent être payées" />
             <Meter label="Coussin de sécurité" value={r.scoreParts.cushion} display={fmtMAD(r.minBalance + r.overdraftLimit)} hint="Disponible au point le plus bas (solde + découvert), comparé au seuil de sécurité" />
             <Meter label="Autonomie bancaire" value={r.scoreParts.bankIndependence} display={`${r.daysInOverdraft} j. à découvert`} hint="Moins de jours à découvert = moins de dépendance à la banque" />
@@ -271,35 +312,98 @@ export default function DispatchTresoreriePage() {
             <button type="button" onClick={() => change({ levers: { ...DEFAULT_LEVERS } })} className="text-xs font-medium text-blue-600 hover:text-blue-700">Remettre à zéro</button>
           </div>
           <div className="mt-4 space-y-4">
-            <Lever label="Volume des ventes" value={draft.levers.salesPct} min={-50} max={50} step={5} unit="%" onChange={(salesPct) => setLever({ salesPct })} />
+            <Lever label="Chiffre d'affaires" value={draft.levers.salesPct} min={-50} max={50} step={5} unit="%" onChange={(salesPct) => setLever({ salesPct })} />
             <Lever label="Part des ventes payées comptant" value={draft.cashSharePct} min={0} max={100} step={5} unit="%" onChange={(cashSharePct) => change({ cashSharePct })} />
             <Lever label="Délai d'encaissement du crédit client" value={draft.creditDelayDays} min={0} max={90} step={1} unit="j" onChange={(creditDelayDays) => change({ creditDelayDays })} />
             <Lever label="Coût du gasoil" value={draft.levers.gasoilPct} min={-30} max={60} step={5} unit="%" onChange={(gasoilPct) => setLever({ gasoilPct })} />
-            <Lever label="Autres charges variables" value={draft.levers.variablePct} min={-30} max={60} step={5} unit="%" onChange={(variablePct) => setLever({ variablePct })} />
-            <Lever label="Délai négocié avec les fournisseurs gaz" value={draft.levers.supplierDelayDays} min={0} max={30} step={1} unit="j" onChange={(supplierDelayDays) => setLever({ supplierDelayDays })} hint="Repousse les paiements de la catégorie Fournisseurs gaz" />
+            <Lever label="Charges diverses" value={draft.levers.variablePct} min={-30} max={60} step={5} unit="%" onChange={(variablePct) => setLever({ variablePct })} />
+            <Lever label="Délai négocié avec le fournisseur gaz" value={draft.levers.supplierDelayDays} min={0} max={30} step={1} unit="j" onChange={(supplierDelayDays) => setLever({ supplierDelayDays })} hint="Recule la date limite des paiements gaz" />
           </div>
         </section>
-
       </div>
 
-      {/* Cash curve */}
-      <section className={`${card} p-5`} aria-labelledby="curve-title">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="curve-title" className="text-sm font-semibold text-slate-900">Solde de trésorerie jour par jour</h2>
+      {/* Expenses and due dates: the heart of the simulation */}
+      <section className={card} aria-labelledby="depenses-title">
+        <SectionTitle
+          id="depenses-title"
+          title="Dépenses du mois et échéances"
+          subtitle="Pour chaque dépense : montant du mois, nombre de paiements et fenêtre autorisée (jusqu'à la date limite). Le meilleur jour de chaque paiement est calculé automatiquement."
+        />
+        <DepensesEditor scenario={draft} onChange={change} recommendations={best.recommendations} onApplyBest={applyBest} />
+      </section>
+
+      <section className={`${card} p-5`} aria-labelledby="calendar-title">
+        <h2 id="calendar-title" className="mb-4 text-base font-semibold text-slate-900">Calendrier des échéances du mois</h2>
+        <EcheancesCalendar planned={r} best={b} />
+      </section>
+
+      <section className={card} aria-labelledby="formulas-title">
+        <button type="button" onClick={() => setShowFormulas((v) => !v)} aria-expanded={showFormulas} className="flex w-full items-center justify-between p-5 text-left">
+          <span id="formulas-title" className="text-base font-semibold text-slate-900">Comment c'est calculé</span>
+          <span className="text-sm font-medium text-blue-600">{showFormulas ? 'Masquer' : 'Afficher'}</span>
+        </button>
+        {showFormulas && <div className="border-t border-slate-100 p-5"><FormulaPanel scenario={draft} result={r} recommendations={best.recommendations} /></div>}
+      </section>
+
+      {/* Alerts */}
+      <section className={`${card} p-5`} aria-labelledby="alerts-title">
+        <h2 id="alerts-title" className="text-base font-semibold text-slate-900">Alertes</h2>
+        <div className="mt-3 space-y-3 text-sm">
+          {r.firstRuptureDay === null && r.daysBelowReserve === 0 && !isEmpty && (
+            <p className="flex items-start gap-2 text-slate-700"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS.good }} />Aucune difficulté de paiement prévue avec les jours prévus.</p>
+          )}
+          {r.firstRuptureDay !== null && (
+            <div className="rounded-xl border border-red-200 bg-red-50/60 p-4">
+              <p className="font-semibold text-red-800">Jours prévus : paiements impossibles à partir du {dateLabel(month, r.firstRuptureDay)}</p>
+              <ul className="mt-1.5 space-y-0.5 text-red-900/80">
+                {r.days[r.firstRuptureDay - 1].outflows.map((f, i) => <li key={i}>{f.label} : {fmtMAD(f.amount)}</li>)}
+              </ul>
+              <p className="mt-2 text-red-900/80">
+                {b.ruptureDays === 0
+                  ? `Avec les meilleurs jours, tous les paiements passent (indice ${b.score} sur 100).`
+                  : `Même avec les meilleurs jours, ${b.ruptureDays} jour(s) restent en rupture.`}
+              </p>
+            </div>
+          )}
+          {r.firstRuptureDay === null && r.daysBelowReserve > 0 && (
+            <p className="flex items-start gap-2 text-slate-700"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS.warning }} />La caisse passe sous le seuil de sécurité ({fmtMAD(draft.minReserve)}) pendant {r.daysBelowReserve} jour(s).</p>
+          )}
+          {missing.map((x) => (
+            <p key={`${x.depenseId}-${x.index}`} className="flex items-start gap-2 text-slate-700">
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS.critical }} />
+              {x.label}{x.installments > 1 ? ` (${x.index + 1}/${x.installments})` : ''} : aucun jour de sa fenêtre ne suffit, il manque {fmtMAD(x.shortfall)} à la date limite. Négociez un report, un découvert ou un crédit de trésorerie.
+            </p>
+          ))}
+          {r.deferredToNextMonth > 0 && (
+            <p className="flex items-start gap-2 text-slate-700"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-slate-400" />Avec le délai négocié, {fmtMAD(r.deferredToNextMonth)} de paiements gaz glissent sur le mois suivant.</p>
+          )}
+          {b.grossNeed > b.overdraftLimit && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
+              <p className="text-slate-700">Même aux meilleurs jours, il faudrait un découvert d'au moins <strong>{fmtMAD(neededOverdraft)}</strong>{b.overdraftLimit > 0 ? ` (${fmtMAD(b.overdraftLimit)} déjà saisis)` : ''} pour tout payer dans les délais.</p>
+              <button type="button" onClick={() => addOverdraft(Math.max(1000, neededOverdraft - b.overdraftLimit))} className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                Simuler ce découvert
+              </button>
+            </div>
+          )}
         </div>
+      </section>
+
+      {/* Charts */}
+      <section className={`${card} p-5`} aria-labelledby="curve-title">
+        <h2 id="curve-title" className="text-sm font-semibold text-slate-900">Solde de trésorerie jour par jour (jours prévus)</h2>
         <div className="mt-3"><BalanceChart result={r} minReserve={draft.minReserve} /></div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className={`${card} p-5`} aria-labelledby="flows-title">
-          <h2 id="flows-title" className="text-sm font-semibold text-slate-900">Encaissements et décaissements par jour</h2>
+          <h2 id="flows-title" className="text-sm font-semibold text-slate-900">Encaissements et paiements par jour</h2>
           <div className="mt-3"><FlowsChart result={r} /></div>
         </section>
 
         <section className={`${card} p-5`} aria-labelledby="split-title">
           <h2 id="split-title" className="text-sm font-semibold text-slate-900">Où part l'argent</h2>
           {r.outByCategory.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-500">Aucun décaissement saisi.</p>
+            <p className="mt-6 text-sm text-slate-500">Aucun paiement saisi.</p>
           ) : (
             <ul className="mt-4 space-y-3">
               {r.outByCategory.map((c) => (
@@ -317,88 +421,25 @@ export default function DispatchTresoreriePage() {
           )}
           <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-sm">
             <dt className="text-slate-500">Couverture des paiements</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{fmtPct(r.coverage)}</dd>
-            <dt className="text-slate-500">Gasoil / décaissements</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{fmtPct(share('gasoil'), 1)}</dd>
-            <dt className="text-slate-500">Fournisseurs gaz / décaissements</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{fmtPct(share('fournisseur_gaz'), 1)}</dd>
-            <dt className="text-slate-500">Salaires / ventes encaissées</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{r.salesIn > 0 ? fmtPct(salaries / r.salesIn, 1) : '-'}</dd>
+            <dt className="text-slate-500">Gasoil / paiements</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{fmtPct(share('gasoil'), 1)}</dd>
+            <dt className="text-slate-500">Paiement gaz / paiements</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{fmtPct(share('fournisseur_gaz'), 1)}</dd>
+            <dt className="text-slate-500">Salaires / chiffre d'affaires</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{r.turnover > 0 ? fmtPct(salaries / r.turnover, 1) : '-'}</dd>
             <dt className="text-slate-500">Coût bancaire estimé</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{fmtMAD(r.bankCost)}</dd>
             <dt className="text-slate-500">Jours à découvert</dt><dd className="text-right font-semibold text-slate-900 tabular-nums">{r.daysInOverdraft} / {r.daysInMonth}</dd>
           </dl>
         </section>
       </div>
 
-      {/* Alerts and suggested payment plan */}
-      <section className={`${card} p-5`} aria-labelledby="alerts-title">
-        <h2 id="alerts-title" className="text-sm font-semibold text-slate-900">Alertes et plan de paiement</h2>
-        <div className="mt-3 space-y-3 text-sm">
-          {r.firstRuptureDay === null && r.daysBelowReserve === 0 && (
-            <p className="flex items-start gap-2 text-slate-700"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS.good }} />Aucune difficulté de paiement prévue ce mois-ci.</p>
-          )}
-          {r.firstRuptureDay !== null && (
-            <div className="rounded-xl border border-red-200 bg-red-50/60 p-4">
-              <p className="font-semibold text-red-800">Paiements impossibles à partir du {dateLabel(month, r.firstRuptureDay)}</p>
-              <ul className="mt-1.5 space-y-0.5 text-red-900/80">
-                {r.days[r.firstRuptureDay - 1].outflows.map((f, i) => <li key={i}>{f.label} : {fmtMAD(f.amount)}</li>)}
-              </ul>
-              <p className="mt-2 text-red-900/80">{r.ruptureDays} jour(s) en rupture ce mois-ci ; il manque jusqu'à {fmtMAD(r.uncoveredNeed)}.</p>
-            </div>
-          )}
-          {r.firstRuptureDay === null && r.daysBelowReserve > 0 && (
-            <p className="flex items-start gap-2 text-slate-700"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS.warning }} />La caisse passe sous le seuil de sécurité ({fmtMAD(draft.minReserve)}) pendant {r.daysBelowReserve} jour(s).</p>
-          )}
-          {r.deferredToNextMonth > 0 && (
-            <p className="flex items-start gap-2 text-slate-700"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-slate-400" />Avec le délai négocié, {fmtMAD(r.deferredToNextMonth)} de paiements fournisseurs glissent sur le mois suivant.</p>
-          )}
-
-          {plan && plan.moves.length > 0 && (
-            <div className="rounded-xl border border-slate-200 p-4">
-              <p className="font-semibold text-slate-900">Plan de paiement suggéré</p>
-              <ol className="mt-2 list-decimal space-y-1 pl-5 text-slate-700">
-                {plan.moves.map((mv, i) => (
-                  <li key={i}>
-                    {mv.toDay !== null
-                      ? <>Payer <strong>{mv.label}</strong> ({fmtMAD(mv.amount)}) le {mv.toDay} au lieu du {mv.fromDay}.</>
-                      : <><strong>{mv.label}</strong> ({fmtMAD(mv.amount)}, le {mv.fromDay}) : aucune date ce mois-ci ne suffit, il faut un financement ou un report au mois suivant.</>}
-                  </li>
-                ))}
-              </ol>
-              <p className="mt-2 text-slate-600">Avec ce plan, l'indice passe de {r.score} à <strong>{plan.result.score}</strong> sur 100{plan.result.ruptureDays > 0 ? `, avec encore ${plan.result.ruptureDays} jour(s) en rupture` : ', sans rupture'}.</p>
-              {plan.moves.some((mv) => mv.toDay !== null) && (
-                <button type="button" onClick={applyPlan} className="mt-3 h-9 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">Appliquer ce plan à la simulation</button>
-              )}
-            </div>
-          )}
-          {r.grossNeed > r.overdraftLimit && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
-              <p className="text-slate-700">Pour tout payer à la date prévue sans rien décaler, il faudrait un découvert d'au moins <strong>{fmtMAD(neededOverdraft)}</strong>{r.overdraftLimit > 0 ? ` (${fmtMAD(r.overdraftLimit)} déjà saisis)` : ''}.</p>
-              <button type="button" onClick={() => addOverdraft(Math.max(1000, neededOverdraft - r.overdraftLimit))} className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                Simuler ce découvert
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Inputs */}
-      <section className={card} aria-label="Données de la simulation">
+      {/* Other receipts and bank products */}
+      <section className={card} aria-label="Autres données de la simulation">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-3 pt-3" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className={`whitespace-nowrap border-b-2 px-3 pb-2.5 pt-1 text-sm font-medium transition-colors ${tab === t.id ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              {t.label}
-              <span className="ml-1.5 text-xs text-slate-400">
-                {t.id === 'echeances' ? draft.echeances.length : t.id === 'charges' ? draft.charges.length : t.id === 'encaissements' ? draft.encaissements.length : draft.bankProducts.length}
-              </span>
+          {([['encaissements', 'Autres encaissements', draft.encaissements.length], ['banque', 'Produits bancaires', draft.bankProducts.length]] as const).map(([id, label, count]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+              className={`whitespace-nowrap border-b-2 px-3 pb-2.5 pt-1 text-sm font-medium transition-colors ${tab === id ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+              {label}<span className="ml-1.5 text-xs text-slate-400">{count}</span>
             </button>
           ))}
         </div>
-        {tab === 'echeances' && <EcheancesEditor scenario={draft} onChange={change} />}
-        {tab === 'charges' && <ChargesEditor scenario={draft} onChange={change} />}
         {tab === 'encaissements' && <EncaissementsEditor scenario={draft} onChange={change} />}
         {tab === 'banque' && <BankEditor scenario={draft} onChange={change} />}
       </section>
@@ -406,7 +447,7 @@ export default function DispatchTresoreriePage() {
       {/* Day-by-day table */}
       <section className={card}>
         <button type="button" onClick={() => setShowDays((v) => !v)} aria-expanded={showDays} className="flex w-full items-center justify-between p-5 text-left">
-          <span className="text-sm font-semibold text-slate-900">Calendrier de trésorerie jour par jour</span>
+          <span className="text-sm font-semibold text-slate-900">Détail jour par jour (jours prévus)</span>
           <span className="text-sm font-medium text-blue-600">{showDays ? 'Masquer' : 'Afficher'}</span>
         </button>
         {showDays && (
@@ -416,7 +457,7 @@ export default function DispatchTresoreriePage() {
                 <tr>
                   <th className="px-4 py-2.5 text-left font-semibold">Jour</th>
                   <th className="px-4 py-2.5 text-right font-semibold">Encaissements</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Décaissements</th>
+                  <th className="px-4 py-2.5 text-left font-semibold">Paiements</th>
                   <th className="px-4 py-2.5 text-right font-semibold">Solde</th>
                   <th className="px-4 py-2.5 text-left font-semibold">État</th>
                 </tr>
