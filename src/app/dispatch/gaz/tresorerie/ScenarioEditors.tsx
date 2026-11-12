@@ -2,7 +2,7 @@ import React from 'react';
 import { nanoid } from 'nanoid';
 import { Plus, Trash2 } from 'lucide-react';
 import {
-  BANK_PRODUCT_TYPES, countDays, daysIn, newDepense, normalizeDepense,
+  BANK_PRODUCT_TYPES, countDays, daysIn, expenseFactor, newDepense, normalizeDepense,
   type BankProduct, type BankProductType, type Depense, type EncaissementPrevu, type Recommendation, type SimScenario,
 } from '../../../../lib/tresorerieSim';
 import { applyStyle, styleOf, styleOptions, type PaymentStyle } from './paymentStyle';
@@ -91,6 +91,8 @@ export function DepensesTable({ scenario, onChange, recommendations }: { scenari
     onChange({ depenses: scenario.depenses.map((d) => (d.id === id ? normalizeDepense({ ...d, ...patch, source: 'manuel' }, n) : d)) });
   const replace = (dep: Depense) => onChange({ depenses: scenario.depenses.map((d) => (d.id === dep.id ? dep : d)) });
   const total = scenario.depenses.filter((d) => !d.paid).reduce((sum, d) => sum + d.monthlyAmount, 0);
+  const totalWithScenario = scenario.depenses.filter((d) => !d.paid).reduce((sum, d) => sum + d.monthlyAmount * expenseFactor(scenario.levers, d.category), 0);
+  const turnover = Math.max(0, scenario.monthlyTurnover) * (1 + scenario.levers.salesPct / 100);
   const cols = 'md:grid-cols-[minmax(140px,1.3fr)_130px_200px_minmax(250px,1.4fr)_minmax(160px,1.2fr)_36px]';
 
   return (
@@ -105,7 +107,16 @@ export function DepensesTable({ scenario, onChange, recommendations }: { scenari
           return (
             <li key={d.id} className={`grid grid-cols-2 items-center gap-3 px-5 py-3 ${cols}`}>
               <input aria-label="Dépense" value={d.label} onChange={(e) => update(d.id, { label: e.target.value })} placeholder="Nom de la dépense" className={`${inputClass} col-span-2 md:col-span-1`} />
-              <NumberInput aria-label={`Montant du mois : ${d.label}`} value={d.monthlyAmount} min={0} step={1000} onChange={(monthlyAmount) => update(d.id, { monthlyAmount })} className="text-right" />
+              <div>
+                <NumberInput aria-label={`Montant du mois : ${d.label}`} value={d.monthlyAmount} min={0} step={1000} onChange={(monthlyAmount) => update(d.id, { monthlyAmount })} className="text-right" />
+                {d.monthlyAmount > 0 && (
+                  <p className="mt-0.5 text-right text-[11px] leading-tight text-slate-500">
+                    {expenseFactor(scenario.levers, d.category) !== 1
+                      ? <span className="font-medium text-slate-700">{fmtMAD(d.monthlyAmount * expenseFactor(scenario.levers, d.category))} avec le scénario</span>
+                      : turnover > 0 ? `${((d.monthlyAmount / turnover) * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du CA` : null}
+                  </p>
+                )}
+              </div>
               <select aria-label={`Comment est payé : ${d.label}`} value={style} onChange={(e) => replace(applyStyle(d, e.target.value as PaymentStyle, n))} className={inputClass}>
                 {styleOptions(d).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
@@ -151,7 +162,11 @@ export function DepensesTable({ scenario, onChange, recommendations }: { scenari
             </button>
           ))}
         </div>
-        <p className="text-sm text-slate-600">Total des dépenses : <span className="font-semibold text-slate-900 tabular-nums">{fmtMAD(total)}</span></p>
+        <p className="text-sm text-slate-600">
+          Total des dépenses : <span className="font-semibold text-slate-900 tabular-nums">{fmtMAD(total)}</span>
+          {Math.round(totalWithScenario) !== Math.round(total) && <span className="ml-1 text-slate-500">({fmtMAD(totalWithScenario)} avec le scénario)</span>}
+          {turnover > 0 && <span className="ml-1 text-slate-500">· {((totalWithScenario / turnover) * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du CA</span>}
+        </p>
       </div>
     </div>
   );
@@ -227,10 +242,14 @@ export function BankEditor({ scenario, onChange }: { scenario: SimScenario; onCh
                 <span className={fieldLabel}>Taux annuel %</span>
                 <NumberInput value={p.rate} min={0} step={0.25} disabled={p.type === 'echeance_pret'} onChange={(rate) => update(p.id, { rate })} />
               </label>
-              <label className="block text-xs">
-                <span className={fieldLabel}>{isLine ? 'Disponible dès le' : p.type === 'echeance_pret' ? 'Prélevé le' : 'Versé le'}</span>
-                <DaySelect month={scenario.month} label="Jour" value={p.day} onChange={(day) => update(p.id, { day })} />
-              </label>
+              {isLine ? (
+                <p className="text-xs text-slate-500 lg:pb-2.5">Disponible tout le mois</p>
+              ) : (
+                <label className="block text-xs">
+                  <span className={fieldLabel}>{p.type === 'echeance_pret' ? 'Prélevé le' : 'Versé le'}</span>
+                  <DaySelect month={scenario.month} label="Jour" value={p.day} onChange={(day) => update(p.id, { day })} />
+                </label>
+              )}
               <label className="block text-xs">
                 {p.type === 'credit_tresorerie' && (<><span className={fieldLabel}>Remboursé le</span><DaySelect month={scenario.month} label="Jour de remboursement" value={p.repayDay} onChange={(repayDay) => update(p.id, { repayDay })} /></>)}
                 {p.type === 'escompte' && (<><span className={fieldLabel}>Jours d'avance</span><NumberInput value={p.advanceDays} min={0} onChange={(advanceDays) => update(p.id, { advanceDays })} /></>)}

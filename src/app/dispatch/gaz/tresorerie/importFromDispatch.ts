@@ -93,10 +93,16 @@ export function importFromDispatch(base: SimScenario, data: DispatchData, today 
   } else {
     notes.push(`Aucune vente trouvée ${periodLabel} : saisissez le chiffre d'affaires du mois à la main.`);
   }
-  const overdue = data.sales.filter((s) => (all || saleCompany(s) === base.company) && s.paymentMethod === 'credit' && s.status !== 'payé' && s.date.slice(0, 10) < ymd(monthStart));
-  const overdueTotal = overdue.reduce((sum, s) => sum + s.totalPrice, 0);
+  // Credit sales already made: the recent ones (inside the credit delay) are expected this month, the older ones are overdue
+  const unpaidCredit = data.sales.filter((s) => (all || saleCompany(s) === base.company) && s.paymentMethod === 'credit' && s.status !== 'payé' && s.date.slice(0, 10) < ymd(monthStart));
+  const delayStart = new Date(monthStart);
+  delayStart.setDate(delayStart.getDate() - Math.max(0, Math.round(base.creditDelayDays)));
+  const recent = unpaidCredit.filter((s) => s.date.slice(0, 10) >= ymd(delayStart));
+  const overdueTotal = unpaidCredit.filter((s) => s.date.slice(0, 10) < ymd(delayStart)).reduce((sum, s) => sum + s.totalPrice, 0);
+  scenario.priorCredit = Math.round(recent.reduce((sum, s) => sum + s.totalPrice, 0));
+  notes.push(`Clients à crédit : ${fmt(scenario.priorCredit)} de ventes à crédit des ${Math.round(base.creditDelayDays)} derniers jours du mois précédent, attendus en début de mois.`);
   if (overdueTotal > 0) {
-    notes.push(`Créances clients non payées : ${fmt(overdueTotal)}. Ajoutez dans « Encaissements prévus » la part que vous pensez recouvrer ce mois-ci.`);
+    notes.push(`Créances en retard : ${fmt(overdueTotal)} de ventes à crédit plus anciennes non payées. Ajoutez dans « Autres rentrées d'argent » la part que vous pensez recouvrer ce mois-ci.`);
   }
 
   // 2. Gas suppliers (orders are not split by company)

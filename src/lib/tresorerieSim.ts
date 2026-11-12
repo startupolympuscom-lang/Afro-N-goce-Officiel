@@ -7,7 +7,9 @@
  *   Ventes par jour         = Chiffre d'affaires du mois / jours travaillés du mois
  *   Encaissements(J)        = ventes du jour × % comptant
  *                           + ventes à crédit du jour J - délai × (1 - % comptant)
+ *                           + créances du mois précédent (réparties sur les premiers jours)
  *                           + autres encaissements + fonds bancaires
+ *   Flux de trésorerie      = encaissements du mois - décaissements du mois = Solde fin - Solde début
  *   Capacité de paiement(J) = min(Solde(J), Solde(J+1), …, Solde(fin du mois)) - seuil de sécurité
  *                             (ce qu'on peut payer le jour J sans faire passer un jour suivant sous le seuil)
  *   Meilleur jour           = premier jour de la fenêtre autorisée où Capacité de paiement ≥ montant
@@ -82,10 +84,10 @@ export interface EncaissementPrevu {
 export type BankProductType = 'decouvert' | 'facilite_caisse' | 'credit_tresorerie' | 'escompte' | 'echeance_pret';
 
 export const BANK_PRODUCT_TYPES: { id: BankProductType; label: string; help: string }[] = [
-  { id: 'decouvert', label: 'Découvert autorisé', help: 'Plafond de solde négatif autorisé ; agios = montant débiteur × taux / 360 par jour débiteur.' },
+  { id: 'decouvert', label: 'Découvert autorisé', help: 'Plafond de solde négatif autorisé tout le mois ; agios = montant débiteur × taux / 360 par jour débiteur, prélevés en fin de mois.' },
   { id: 'facilite_caisse', label: 'Facilité de caisse', help: 'Découvert de courte durée pour les décalages de fin de mois ; mêmes agios que le découvert.' },
   { id: 'credit_tresorerie', label: 'Crédit de trésorerie', help: 'Versé à une date, remboursé avec intérêts = montant × taux × jours / 360.' },
-  { id: 'escompte', label: "Escompte d'effets / affacturage", help: 'Encaissement anticipé de créances : reçu = montant - montant × taux × jours d’avance / 360 - frais.' },
+  { id: 'escompte', label: "Escompte d'effets / affacturage", help: 'Créances clients encaissées en avance : reçu le jour choisi = montant - montant × taux × jours d’avance / 360 - frais ; à l’échéance, le client paie la banque (le montant ne rentre plus dans la caisse).' },
   { id: 'echeance_pret', label: 'Échéance de prêt / leasing', help: 'Prélèvement bancaire fixe à une date.' },
 ];
 export const bankProductLabel = (id: BankProductType) => BANK_PRODUCT_TYPES.find((t) => t.id === id)?.label ?? id;
@@ -134,13 +136,27 @@ export interface SimScenario {
   cashSharePct: number;
   /** Days before credit sales are collected. */
   creditDelayDays: number;
-  /** Credit sales of the previous month are collected at the start of this month (steady activity). */
-  includePriorCredit: boolean;
+  /** Credit sales of the previous month still to be collected this month (MAD), received on the first days. */
+  priorCredit: number;
+  /** @deprecated replaced by priorCredit (kept to read older simulations). */
+  includePriorCredit?: boolean;
   encaissements: EncaissementPrevu[];
   depenses: Depense[];
   bankProducts: BankProduct[];
   levers: SimLevers;
+  /** Situation remembered as the starting point, to measure the effect of the changes. */
+  baseline?: Baseline;
   updatedAt?: string;
+}
+
+export interface Baseline {
+  at: string;
+  cashFlow: number;
+  closingBalance: number;
+  minBalance: number;
+  score: number;
+  turnover: number;
+  totalExpenses: number;
 }
 
 const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
@@ -214,12 +230,33 @@ export const newScenario = (month: string, company: SimScenario['company']): Sim
   workDays: [1, 2, 3, 4, 5, 6],
   cashSharePct: 70,
   creditDelayDays: 30,
-  includePriorCredit: true,
+  priorCredit: 0,
   encaissements: [],
   depenses: defaultDepenses(daysIn(month)),
   bankProducts: [],
   levers: { ...DEFAULT_LEVERS },
 });
+
+/** Days of the month that receive last month's credit sales: the sale day (J - délai) falls in the previous month on a working day. */
+export function priorCreditDays(month: string, workDays: number[], creditDelayDays: number): number[] {
+  const delay = Math.max(0, Math.round(creditDelayDays));
+  const out: number[] = [];
+  for (let d = 1; d <= daysIn(month); d++) {
+    const date = dateOf(month, d);
+    const soldOn = new Date(date);
+    soldOn.setDate(soldOn.getDate() - delay);
+    if (soldOn.getMonth() !== date.getMonth() && workDays.includes(soldOn.getDay())) out.push(d);
+  }
+  return out;
+}
+
+/** Last month's credit still to collect if last month looked like this one. */
+export const estimatePriorCredit = (s: Pick<SimScenario, 'month' | 'workDays' | 'creditDelayDays' | 'cashSharePct' | 'monthlyTurnover'>) => {
+  const wd = countDays(s.month, s.workDays);
+  if (!wd) return 0;
+  const perDay = (Math.max(0, s.monthlyTurnover) / wd) * (1 - clamp(s.cashSharePct / 100));
+  return Math.round(perDay * priorCreditDays(s.month, s.workDays, s.creditDelayDays).length);
+};
 
 /** Brings a saved simulation (including the first version) to the current format. */
 export function normalizeScenario(raw: any): SimScenario {
@@ -227,7 +264,7 @@ export function normalizeScenario(raw: any): SimScenario {
   const n = daysIn(month);
   const base = newScenario(month, raw?.company ?? 'all');
   if (raw?.version === 2) {
-    return {
+    const merged: SimScenario = {
       ...base,
       ...raw,
       levers: { ...DEFAULT_LEVERS, ...(raw.levers ?? {}) },
@@ -235,6 +272,9 @@ export function normalizeScenario(raw: any): SimScenario {
       bankProducts: raw.bankProducts ?? [],
       depenses: (raw.depenses ?? []).map((d: Depense) => normalizeDepense(d, n)),
     };
+    // Older simulations assumed last month = this month for the credit to collect
+    if (typeof raw.priorCredit !== 'number') merged.priorCredit = raw.includePriorCredit === false ? 0 : estimatePriorCredit(merged);
+    return merged;
   }
   // First version: daily sales, one-off due dates and recurring charges
   const workDays: number[] = raw?.workDays ?? base.workDays;
@@ -251,7 +291,7 @@ export function normalizeScenario(raw: any): SimScenario {
       installments: 1, windowStart: 1, windowEnd: n, days: [c.day ?? 1], weekdays: c.weekdays ?? [1], source: c.source,
     }, n));
   });
-  return {
+  const converted: SimScenario = {
     ...base,
     openingBalance: raw?.openingBalance ?? 0,
     minReserve: raw?.minReserve ?? base.minReserve,
@@ -259,12 +299,13 @@ export function normalizeScenario(raw: any): SimScenario {
     workDays,
     cashSharePct: raw?.cashSharePct ?? base.cashSharePct,
     creditDelayDays: raw?.creditDelayDays ?? base.creditDelayDays,
-    includePriorCredit: raw?.includePriorCredit ?? true,
     encaissements: raw?.encaissements ?? [],
     depenses: depenses.length ? depenses : base.depenses,
     bankProducts: raw?.bankProducts ?? [],
     levers: { ...DEFAULT_LEVERS, ...(raw?.levers ?? {}) },
   };
+  converted.priorCredit = raw?.includePriorCredit === false ? 0 : estimatePriorCredit(converted);
+  return converted;
 }
 
 export interface FlowItem {
@@ -298,6 +339,12 @@ export interface SimResult {
   totalExpenses: number;
   openingBalance: number;
   closingBalance: number;
+  /** Encaissements - décaissements of the month (= closing - opening). */
+  cashFlow: number;
+  /** Where the money came from. */
+  inflows: { comptant: number; creditDuMois: number; creditMoisPrecedent: number; autres: number; banque: number };
+  /** This month's credit sales that will only be collected next month. */
+  creditNextMonth: number;
   totalIn: number;
   totalOut: number;
   salesIn: number;
@@ -328,7 +375,8 @@ export interface SimulateOptions {
   withoutMovable?: boolean;
 }
 
-const factorFor = (levers: SimLevers, category: FlowCategory) =>
+/** Multiplier the scenario applies to an expense of this category. */
+export const expenseFactor = (levers: SimLevers, category: FlowCategory) =>
   category === 'gasoil' ? 1 + levers.gasoilPct / 100 : category === 'autre' ? 1 + levers.variablePct / 100 : 1;
 
 export const isMovable = (d: Depense) => d.mode === 'echeances' && !d.locked && !d.paid && d.monthlyAmount > 0;
@@ -356,23 +404,40 @@ export function simulate(s: SimScenario, opts: SimulateOptions = {}): SimResult 
     days[Math.max(1, day) - 1].outflows.push({ ...item, amount: round2(item.amount) });
   };
 
-  // Turnover: cash part the same day, credit part after the collection delay
+  // This month's sales: cash part the same day, credit part after the collection delay (next month if it falls after the end)
+  const creditDelay = Math.max(0, Math.round(s.creditDelayDays));
+  const inflows = { comptant: 0, creditDuMois: 0, creditMoisPrecedent: 0, autres: 0, banque: 0 };
+  let creditNextMonth = 0;
   days.forEach((d) => {
-    if (isWorkDay(d.date)) addIn(d.day, { label: 'Ventes au comptant', category: 'ventes', amount: dailySales * cashShare });
-    const soldOn = new Date(d.date);
-    soldOn.setDate(soldOn.getDate() - Math.max(0, Math.round(s.creditDelayDays)));
-    const soldThisMonth = soldOn.getMonth() === d.date.getMonth() && soldOn.getFullYear() === d.date.getFullYear();
-    if (isWorkDay(soldOn) && (soldThisMonth || s.includePriorCredit)) {
-      addIn(d.day, { label: 'Encaissement ventes à crédit', category: 'ventes', amount: dailySales * (1 - cashShare) });
+    if (!isWorkDay(d.date)) return;
+    const cash = dailySales * cashShare;
+    const credit = dailySales * (1 - cashShare);
+    addIn(d.day, { label: 'Ventes payées comptant', category: 'ventes', amount: cash });
+    inflows.comptant += cash;
+    if (d.day + creditDelay <= n) {
+      addIn(d.day + creditDelay, { label: 'Clients à crédit (ventes du mois)', category: 'ventes', amount: credit });
+      inflows.creditDuMois += credit;
+    } else {
+      creditNextMonth += credit;
     }
   });
-  s.encaissements.forEach((e) => addIn(e.day, { label: e.label || 'Encaissement prévu', category: 'encaissement', amount: e.amount }));
+  // Last month's credit sales, received on the days their delay ends
+  if (s.priorCredit > 0) {
+    const pd = priorCreditDays(s.month, s.workDays, creditDelay);
+    const spread = pd.length ? pd : [1];
+    spread.forEach((day) => addIn(day, { label: 'Clients à crédit (ventes du mois dernier)', category: 'ventes', amount: s.priorCredit / spread.length }));
+    inflows.creditMoisPrecedent += s.priorCredit;
+  }
+  s.encaissements.forEach((e) => {
+    if (e.amount > 0 && e.day >= 1 && e.day <= n) inflows.autres += e.amount;
+    addIn(e.day, { label: e.label || 'Encaissement prévu', category: 'encaissement', amount: e.amount });
+  });
 
   // Expenses of the month
   let totalExpenses = 0;
   s.depenses.forEach((dep) => {
     if (dep.paid || dep.monthlyAmount <= 0) return;
-    const amount = dep.monthlyAmount * factorFor(levers, dep.category);
+    const amount = dep.monthlyAmount * expenseFactor(levers, dep.category);
     totalExpenses += amount;
     const label = dep.supplier && dep.supplier !== dep.label ? `${dep.label} - ${dep.supplier}` : dep.label || categoryLabel(dep.category);
     const gasShift = dep.category === 'fournisseur_gaz' ? delay : 0;
@@ -399,7 +464,7 @@ export function simulate(s: SimScenario, opts: SimulateOptions = {}): SimResult 
   const overdraftRate = overdraftLimit > 0 ? lines.reduce((sum, p) => sum + p.amount * p.rate, 0) / overdraftLimit : 0;
   let bankIn = 0;
   let bankCost = 0;
-  lines.forEach((p) => { if (p.fees > 0) { addOut(Math.max(1, p.day || 1), { label: `Frais - ${p.label}`, category: 'banque', amount: p.fees }); bankCost += p.fees; } });
+  lines.forEach((p) => { if (p.fees > 0) { addOut(1, { label: `Frais - ${p.label}`, category: 'banque', amount: p.fees }); bankCost += p.fees; } });
   products.forEach((p) => {
     if (p.type === 'credit_tresorerie') {
       const repay = Math.max(p.day, p.repayDay || n);
@@ -414,6 +479,9 @@ export function simulate(s: SimScenario, opts: SimulateOptions = {}): SimResult 
       addIn(p.day, { label: p.label || 'Escompte', category: 'banque_in', amount: p.amount - cost });
       bankIn += p.amount - cost;
       bankCost += cost;
+      // At the due date the customer pays the bank: that collection no longer reaches the caisse
+      const due = p.day + Math.max(0, Math.round(p.advanceDays));
+      if (due <= n) addOut(due, { label: `Créances escomptées payées à la banque - ${p.label || 'Escompte'}`, category: 'banque', amount: p.amount });
     } else if (p.type === 'echeance_pret') {
       addOut(p.day, { label: p.label || 'Échéance de prêt', category: 'banque', amount: p.amount });
     }
@@ -472,6 +540,12 @@ export function simulate(s: SimScenario, opts: SimulateOptions = {}): SimResult 
   return {
     days, daysInMonth: n, workDaysCount, dailySales: round2(dailySales), turnover: round2(Math.max(0, s.monthlyTurnover) * salesFactor),
     totalExpenses: round2(totalExpenses), openingBalance: s.openingBalance, closingBalance: balance,
+    cashFlow: round2(balance - s.openingBalance),
+    inflows: {
+      comptant: round2(inflows.comptant), creditDuMois: round2(inflows.creditDuMois), creditMoisPrecedent: round2(inflows.creditMoisPrecedent),
+      autres: round2(inflows.autres), banque: round2(bankIn),
+    },
+    creditNextMonth: round2(creditNextMonth),
     totalIn: round2(allIn), totalOut: round2(totalOut), salesIn: round2(salesIn), bankIn: round2(bankIn),
     minBalance: minBalance === Infinity ? s.openingBalance : minBalance, minBalanceDay, overdraftLimit, overdraftRate, bankCost: round2(bankCost),
     daysInOverdraft, daysBelowReserve, ruptureDays, firstRuptureDay: firstRupture?.day ?? null,
@@ -519,7 +593,7 @@ export function optimizeSchedule(s: SimScenario): { recommendations: Recommendat
 
   const todo = s.depenses.filter(isMovable).flatMap((dep) => {
     const k = Math.max(1, dep.installments);
-    const amount = (dep.monthlyAmount * factorFor(s.levers, dep.category)) / k;
+    const amount = (dep.monthlyAmount * expenseFactor(s.levers, dep.category)) / k;
     const label = dep.label || categoryLabel(dep.category);
     return Array.from({ length: k }, (_, i) => ({
       dep, i, k, amount, label,
@@ -560,4 +634,70 @@ export function optimizeSchedule(s: SimScenario): { recommendations: Recommendat
   });
 
   return { recommendations, days, result: simulate(s, { days }) };
+}
+
+/** Goal of the simulation: the month ends with more cash than it started with, and the caisse never goes under the safety cash. */
+export const isPositiveAndHealthy = (r: SimResult) => r.cashFlow >= 0 && r.ruptureDays === 0 && r.daysBelowReserve === 0;
+
+export const makeBaseline = (r: SimResult): Baseline => ({
+  at: new Date().toISOString(), cashFlow: r.cashFlow, closingBalance: r.closingBalance, minBalance: r.minBalance,
+  score: r.score, turnover: r.turnover, totalExpenses: r.totalExpenses,
+});
+
+export interface Targets {
+  /** Turnover to enter (before the scenario lever) to reach the goal. */
+  turnover: number | null;
+  /** Share of every expense to cut (0-1) and what it represents in MAD. */
+  expenseCut: { share: number; amount: number } | null;
+  /** Share of sales to be paid in cash (%). */
+  cashSharePct: number | null;
+  /** Longest delay credit customers can take (days). */
+  creditDelayDays: number | null;
+}
+
+const meetsGoal = (s: SimScenario) => isPositiveAndHealthy(optimizeSchedule(s).result);
+
+/** Smallest integer in [lo, hi] that meets the goal (the condition only gets easier as the value grows), or null. */
+function searchMin(lo: number, hi: number, ok: (v: number) => boolean): number | null {
+  if (!ok(hi)) return null;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (ok(mid)) hi = mid; else lo = mid + 1;
+  }
+  return lo;
+}
+
+/**
+ * What each lever alone must reach for a positive month with a healthy caisse (with the suggested payment dates).
+ * Every answer is checked by simulating it.
+ */
+export function findTargets(s: SimScenario): Targets {
+  const none: Targets = { turnover: null, expenseCut: null, cashSharePct: null, creditDelayDays: null };
+  if (meetsGoal(s)) return none;
+  const n = daysIn(s.month);
+  const totalBase = s.depenses.filter((d) => !d.paid).reduce((sum, d) => sum + d.monthlyAmount, 0);
+
+  // Turnover, by steps of 1 000 MAD
+  const ca0 = Math.ceil(Math.max(0, s.monthlyTurnover) / 1000);
+  const caMax = ca0 + Math.ceil((totalBase * 4 + 1_000_000) / 1000);
+  const ca = searchMin(ca0, caMax, (k) => meetsGoal({ ...s, monthlyTurnover: k * 1000 }));
+
+  // Same cut on every expense, by steps of 0.5 %
+  const scaled = (perMille: number): SimScenario => ({
+    ...s, depenses: s.depenses.map((d) => normalizeDepense({ ...d, monthlyAmount: Math.round(d.monthlyAmount * (1 - perMille / 1000)) }, n)),
+  });
+  const cut = totalBase > 0 ? searchMin(0, 200, (k) => meetsGoal(scaled(k * 5))) : null;
+
+  // Cash share and credit delay (the shorter the delay, the better)
+  const cs0 = Math.round(s.cashSharePct);
+  const cs = cs0 >= 100 ? null : searchMin(cs0, 100, (v) => meetsGoal({ ...s, cashSharePct: v }));
+  const d0 = Math.round(s.creditDelayDays);
+  const shorter = d0 <= 0 ? null : searchMin(0, d0, (k) => meetsGoal({ ...s, creditDelayDays: d0 - k }));
+
+  return {
+    turnover: ca === null ? null : ca * 1000,
+    expenseCut: cut === null ? null : { share: (cut * 5) / 1000, amount: Math.round((totalBase * cut * 5) / 1000) },
+    cashSharePct: cs === null || cs === cs0 ? null : cs,
+    creditDelayDays: shorter === null || shorter === 0 ? null : d0 - shorter,
+  };
 }
