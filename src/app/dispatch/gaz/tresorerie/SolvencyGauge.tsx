@@ -10,7 +10,7 @@ const LEVELS = {
 } as const;
 
 /** Semicircle gauge of the solvency index (0-100). */
-export function SolvencyGauge({ result }: { result: SimResult }) {
+export function SolvencyGauge({ result, caption }: { result: SimResult; caption?: string }) {
   const level = LEVELS[result.level];
   const arc = 'M 20 120 A 100 100 0 0 1 220 120';
   // Threshold ticks at 40 and 70 on the arc
@@ -36,10 +36,14 @@ export function SolvencyGauge({ result }: { result: SimResult }) {
         <text x="120" y="104" textAnchor="middle" className="fill-slate-900" style={{ fontSize: 44, fontWeight: 700 }}>{result.score}</text>
         <text x="120" y="124" textAnchor="middle" className="fill-slate-500" style={{ fontSize: 12 }}>sur 100</text>
       </svg>
-      <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-        <level.Icon className="h-4 w-4" style={{ color: level.color }} aria-hidden />
-        {level.label}
-      </p>
+      {caption ? (
+        <p className="mt-1 text-xs font-medium text-slate-500">{caption}</p>
+      ) : (
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+          <level.Icon className="h-4 w-4" style={{ color: level.color }} aria-hidden />
+          {level.label}
+        </p>
+      )}
     </div>
   );
 }

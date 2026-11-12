@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { nanoid } from 'nanoid';
 import { Plus, Trash2 } from 'lucide-react';
 import {
-  BANK_PRODUCT_TYPES, CATEGORIES, PAYMENT_MODES, countDays, daysIn, installmentWindow, newDepense, normalizeDepense,
-  type BankProduct, type BankProductType, type Depense, type EncaissementPrevu, type FlowCategory, type PaymentMode, type Recommendation, type SimScenario,
+  BANK_PRODUCT_TYPES, countDays, daysIn, newDepense, normalizeDepense,
+  type BankProduct, type BankProductType, type Depense, type EncaissementPrevu, type Recommendation, type SimScenario,
 } from '../../../../lib/tresorerieSim';
+import { applyStyle, styleOf, styleOptions, type PaymentStyle } from './paymentStyle';
 import { NumberInput, STATUS, WeekdayPicker, fmtMAD, inputClass } from './ui';
 
 type Patch = (patch: Partial<SimScenario>) => void;
@@ -41,205 +42,116 @@ function DeleteButton({ onClick, label }: { onClick: () => void; label: string }
   );
 }
 
-const PRESETS: { label: string; category: FlowCategory; supplier?: string; mode?: PaymentMode; windowStart?: number; windowEnd?: number }[] = [
-  { label: 'Paiement gaz', category: 'fournisseur_gaz', supplier: 'Vivo Energy' },
-  { label: 'Gasoil', category: 'gasoil', mode: 'quotidien' },
-  { label: 'Salaires', category: 'salaires', supplier: 'Personnel' },
-  { label: 'CNSS', category: 'charges_sociales', supplier: 'CNSS', windowStart: 1, windowEnd: 10 },
-  { label: 'Impôts (TVA, IR…)', category: 'impots', supplier: 'DGI' },
-  { label: 'Loyer', category: 'loyer' },
-  { label: 'Assurances', category: 'loyer' },
-  { label: 'Charges diverses', category: 'autre' },
-  { label: 'Autre dépense', category: 'autre' },
+const QUICK_ADD: { label: string; patch: Partial<Depense> }[] = [
+  { label: 'Loyer', patch: { label: 'Loyer', category: 'loyer' } },
+  { label: 'Assurances', patch: { label: 'Assurances', category: 'loyer' } },
+  { label: 'Crédit / leasing', patch: { label: 'Échéance crédit / leasing', category: 'banque', locked: true } },
+  { label: 'Autre dépense', patch: { label: '', category: 'autre' } },
 ];
 
-const REC_STYLE: Record<Recommendation['status'], { color: string; text: (r: Recommendation, month: string) => string }> = {
-  ok: { color: STATUS.good, text: (r, m) => `${dayName(m, r.recommendedDay, { weekday: 'long', day: 'numeric' })} : payable sans passer sous le seuil` },
-  seuil: { color: STATUS.warning, text: (r, m) => `${dayName(m, r.recommendedDay, { weekday: 'long', day: 'numeric' })} : payable en entamant le seuil de sécurité` },
-  decouvert: { color: STATUS.warning, text: (r, m) => `${dayName(m, r.recommendedDay, { weekday: 'long', day: 'numeric' })} : payable seulement avec le découvert` },
-  manque: { color: STATUS.critical, text: (r) => `aucun jour ne suffit : il manque ${fmtMAD(r.shortfall)} à la date limite (le ${r.recommendedDay})` },
-  reporte: { color: '#94a3b8', text: () => 'à reporter au mois suivant (délai négocié)' },
+export const STATUS_TEXT: Record<Recommendation['status'], { color: string; label: string }> = {
+  ok: { color: STATUS.good, label: 'La caisse reste au-dessus du seuil' },
+  seuil: { color: STATUS.warning, label: 'Payable en entamant le seuil de sécurité' },
+  decouvert: { color: STATUS.warning, label: 'Payable seulement avec le découvert' },
+  manque: { color: STATUS.critical, label: 'Pas assez de trésorerie, même à la date limite' },
+  reporte: { color: '#94a3b8', label: 'Reporté au mois suivant (délai négocié)' },
 };
 
-/** Day-by-day payment capacity of the window, as used to choose the best day. */
-function CapacityDetail({ rec, month, reserve }: { rec: Recommendation; month: string; reserve: number }) {
+/** Suggested date(s) of an expense, next to its inputs. */
+function SuggestedDates({ dep, recs, month, workDaysCount }: { dep: Depense; recs: Recommendation[]; month: string; workDaysCount: number }) {
+  if (dep.monthlyAmount <= 0) return <span className="text-xs text-slate-400">Saisissez le montant</span>;
+  if (dep.mode === 'quotidien') return <span className="text-sm text-slate-600">{fmtMAD(workDaysCount ? dep.monthlyAmount / workDaysCount : 0)} chaque jour travaillé</span>;
+  if (dep.mode === 'jours_fixes') return <span className="text-sm text-slate-600">Aux jours choisis</span>;
+  if (dep.locked) return <span className="text-sm text-slate-600">Le {dep.days[0]} (date fixe)</span>;
   return (
-    <div className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-      <p>
-        Capacité de paiement d'un jour = plus petit solde entre ce jour et la fin du mois, moins le seuil de sécurité ({fmtMAD(reserve)}),
-        en tenant compte des paiements déjà placés. Le meilleur jour est le premier où elle couvre <strong className="text-slate-900">{fmtMAD(rec.amount)}</strong>.
-      </p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {rec.capacity.map((c) => {
-          const enough = c.value >= rec.amount;
-          const chosen = c.day === rec.recommendedDay;
-          return (
-            <span
-              key={c.day}
-              className={`rounded-md border px-2 py-1 tabular-nums ${chosen ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-200 bg-white'}`}
-              title={`${dayName(month, c.day, { weekday: 'long', day: 'numeric' })} : capacité ${fmtMAD(c.value)}`}
-            >
-              <span className="mr-1 text-slate-400">{dayName(month, c.day)}</span>
-              <span style={{ color: enough ? STATUS.good : STATUS.critical }}>{Math.round(c.value / 1000).toLocaleString('fr-FR')} k {enough ? '≥' : '<'}</span>
-            </span>
-          );
-        })}
-      </div>
+    <div className="flex flex-wrap gap-1.5">
+      {recs.map((r) => {
+        const st = STATUS_TEXT[r.status];
+        const text = r.status === 'reporte' ? 'mois suivant' : dayName(month, r.recommendedDay);
+        return (
+          <span key={r.index} title={`${r.installments > 1 ? `Paiement ${r.index + 1}/${r.installments} : ` : ''}${fmtMAD(r.amount)} — ${st.label}${r.shortfall > 0 ? ` (il manque ${fmtMAD(r.shortfall)})` : ''}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-medium text-slate-900">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: st.color }} />
+            {text}
+          </span>
+        );
+      })}
+      {recs.some((r) => r.status === 'manque') && (
+        <span className="w-full text-xs text-red-700">Il manque {fmtMAD(recs.reduce((sum, r) => sum + r.shortfall, 0))}</span>
+      )}
     </div>
   );
 }
 
-/** The expenses of the month and their due dates (main input of the simulation). */
-export function DepensesEditor({ scenario, onChange, recommendations, onApplyBest }: {
-  scenario: SimScenario;
-  onChange: Patch;
-  recommendations: Recommendation[];
-  onApplyBest: () => void;
-}) {
+/** The expenses of the month: what is paid, how, and until when. The suggested dates are shown on each line. */
+export function DepensesTable({ scenario, onChange, recommendations }: { scenario: SimScenario; onChange: Patch; recommendations: Recommendation[] }) {
   const n = daysIn(scenario.month);
-  const [openCalc, setOpenCalc] = useState<string | null>(null);
-  const [preset, setPreset] = useState(0);
+  const workDaysCount = countDays(scenario.month, scenario.workDays);
   const update = (id: string, patch: Partial<Depense>) =>
     onChange({ depenses: scenario.depenses.map((d) => (d.id === id ? normalizeDepense({ ...d, ...patch, source: 'manuel' }, n) : d)) });
-  const recOf = (id: string, i: number) => recommendations.find((r) => r.depenseId === id && r.index === i);
+  const replace = (dep: Depense) => onChange({ depenses: scenario.depenses.map((d) => (d.id === dep.id ? dep : d)) });
   const total = scenario.depenses.filter((d) => !d.paid).reduce((sum, d) => sum + d.monthlyAmount, 0);
-  const movable = recommendations.filter((r) => r.status !== 'reporte' && r.recommendedDay !== r.plannedDay).length;
-  const workDaysCount = countDays(scenario.month, scenario.workDays);
+  const cols = 'md:grid-cols-[minmax(140px,1.3fr)_130px_200px_minmax(250px,1.4fr)_minmax(160px,1.2fr)_36px]';
 
   return (
     <div>
+      <div className={`hidden gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-2.5 text-xs font-semibold text-slate-500 md:grid ${cols}`}>
+        <span>Dépense</span><span className="text-right">Montant du mois</span><span>Comment c'est payé</span><span>Période de paiement</span><span>Date conseillée</span><span />
+      </div>
       <ul className="divide-y divide-slate-100">
         {scenario.depenses.map((d) => {
-          const k = d.installments;
+          const style = styleOf(d);
+          const recs = recommendations.filter((r) => r.depenseId === d.id).sort((a, b) => a.index - b.index);
           return (
-            <li key={d.id} className={`p-4 ${d.paid ? 'opacity-50' : ''}`}>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1.4fr_1.1fr_1.2fr_150px_1.3fr_auto] lg:items-end">
-                <label className="col-span-2 block lg:col-span-1">
-                  <span className={`${fieldLabel} flex items-center gap-1.5`}>Dépense <ImportedTag source={d.source} /></span>
-                  <input value={d.label} onChange={(e) => update(d.id, { label: e.target.value })} placeholder="ex : Paiement gaz" className={inputClass} />
-                </label>
-                <label className="col-span-2 block lg:col-span-1">
-                  <span className={fieldLabel}>Fournisseur / bénéficiaire</span>
-                  <input value={d.supplier} onChange={(e) => update(d.id, { supplier: e.target.value })} placeholder="ex : Vivo Energy" className={inputClass} />
-                </label>
-                <label className="block">
-                  <span className={fieldLabel}>Catégorie</span>
-                  <select value={d.category} onChange={(e) => update(d.id, { category: e.target.value as FlowCategory })} className={inputClass}>
-                    {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className={fieldLabel}>Montant du mois (MAD)</span>
-                  <NumberInput value={d.monthlyAmount} min={0} step={1000} onChange={(monthlyAmount) => update(d.id, { monthlyAmount })} className="text-right" />
-                </label>
-                <label className="block">
-                  <span className={fieldLabel}>Paiement</span>
-                  <select value={d.mode} onChange={(e) => update(d.id, { mode: e.target.value as PaymentMode })} className={inputClass}>
-                    {PAYMENT_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                  </select>
-                </label>
+            <li key={d.id} className={`grid grid-cols-2 items-center gap-3 px-5 py-3 ${cols}`}>
+              <input aria-label="Dépense" value={d.label} onChange={(e) => update(d.id, { label: e.target.value })} placeholder="Nom de la dépense" className={`${inputClass} col-span-2 md:col-span-1`} />
+              <NumberInput aria-label={`Montant du mois : ${d.label}`} value={d.monthlyAmount} min={0} step={1000} onChange={(monthlyAmount) => update(d.id, { monthlyAmount })} className="text-right" />
+              <select aria-label={`Comment est payé : ${d.label}`} value={style} onChange={(e) => replace(applyStyle(d, e.target.value as PaymentStyle, n))} className={inputClass}>
+                {styleOptions(d).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+              <div className="col-span-2 flex items-center gap-2 text-sm text-slate-500 md:col-span-1">
+                {(style === 'une_fois' || style === 'deux_fois' || style === 'quatre_fois' || style === 'n_fois') && (
+                  <>
+                    <span>du</span>
+                    <DaySelect month={scenario.month} label={`Payer au plus tôt le : ${d.label}`} value={d.windowStart} onChange={(windowStart) => update(d.id, { windowStart, windowEnd: Math.max(windowStart, d.windowEnd), days: [] })} />
+                    <span>au</span>
+                    <DaySelect month={scenario.month} label={`Date limite : ${d.label}`} value={d.windowEnd} min={d.windowStart} onChange={(windowEnd) => update(d.id, { windowEnd, days: [] })} />
+                  </>
+                )}
+                {style === 'date_fixe' && (
+                  <>
+                    <span>le</span>
+                    <DaySelect month={scenario.month} label={`Date du prélèvement : ${d.label}`} value={d.days[0]} onChange={(day) => update(d.id, { windowStart: day, windowEnd: day, days: [day] })} />
+                  </>
+                )}
+                {style === 'chaque_jour' && <span>Tout le mois ({workDaysCount} jours)</span>}
+                {style === 'jours_fixes' && <WeekdayPicker label={`Jours de paiement : ${d.label}`} value={d.weekdays} onChange={(weekdays) => update(d.id, { weekdays })} />}
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <span className="mb-1 block text-xs font-medium text-slate-500 md:hidden">Date conseillée</span>
+                <SuggestedDates dep={d} recs={recs} month={scenario.month} workDaysCount={workDaysCount} />
+              </div>
+              <div className="col-span-2 flex justify-end md:col-span-1">
                 <DeleteButton label={`Supprimer ${d.label || 'la dépense'}`} onClick={() => onChange({ depenses: scenario.depenses.filter((x) => x.id !== d.id) })} />
               </div>
-
-              {d.mode === 'echeances' && (
-                <>
-                  <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2 text-sm">
-                    <label className="block">
-                      <span className={fieldLabel}>Nombre de paiements</span>
-                      <select value={k} onChange={(e) => update(d.id, { installments: Number(e.target.value), days: [] })} className={`${inputClass.replace('w-full ', '')} w-24`}>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((v) => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    </label>
-                    <div>
-                      <span className={fieldLabel}>Fenêtre autorisée (date limite incluse)</span>
-                      <div className="flex items-center gap-2">
-                        <DaySelect month={scenario.month} label="Payer au plus tôt le" value={d.windowStart} onChange={(windowStart) => update(d.id, { windowStart, days: [] })} />
-                        <span className="text-slate-500">au</span>
-                        <DaySelect month={scenario.month} label="Date limite" value={d.windowEnd} min={d.windowStart} onChange={(windowEnd) => update(d.id, { windowEnd, days: [] })} />
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-1.5 pb-2 text-xs text-slate-600" title="Date fixée par le créancier : elle n'est pas déplacée">
-                      <input type="checkbox" checked={!!d.locked} onChange={(e) => update(d.id, { locked: e.target.checked })} className="h-4 w-4 accent-blue-600" /> Date imposée
-                    </label>
-                    <label className="flex items-center gap-1.5 pb-2 text-xs text-slate-600">
-                      <input type="checkbox" checked={!!d.paid} onChange={(e) => update(d.id, { paid: e.target.checked })} className="h-4 w-4 accent-blue-600" /> Déjà payée
-                    </label>
-                  </div>
-                  <ul className="mt-3 space-y-2">
-                    {Array.from({ length: k }, (_, i) => {
-                      const [ws, we] = installmentWindow(d, i, n);
-                      const rec = recOf(d.id, i);
-                      const key = `${d.id}-${i}`;
-                      return (
-                        <li key={key} className="rounded-xl border border-slate-100 p-3">
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                            <span className="min-w-[150px] text-slate-700">
-                              {k > 1 ? `Paiement ${i + 1}/${k}` : 'Paiement'} : <strong className="tabular-nums text-slate-900">{fmtMAD(d.monthlyAmount / k)}</strong>
-                              {k > 1 && <span className="ml-1 text-xs text-slate-400">(entre le {ws} et le {we})</span>}
-                            </span>
-                            <label className="flex items-center gap-2 whitespace-nowrap text-slate-600">
-                              Prévu le
-                              <DaySelect month={scenario.month} label={`Jour prévu du paiement ${i + 1}`} value={d.days[i]} onChange={(day) => update(d.id, { days: d.days.map((x, j) => (j === i ? day : x)) })} />
-                            </label>
-                            {d.paid ? (
-                              <span className="text-xs text-slate-500">Déjà payée</span>
-                            ) : d.locked ? (
-                              <span className="text-xs text-slate-500">Date imposée : non déplacée</span>
-                            ) : rec ? (
-                              <span className="flex items-center gap-1.5 text-slate-700">
-                                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: REC_STYLE[rec.status].color }} />
-                                <span>Meilleur jour : {rec.status === 'ok' && rec.recommendedDay === d.days[i] ? 'déjà le bon jour' : REC_STYLE[rec.status].text(rec, scenario.month)}</span>
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400">Saisissez un montant</span>
-                            )}
-                            {rec && !d.paid && !d.locked && rec.capacity.length > 0 && (
-                              <button type="button" onClick={() => setOpenCalc(openCalc === key ? null : key)} aria-expanded={openCalc === key} className="text-xs font-medium text-blue-600 hover:text-blue-700">
-                                {openCalc === key ? 'Masquer le calcul' : 'Voir le calcul'}
-                              </button>
-                            )}
-                          </div>
-                          {rec && openCalc === key && <CapacityDetail rec={rec} month={scenario.month} reserve={scenario.minReserve} />}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
-              )}
-
-              {d.mode === 'quotidien' && (
-                <p className="mt-3 text-sm text-slate-600">
-                  Payé chaque jour travaillé : <strong className="tabular-nums text-slate-900">{fmtMAD(workDaysCount ? d.monthlyAmount / workDaysCount : 0)}</strong> par jour ({workDaysCount} jours).
-                </p>
-              )}
-              {d.mode === 'jours_fixes' && (
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
-                  <WeekdayPicker label="Jours de paiement" value={d.weekdays} onChange={(weekdays) => update(d.id, { weekdays })} />
-                  <span>
-                    {countDays(scenario.month, d.weekdays)} paiements de <strong className="tabular-nums text-slate-900">{fmtMAD(countDays(scenario.month, d.weekdays) ? d.monthlyAmount / countDays(scenario.month, d.weekdays) : 0)}</strong>
-                  </span>
-                </div>
-              )}
             </li>
           );
         })}
       </ul>
-
-      <div className="flex flex-col gap-3 border-t border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <select aria-label="Type de dépense à ajouter" value={preset} onChange={(e) => setPreset(Number(e.target.value))} className={`${inputClass.replace('w-full ', '')} w-48`}>
-            {PRESETS.map((p, i) => <option key={p.label} value={i}>{p.label}</option>)}
-          </select>
-          <button type="button" className={addButton} onClick={() => { const p = PRESETS[preset]; onChange({ depenses: [...scenario.depenses, newDepense(n, { ...p, supplier: p.supplier ?? '' })] }); }}>
-            <Plus className="h-4 w-4" /> Ajouter la dépense
-          </button>
+          <span className="text-sm text-slate-500">Ajouter :</span>
+          {QUICK_ADD.map((q) => (
+            <button key={q.label} type="button" className={addButton}
+              onClick={() => {
+                const dep = newDepense(n, { ...q.patch, locked: false });
+                onChange({ depenses: [...scenario.depenses, q.patch.locked ? applyStyle(dep, 'date_fixe', n) : dep] });
+              }}>
+              <Plus className="h-4 w-4" /> {q.label}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <p className="text-sm text-slate-600">Total du mois : <span className="font-semibold text-slate-900 tabular-nums">{fmtMAD(total)}</span></p>
-          <button type="button" disabled={movable === 0} onClick={onApplyBest} className="h-9 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
-            Appliquer les meilleurs jours{movable > 0 ? ` (${movable})` : ''}
-          </button>
-        </div>
+        <p className="text-sm text-slate-600">Total des dépenses : <span className="font-semibold text-slate-900 tabular-nums">{fmtMAD(total)}</span></p>
       </div>
     </div>
   );

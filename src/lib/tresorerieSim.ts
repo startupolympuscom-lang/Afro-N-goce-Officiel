@@ -498,8 +498,13 @@ export interface Recommendation {
   capacity: { day: number; value: number }[];
 }
 
+/** At an equal deadline, salaries and legal charges are protected before suppliers. */
+const PAYMENT_PRIORITY: Record<FlowCategory, number> = {
+  salaires: 0, charges_sociales: 1, impots: 2, banque: 3, loyer: 4, fournisseur_gaz: 5, gasoil: 6, autre: 7,
+};
+
 /**
- * Best days: payments are placed one by one, the most urgent deadline first (then the largest amount),
+ * Best days: payments are placed one by one, the most urgent deadline first (then salaries and legal charges, then the largest amount),
  * on the first day of their window whose payment capacity covers them; the capacity of the following days
  * is then reduced by the amount paid.
  */
@@ -520,7 +525,7 @@ export function optimizeSchedule(s: SimScenario): { recommendations: Recommendat
       dep, i, k, amount, label,
       window: installmentWindow(dep, i, n, dep.category === 'fournisseur_gaz' ? delay : 0),
     }));
-  }).sort((a, b) => a.window[1] - b.window[1] || b.amount - a.amount);
+  }).sort((a, b) => a.window[1] - b.window[1] || PAYMENT_PRIORITY[a.dep.category] - PAYMENT_PRIORITY[b.dep.category] || b.amount - a.amount);
 
   const recommendations: Recommendation[] = [];
   const days: Record<string, number[]> = {};

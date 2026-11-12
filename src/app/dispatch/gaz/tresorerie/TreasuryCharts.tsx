@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { SimResult } from '../../../../lib/tresorerieSim';
 import { SERIES, STATUS, fmtMAD } from './ui';
 
@@ -79,47 +79,6 @@ export function BalanceChart({ result, minReserve }: { result: SimResult; minRes
             activeDot={{ r: 5, stroke: '#ffffff', strokeWidth: 2 }}
           />
         </LineChart>
-      </ResponsiveContainer>
-    </div>
-    </div>
-  );
-}
-
-export function FlowsChart({ result }: { result: SimResult }) {
-  const data = result.days.map((d) => ({ day: d.day, Encaissements: d.totalIn, Décaissements: d.totalOut, d }));
-  return (
-    <div>
-    <div className="mb-2 flex gap-4 text-xs text-slate-600">
-      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: SERIES.in }} />Encaissements</span>
-      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: SERIES.out }} />Décaissements</span>
-    </div>
-    <div className="h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }} barGap={2} barCategoryGap="20%">
-          <CartesianGrid vertical={false} stroke="#e1e0d9" />
-          <XAxis dataKey="day" {...AXIS} interval="preserveStartEnd" minTickGap={14} />
-          <YAxis {...AXIS} axisLine={false} tickFormatter={compact} width={48} />
-          <Tooltip
-            cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              const d = (payload[0].payload as { d: SimResult['days'][number] }).d;
-              const biggest = [...d.outflows].sort((a, b) => b.amount - a.amount).slice(0, 3);
-              return (
-                <TooltipBox
-                  title={dayLabel(d.date)}
-                  rows={[
-                    { label: 'Encaissements', value: fmtMAD(d.totalIn), color: SERIES.in },
-                    { label: 'Décaissements', value: fmtMAD(d.totalOut), color: SERIES.out },
-                    ...biggest.map((f) => ({ label: `· ${f.label}`, value: fmtMAD(f.amount) })),
-                  ]}
-                />
-              );
-            }}
-          />
-          <Bar dataKey="Encaissements" fill={SERIES.in} radius={[4, 4, 0, 0]} maxBarSize={12} isAnimationActive={false} />
-          <Bar dataKey="Décaissements" fill={SERIES.out} radius={[4, 4, 0, 0]} maxBarSize={12} isAnimationActive={false} />
-        </BarChart>
       </ResponsiveContainer>
     </div>
     </div>
