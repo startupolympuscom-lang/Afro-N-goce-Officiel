@@ -34,6 +34,12 @@ export function CashStatement({ result: r }: { result: SimResult }) {
         <span className="font-semibold text-slate-900">Flux de trésorerie du mois (rentrées − sorties)</span>
         <span className={`text-base font-bold tabular-nums ${r.cashFlow < 0 ? 'text-red-700' : 'text-slate-900'}`}>{r.cashFlow > 0 ? '+' : ''}{fmtMAD(r.cashFlow)}</span>
       </div>
+      {r.deferredToNextMonth > 0 && (
+        <div className="flex items-baseline justify-between gap-4 px-5 py-2 text-sm">
+          <span className="text-slate-700">Flux net en comptant les paiements reportés au mois prochain</span>
+          <span className={`font-semibold tabular-nums ${r.netFlow < 0 ? 'text-red-700' : 'text-slate-900'}`}>{r.netFlow > 0 ? '+' : ''}{fmtMAD(r.netFlow)}</span>
+        </div>
+      )}
       {(r.creditNextMonth > 0 || r.deferredToNextMonth > 0) && (
         <div className="space-y-0.5 px-5 py-3 text-xs text-slate-500">
           {r.creditNextMonth > 0 && <p>Ventes à crédit de ce mois encaissées le mois prochain : {fmtMAD(r.creditNextMonth)} (elles comptent dans le chiffre d'affaires, pas dans la caisse de ce mois).</p>}

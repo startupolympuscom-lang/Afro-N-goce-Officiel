@@ -69,6 +69,8 @@ export interface Depense {
   locked?: boolean;
   /** Already paid this month: listed but not simulated. */
   paid?: boolean;
+  /** Only this month (arrears, one-off invoice): not carried into the following months of the projection. */
+  oneOff?: boolean;
   source?: RowSource;
 }
 
@@ -124,6 +126,10 @@ export interface SimScenario {
   version: 2;
   month: string;
   company: 'all' | CompanyId;
+  /** Named variant of the month ('base' = the main simulation). */
+  variantId?: string;
+  name?: string;
+  createdAt?: string;
   /** Cash + bank balance available on the 1st of the month. */
   openingBalance: number;
   /** Safety cash the cashier must keep. */
@@ -152,6 +158,7 @@ export interface SimScenario {
 export interface Baseline {
   at: string;
   cashFlow: number;
+  netFlow?: number;
   closingBalance: number;
   minBalance: number;
   score: number;
@@ -341,6 +348,8 @@ export interface SimResult {
   closingBalance: number;
   /** Encaissements - décaissements of the month (= closing - opening). */
   cashFlow: number;
+  /** Cash flow counting the payments pushed to next month as if paid: a deferral is not a gain. */
+  netFlow: number;
   /** Where the money came from. */
   inflows: { comptant: number; creditDuMois: number; creditMoisPrecedent: number; autres: number; banque: number };
   /** This month's credit sales that will only be collected next month. */
@@ -521,7 +530,9 @@ export function simulate(s: SimScenario, opts: SimulateOptions = {}): SimResult 
     .sort((a, b) => b.amount - a.amount);
 
   // Bank money is a resource but not income: coverage uses operating receipts only
-  const coverage = totalOut > 0 ? (s.openingBalance + allIn - bankIn) / totalOut : 2;
+  // Payments pushed to next month still count as owed: deferring does not improve the coverage
+  const owed = totalOut + deferredToNextMonth;
+  const coverage = owed > 0 ? (s.openingBalance + allIn - bankIn) / owed : 2;
   const grossNeed = Math.max(0, -minBalance);
   const uncoveredNeed = Math.max(0, -(minBalance + overdraftLimit));
 
@@ -541,6 +552,7 @@ export function simulate(s: SimScenario, opts: SimulateOptions = {}): SimResult 
     days, daysInMonth: n, workDaysCount, dailySales: round2(dailySales), turnover: round2(Math.max(0, s.monthlyTurnover) * salesFactor),
     totalExpenses: round2(totalExpenses), openingBalance: s.openingBalance, closingBalance: balance,
     cashFlow: round2(balance - s.openingBalance),
+    netFlow: round2(balance - s.openingBalance - deferredToNextMonth),
     inflows: {
       comptant: round2(inflows.comptant), creditDuMois: round2(inflows.creditDuMois), creditMoisPrecedent: round2(inflows.creditMoisPrecedent),
       autres: round2(inflows.autres), banque: round2(bankIn),
@@ -636,11 +648,14 @@ export function optimizeSchedule(s: SimScenario): { recommendations: Recommendat
   return { recommendations, days, result: simulate(s, { days }) };
 }
 
-/** Goal of the simulation: the month ends with more cash than it started with, and the caisse never goes under the safety cash. */
-export const isPositiveAndHealthy = (r: SimResult) => r.cashFlow >= 0 && r.ruptureDays === 0 && r.daysBelowReserve === 0;
+/**
+ * Goal of the simulation: the month ends with more cash than it started with (payments pushed to next month still count as owed),
+ * and the caisse never goes under the safety cash.
+ */
+export const isPositiveAndHealthy = (r: SimResult) => r.netFlow >= 0 && r.ruptureDays === 0 && r.daysBelowReserve === 0;
 
 export const makeBaseline = (r: SimResult): Baseline => ({
-  at: new Date().toISOString(), cashFlow: r.cashFlow, closingBalance: r.closingBalance, minBalance: r.minBalance,
+  at: new Date().toISOString(), cashFlow: r.cashFlow, netFlow: r.netFlow, closingBalance: r.closingBalance, minBalance: r.minBalance,
   score: r.score, turnover: r.turnover, totalExpenses: r.totalExpenses,
 });
 
@@ -700,4 +715,145 @@ export function findTargets(s: SimScenario): Targets {
     cashSharePct: cs === null || cs === cs0 ? null : cs,
     creditDelayDays: shorter === null || shorter === 0 ? null : d0 - shorter,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Decision tools: stress tests, sensitivity, projection over months   */
+/* ------------------------------------------------------------------ */
+
+export const nextMonth = (month: string) => {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const scaleCategories = (s: SimScenario, categories: FlowCategory[], factor: number): SimScenario => {
+  const n = daysIn(s.month);
+  return { ...s, depenses: s.depenses.map((d) => (categories.includes(d.category) ? normalizeDepense({ ...d, monthlyAmount: Math.round(d.monthlyAmount * factor) }, n) : d)) };
+};
+const OTHER_CHARGES: FlowCategory[] = ['charges_sociales', 'impots', 'loyer', 'autre'];
+
+/** Credit customers paying later: this month's credit sales come later, and part of last month's slips past the end of the month. */
+export function slowerClients(s: SimScenario, extraDays: number): SimScenario {
+  const n = daysIn(s.month);
+  const pd = priorCreditDays(s.month, s.workDays, s.creditDelayDays);
+  const kept = pd.filter((d) => d + extraDays <= n).length;
+  return { ...s, creditDelayDays: s.creditDelayDays + extraDays, priorCredit: pd.length ? Math.round((s.priorCredit * kept) / pd.length) : s.priorCredit };
+}
+
+export interface StressTest {
+  id: string;
+  label: string;
+  description: string;
+  scenario: SimScenario;
+  result: SimResult;
+}
+
+/** Shocks applied one by one to the simulation, each simulated with its own best payment dates. */
+export function stressTests(s: SimScenario): StressTest[] {
+  const defs: { id: string; label: string; description: string; apply: (x: SimScenario) => SimScenario }[] = [
+    { id: 'ventes_10', label: 'Ventes −10 %', description: "Le chiffre d'affaires du mois baisse de 10 %.", apply: (x) => ({ ...x, monthlyTurnover: Math.round(x.monthlyTurnover * 0.9) }) },
+    { id: 'ventes_20', label: 'Ventes −20 %', description: "Le chiffre d'affaires du mois baisse de 20 %.", apply: (x) => ({ ...x, monthlyTurnover: Math.round(x.monthlyTurnover * 0.8) }) },
+    { id: 'gaz_10', label: 'Prix du gaz +10 %', description: 'Le paiement au fournisseur gaz augmente de 10 %.', apply: (x) => scaleCategories(x, ['fournisseur_gaz'], 1.1) },
+    { id: 'gasoil_20', label: 'Gasoil +20 %', description: 'Le coût du gasoil augmente de 20 %.', apply: (x) => scaleCategories(x, ['gasoil'], 1.2) },
+    { id: 'retard_clients', label: 'Clients 15 jours plus lents', description: 'Les clients à crédit paient 15 jours plus tard (une partie des créances glisse au mois suivant).', apply: (x) => slowerClients(x, 15) },
+    { id: 'moins_comptant', label: '15 points de comptant en moins', description: 'La part des ventes payées comptant baisse de 15 points.', apply: (x) => ({ ...x, cashSharePct: Math.max(0, x.cashSharePct - 15) }) },
+    { id: 'creances', label: 'Créances du mois dernier : moitié impayée', description: 'La moitié des ventes à crédit du mois dernier ne rentre pas ce mois-ci.', apply: (x) => ({ ...x, priorCredit: Math.round(x.priorCredit * 0.5) }) },
+    {
+      id: 'pessimiste', label: 'Pessimiste combiné', description: 'Ventes −10 %, gasoil +10 %, clients 10 jours plus lents.',
+      apply: (x) => scaleCategories(slowerClients({ ...x, monthlyTurnover: Math.round(x.monthlyTurnover * 0.9) }, 10), ['gasoil'], 1.1),
+    },
+  ];
+  return defs.map((d) => {
+    const scenario = d.apply(s);
+    return { id: d.id, label: d.label, description: d.description, scenario, result: optimizeSchedule(scenario).result };
+  });
+}
+
+export interface SensitivityRow {
+  id: string;
+  label: string;
+  /** Change applied in each direction, in words. */
+  unfavourableLabel: string;
+  favourableLabel: string;
+  /** Effect on the net cash flow of the month (MAD) compared with the current simulation. */
+  unfavourable: number;
+  favourable: number;
+}
+
+/** What moves the month's net cash flow the most: each factor moved by 10 % (or 10 points / 10 days) in both directions. */
+export function sensitivity(s: SimScenario): SensitivityRow[] {
+  const flow = (x: SimScenario) => optimizeSchedule(x).result.netFlow;
+  const base = flow(s);
+  const rows: { id: string; label: string; bad: SimScenario; good: SimScenario; badL: string; goodL: string }[] = [
+    { id: 'ca', label: "Chiffre d'affaires", bad: { ...s, monthlyTurnover: s.monthlyTurnover * 0.9 }, good: { ...s, monthlyTurnover: s.monthlyTurnover * 1.1 }, badL: '−10 %', goodL: '+10 %' },
+    { id: 'comptant', label: 'Part payée comptant', bad: { ...s, cashSharePct: Math.max(0, s.cashSharePct - 10) }, good: { ...s, cashSharePct: Math.min(100, s.cashSharePct + 10) }, badL: '−10 pts', goodL: '+10 pts' },
+    { id: 'delai', label: 'Délai des clients à crédit', bad: slowerClients(s, 10), good: { ...s, creditDelayDays: Math.max(0, s.creditDelayDays - 10) }, badL: '+10 j', goodL: '−10 j' },
+    { id: 'gaz', label: 'Paiement gaz', bad: scaleCategories(s, ['fournisseur_gaz'], 1.1), good: scaleCategories(s, ['fournisseur_gaz'], 0.9), badL: '+10 %', goodL: '−10 %' },
+    { id: 'gasoil', label: 'Gasoil', bad: scaleCategories(s, ['gasoil'], 1.1), good: scaleCategories(s, ['gasoil'], 0.9), badL: '+10 %', goodL: '−10 %' },
+    { id: 'salaires', label: 'Salaires', bad: scaleCategories(s, ['salaires'], 1.1), good: scaleCategories(s, ['salaires'], 0.9), badL: '+10 %', goodL: '−10 %' },
+    { id: 'autres', label: 'Autres dépenses', bad: scaleCategories(s, OTHER_CHARGES, 1.1), good: scaleCategories(s, OTHER_CHARGES, 0.9), badL: '+10 %', goodL: '−10 %' },
+  ];
+  return rows
+    .map((r) => ({ id: r.id, label: r.label, unfavourableLabel: r.badL, favourableLabel: r.goodL, unfavourable: round2(flow(r.bad) - base), favourable: round2(flow(r.good) - base) }))
+    .filter((r) => r.unfavourable !== 0 || r.favourable !== 0)
+    .sort((a, b) => (b.favourable - b.unfavourable) - (a.favourable - a.unfavourable));
+}
+
+export interface ProjectionMonth {
+  month: string;
+  scenario: SimScenario;
+  result: SimResult;
+}
+
+/**
+ * The month and the following ones. Each month starts with the previous closing balance, collects the previous month's
+ * credit sales, pays the supplier payments pushed from the previous month; one-off items are not repeated.
+ */
+export function projectMonths(s: SimScenario, count = 3, growth: { turnoverPct: number; expensesPct: number } = { turnoverPct: 0, expensesPct: 0 }): ProjectionMonth[] {
+  const out: ProjectionMonth[] = [];
+  let cur = s;
+  for (let i = 0; i < count; i++) {
+    const r = optimizeSchedule(cur).result;
+    out.push({ month: cur.month, scenario: cur, result: r });
+    if (i === count - 1) break;
+    const month = nextMonth(cur.month);
+    const prevN = daysIn(cur.month);
+    const n = daysIn(month);
+    const f = 1 + growth.expensesPct / 100;
+    const depenses = cur.depenses
+      .filter((d) => !d.oneOff && !d.paid)
+      .map((d) => normalizeDepense({
+        ...d,
+        monthlyAmount: Math.round(d.monthlyAmount * f),
+        windowStart: Math.min(d.windowStart, n),
+        windowEnd: d.windowEnd >= prevN ? n : Math.min(d.windowEnd, n),
+        days: d.locked ? [Math.min(d.days[0] ?? n, n)] : [],
+      }, n));
+    if (r.deferredToNextMonth > 0) {
+      depenses.push(newDepense(n, {
+        id: `report-${month}`, label: 'Paiements gaz reportés du mois précédent', category: 'fournisseur_gaz', monthlyAmount: Math.round(r.deferredToNextMonth),
+        windowStart: 1, windowEnd: Math.max(1, Math.min(n, Math.round(cur.levers.supplierDelayDays))), oneOff: true,
+      }));
+    }
+    // Receivables already discounted at the bank are paid to the bank, not to the caisse
+    const discounted = cur.bankProducts
+      .filter((p) => p.enabled && p.type === 'escompte' && p.day + Math.round(p.advanceDays) > prevN)
+      .reduce((sum, p) => sum + p.amount, 0);
+    cur = {
+      ...cur,
+      month,
+      openingBalance: round2(r.closingBalance),
+      priorCredit: Math.max(0, Math.round(r.creditNextMonth - discounted)),
+      monthlyTurnover: Math.round(cur.monthlyTurnover * (1 + growth.turnoverPct / 100)),
+      depenses,
+      encaissements: [],
+      bankProducts: cur.bankProducts
+        .filter((p) => p.type === 'decouvert' || p.type === 'facilite_caisse' || p.type === 'echeance_pret')
+        // Opening fees are paid once, the limit and the instalments come back every month
+        .map((p) => ({ ...p, fees: 0, day: Math.min(p.day, n), repayDay: Math.min(p.repayDay, n) })),
+      baseline: undefined,
+    };
+  }
+  return out;
 }

@@ -44,6 +44,19 @@ export function FormulaPanel({ scenario, result, recommendations }: { scenario: 
           Crédit de trésorerie : remboursé avec intérêts = montant × taux × jours ÷ 360. Escompte : la banque avance les créances (moins intérêts et frais),
           puis le client paie la banque à l'échéance. Le délai obtenu du fournisseur gaz repousse ses paiements : ce qui passe après la fin du mois est un gain ponctuel.
         </li>
+        <li>
+          <strong>Scénarios et tests de résistance.</strong> Chaque scénario est une copie complète du mois, modifiable séparément. Les tests de résistance appliquent
+          un choc (ventes −10 % ou −20 %, gaz +10 %, gasoil +20 %, clients 15 jours plus lents, 15 points de comptant en moins, moitié des créances impayée, ou un choc combiné)
+          et refont toute la simulation avec ses propres dates conseillées.
+        </li>
+        <li>
+          <strong>Ce qui pèse le plus.</strong> Chaque élément est bougé seul de 10 % (10 points pour la part comptant, 10 jours pour le délai des clients) dans les deux sens ;
+          la barre montre de combien le flux du mois change.
+        </li>
+        <li>
+          <strong>Projection.</strong> Le mois suivant repart du solde de fin de mois, encaisse les ventes à crédit qui tombaient après la fin du mois
+          et paie les paiements gaz reportés ; les dépenses récurrentes sont reprises (avec l'évolution choisie), les éléments ponctuels non.
+        </li>
       </ol>
       {example && cap && (
         <p className="rounded-lg bg-slate-50 px-4 py-3">

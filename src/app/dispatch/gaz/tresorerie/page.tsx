@@ -7,11 +7,11 @@ import { useCarburantStore } from '../../../../stores/useCarburantStore';
 import { useLeasingStore } from '../../../../stores/useLeasingStore';
 import { useChargeVariableStore } from '../../../../stores/useChargeVariableStore';
 import { useVehiculeStore } from '../../../../stores/useVehiculeStore';
-import { scenarioKey, useTresorerieSimStore } from '../../../../stores/useTresorerieSimStore';
+import { BASE_VARIANT, listVariants, scenarioKey, useTresorerieSimStore } from '../../../../stores/useTresorerieSimStore';
 import { DISPATCH_COMPANIES, type CompanyId } from '../../../../lib/dispatchCompanies';
 import {
   DEFAULT_LEVERS, estimatePriorCredit, findTargets, isPositiveAndHealthy, makeBaseline, newScenario, normalizeDepense, normalizeScenario, optimizeSchedule, daysIn,
-  type Baseline, type SimLevers, type SimResult, type SimScenario,
+  type Baseline, type SimLevers, type SimResult, type SimScenario, type StressTest,
 } from '../../../../lib/tresorerieSim';
 import { importFromDispatch } from './importFromDispatch';
 import { SolvencyGauge } from './SolvencyGauge';
@@ -20,6 +20,9 @@ import { BankEditor, DepensesTable, EncaissementsEditor, dayName } from './Scena
 import { PaymentPlan } from './PaymentPlan';
 import { FormulaPanel } from './FormulaPanel';
 import { CashStatement } from './CashStatement';
+import { SCENARIO_COLORS, WaterfallChart } from './DecisionCharts';
+import { CompareTab, ProjectionTab, type ScenarioRun } from './DecisionTabs';
+import { exportSynthesisPdf } from './synthesisPdf';
 import { Meter, NumberInput, SERIES, STATUS, WeekdayPicker, card, fmtMAD, fmtPct, inputClass } from './ui';
 
 type Persisted = { persist: { hasHydrated: () => boolean; onFinishHydration: (fn: () => void) => () => void } };
@@ -72,7 +75,7 @@ function Field({ label, children, help }: { label: string; children: React.React
   );
 }
 
-function Figure({ label, amount, tone, before, hint }: { label: string; amount: number; tone?: 'critical' | 'warning'; before?: number; hint?: string }) {
+function Figure({ label, amount, tone, before, hint, note }: { label: string; amount: number; tone?: 'critical' | 'warning'; before?: number; hint?: string; note?: string }) {
   const delta = before === undefined ? 0 : Math.round(amount - before);
   return (
     <div title={hint}>
@@ -81,6 +84,7 @@ function Figure({ label, amount, tone, before, hint }: { label: string; amount: 
         {tone && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS[tone] }} />}
         {amount > 0 && label.startsWith('Flux') ? '+' : ''}{Math.round(amount).toLocaleString('fr-FR')}<span className="text-xs font-medium text-slate-500">MAD</span>
       </p>
+      {note && <p className="text-xs text-slate-500">{note}</p>}
       {before !== undefined && (
         <p className="text-xs text-slate-500">
           départ : {Math.round(before).toLocaleString('fr-FR')}
@@ -118,7 +122,12 @@ export default function DispatchTresoreriePage() {
 
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [company, setCompany] = useState<'all' | CompanyId>('all');
-  const key = scenarioKey(month, company);
+  const [variantId, setVariantId] = useState(BASE_VARIANT);
+  const key = scenarioKey(month, company, variantId);
+  const storedScenarios = useTresorerieSimStore((st) => st.scenarios);
+  const [tab, setTab] = useState<'simulation' | 'comparer' | 'projection'>('simulation');
+  const [newName, setNewName] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState<SimScenario | null>(null);
   const [dirty, setDirty] = useState(false);
   const [importNotes, setImportNotes] = useState<string[]>([]);
@@ -128,11 +137,14 @@ export default function DispatchTresoreriePage() {
   const history = useRef<SimScenario[]>([]);
   const lastPush = useRef(0);
   const [undoCount, setUndoCount] = useState(0);
+  const pending = useRef<SimScenario | null>(null);
 
   // Load the simulation of the chosen month and company (older simulations are converted)
   useEffect(() => {
     if (!simHydrated) return;
+    if (pending.current) { useTresorerieSimStore.getState().saveScenario(pending.current); pending.current = null; }
     const stored = useTresorerieSimStore.getState().scenarios[key];
+    if (!stored && variantId !== BASE_VARIANT) { setVariantId(BASE_VARIANT); return; }
     setDraft(stored ? normalizeScenario(stored) : newScenario(month, company));
     setDirty(false);
     setImportNotes([]);
@@ -141,7 +153,6 @@ export default function DispatchTresoreriePage() {
   }, [key, simHydrated]);
 
   // Save the simulation (its own store only) shortly after each change, and when leaving the page
-  const pending = useRef<SimScenario | null>(null);
   useEffect(() => {
     if (!draft || !dirty) return;
     pending.current = draft;
@@ -187,7 +198,7 @@ export default function DispatchTresoreriePage() {
   const autoFilled = useRef(new Set<string>());
   useEffect(() => {
     if (!draft || !simHydrated || !dispatchHydrated || !fuelHydrated) return;
-    if (useTresorerieSimStore.getState().scenarios[key] || autoFilled.current.has(key)) return;
+    if (variantId !== BASE_VARIANT || useTresorerieSimStore.getState().scenarios[key] || autoFilled.current.has(key)) return;
     if (sales.length === 0 && (commandes || []).length === 0) return;
     autoFilled.current.add(key);
     runImport(true);
@@ -207,6 +218,50 @@ export default function DispatchTresoreriePage() {
     setImportNotes([]);
     history.current = [];
     setUndoCount(0);
+  };
+
+  const scenarioName = draft?.name || (variantId === BASE_VARIANT ? 'Situation actuelle' : 'Scénario');
+  const variants = listVariants(storedScenarios, month, company);
+  const runs: ScenarioRun[] = useMemo(() => {
+    if (!draft || !best) return [];
+    return variants.flatMap<ScenarioRun>((v, i) => {
+      const color = SCENARIO_COLORS[i % SCENARIO_COLORS.length];
+      if (v.id === variantId) return [{ id: v.id, name: scenarioName, color, scenario: draft, result: best.result, current: true }];
+      const stored = storedScenarios[v.key];
+      if (!stored) return [];
+      const sc = normalizeScenario(stored);
+      return [{ id: v.id, name: v.name, color, scenario: sc, result: optimizeSchedule(sc).result, current: false }];
+    });
+  }, [storedScenarios, draft, best, variantId, month, company]);
+
+  const openVariant = (id: string) => {
+    if (id === variantId) return;
+    if (draft && dirty) { saveScenario(draft); pending.current = null; }
+    setVariantId(id);
+  };
+  const createVariant = (name: string, from: SimScenario) => {
+    if (draft && dirty) { saveScenario(draft); pending.current = null; }
+    const id = `v${Date.now().toString(36)}`;
+    saveScenario({ ...from, month, company, variantId: id, name: name.trim() || 'Scénario', createdAt: new Date().toISOString() });
+    setVariantId(id);
+    setNewName(null);
+    toast.success(`Scénario « ${name.trim() || 'Scénario'} » créé. Modifiez-le puis comparez-le dans « Comparer & tester ».`);
+  };
+  const saveTestAsScenario = (t: StressTest) => createVariant(t.label, { ...t.scenario, baseline: draft?.baseline });
+  const deleteVariant = () => {
+    if (variantId === BASE_VARIANT || !window.confirm(`Supprimer le scénario « ${scenarioName} » ?`)) return;
+    pending.current = null;
+    removeScenario(key);
+    setVariantId(BASE_VARIANT);
+  };
+  const exportPdf = () => {
+    if (!draft || !best) return;
+    try {
+      exportSynthesisPdf({ scenario: draft, scenarioName, result: best.result, recommendations: best.recommendations, targets, runs: runs.map((x) => ({ name: x.name, result: x.result })) });
+    } catch (e) {
+      console.error(e);
+      toast.error("La synthèse n'a pas pu être générée.");
+    }
   };
 
   const rememberStart = () => {
@@ -247,15 +302,17 @@ export default function DispatchTresoreriePage() {
   const headline = isEmpty
     ? 'Saisissez ce qui rentre et ce qui sort ce mois-ci'
     : critical ? `Il manque ${fmtMAD(r.uncoveredNeed)} pour tout payer`
-      : r.cashFlow < 0 ? `La trésorerie baisse de ${fmtMAD(-r.cashFlow)} ce mois-ci`
-        : !goal ? `Trésorerie positive (+${fmtMAD(r.cashFlow)}) mais caisse tendue`
-          : `Trésorerie positive : +${fmtMAD(r.cashFlow)} ce mois-ci`;
+      : r.netFlow < 0 ? `La trésorerie baisse de ${fmtMAD(-r.netFlow)} ce mois-ci`
+        : !goal ? `Trésorerie positive (+${fmtMAD(r.netFlow)}) mais caisse tendue`
+          : `Trésorerie positive : +${fmtMAD(r.netFlow)} ce mois-ci`;
   const explanation = isEmpty
     ? "Indiquez le solde de départ, le chiffre d'affaires et les dépenses : l'outil calcule le flux du mois et propose une date pour chaque paiement."
     : critical
       ? `Même en payant chaque dépense au meilleur jour, la caisse ne peut plus tout payer à partir du ${dayName(month, r.firstRuptureDay!, { weekday: 'long', day: 'numeric' })}.`
-      : r.cashFlow < 0
-        ? `Tous les paiements passent, mais le mois finit avec moins d'argent qu'au départ : ${fmtMAD(r.closingBalance)} contre ${fmtMAD(r.openingBalance)} le 1er.`
+      : r.netFlow < 0
+        ? r.deferredToNextMonth > 0
+          ? `Tous les paiements du mois passent, mais ${fmtMAD(r.deferredToNextMonth)} de paiements gaz sont reportés au mois prochain : en les comptant, le mois coûte ${fmtMAD(-r.netFlow)}.`
+          : `Tous les paiements passent, mais le mois finit avec moins d'argent qu'au départ : ${fmtMAD(r.closingBalance)} contre ${fmtMAD(r.openingBalance)} le 1er.`
         : !goal
           ? r.daysInOverdraft > 0
             ? `Le mois finit en positif, mais certains jours ne passent que grâce au découvert (${r.daysInOverdraft} jour(s)).`
@@ -274,11 +331,11 @@ export default function DispatchTresoreriePage() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-xs font-medium text-slate-500">
             Mois
-            <input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className={`${inputClass.replace('w-full ', '')} mt-1 block w-40`} />
+            <input type="month" value={month} onChange={(e) => { if (e.target.value) { setMonth(e.target.value); setVariantId(BASE_VARIANT); } }} className={`${inputClass.replace('w-full ', '')} mt-1 block w-40`} />
           </label>
           <label className="text-xs font-medium text-slate-500">
             Société
-            <select value={company} onChange={(e) => setCompany(e.target.value as 'all' | CompanyId)} className={`${inputClass.replace('w-full ', '')} mt-1 block w-52`}>
+            <select value={company} onChange={(e) => { setCompany(e.target.value as 'all' | CompanyId); setVariantId(BASE_VARIANT); }} className={`${inputClass.replace('w-full ', '')} mt-1 block w-52`}>
               <option value="all">Toutes les sociétés</option>
               {DISPATCH_COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -292,7 +349,44 @@ export default function DispatchTresoreriePage() {
           <button type="button" onClick={reset} className="h-9 rounded-lg px-3 text-sm font-medium text-slate-500 hover:bg-slate-100">
             Recommencer
           </button>
+          <button type="button" onClick={exportPdf} disabled={isEmpty} className="h-9 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
+            Synthèse PDF
+          </button>
         </div>
+      </div>
+
+      {/* Scenarios of the month */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" role="tablist" aria-label="Scénarios du mois">
+        <span className="mr-1 text-xs font-medium text-slate-500">Scénario</span>
+        {variants.map((v, i) => (
+          renaming !== null && v.id === variantId ? (
+            <form key={v.id} onSubmit={(e) => { e.preventDefault(); change({ name: renaming.trim() || scenarioName }); setRenaming(null); }} className="flex items-center gap-1">
+              <input autoFocus value={renaming} onChange={(e) => setRenaming(e.target.value)} aria-label="Nom du scénario" className="h-8 w-44 rounded-lg border border-slate-300 px-2 text-sm" />
+              <button type="submit" className="h-8 rounded-lg bg-slate-900 px-2.5 text-xs font-semibold text-white">OK</button>
+            </form>
+          ) : (
+            <button key={v.id} type="button" role="tab" aria-selected={v.id === variantId} onClick={() => openVariant(v.id)}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 font-medium transition-colors ${v.id === variantId ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+              <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: SCENARIO_COLORS[i % SCENARIO_COLORS.length] }} />
+              {v.id === variantId ? scenarioName : v.name}
+            </button>
+          )
+        ))}
+        {newName === null ? (
+          <button type="button" onClick={() => setNewName(`Scénario ${variants.length + 1}`)} className="h-8 rounded-lg border border-dashed border-slate-300 px-2.5 font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900">
+            + Nouveau scénario
+          </button>
+        ) : (
+          <form onSubmit={(e) => { e.preventDefault(); if (draft) createVariant(newName, draft); }} className="flex items-center gap-1">
+            <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} aria-label="Nom du nouveau scénario" className="h-8 w-44 rounded-lg border border-slate-300 px-2 text-sm" />
+            <button type="submit" className="h-8 rounded-lg bg-slate-900 px-2.5 text-xs font-semibold text-white">Créer (copie)</button>
+            <button type="button" onClick={() => setNewName(null)} className="h-8 rounded-lg px-2 text-xs text-slate-500 hover:bg-slate-100">Annuler</button>
+          </form>
+        )}
+        <span className="ml-auto flex items-center gap-3 text-xs">
+          {renaming === null && <button type="button" onClick={() => setRenaming(scenarioName)} className="font-medium text-blue-600 hover:text-blue-700">Renommer</button>}
+          {variantId !== BASE_VARIANT && <button type="button" onClick={deleteVariant} className="font-medium text-red-600 hover:text-red-700">Supprimer</button>}
+        </span>
       </div>
 
       {importNotes.length > 0 && (
@@ -320,7 +414,9 @@ export default function DispatchTresoreriePage() {
           <p className="mt-1 text-sm text-slate-600">{explanation}</p>
           {!isEmpty && (
             <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <Figure label="Flux de trésorerie du mois" amount={r.cashFlow} before={b?.cashFlow} tone={r.cashFlow < 0 ? 'critical' : undefined} hint="Rentrées du mois − sorties du mois (= solde de fin de mois − solde du 1er)" />
+              <Figure label="Flux de trésorerie du mois" amount={r.netFlow} before={b ? (b.netFlow ?? b.cashFlow) : undefined} tone={r.netFlow < 0 ? 'critical' : undefined}
+                hint="Rentrées du mois − sorties du mois, en comptant comme dus les paiements reportés au mois suivant"
+                note={r.deferredToNextMonth > 0 ? `dont ${fmtMAD(r.deferredToNextMonth)} reportés au mois prochain` : undefined} />
               <Figure label="Résultat (CA − dépenses)" amount={monthResult} before={b ? b.turnover - b.totalExpenses : undefined} tone={monthResult < 0 ? 'critical' : undefined} hint="Chiffre d'affaires du mois − dépenses du mois, hors banque" />
               <Figure label="Point le plus bas" amount={r.minBalance} before={b?.minBalance} tone={r.minBalance + r.overdraftLimit < 0 ? 'critical' : r.minBalance < draft.minReserve ? 'warning' : undefined} hint={`Le ${r.minBalanceDay}`} />
               <Figure label="Solde en fin de mois" amount={r.closingBalance} before={b?.closingBalance} tone={r.closingBalance < 0 ? 'critical' : undefined} />
@@ -345,13 +441,29 @@ export default function DispatchTresoreriePage() {
         </div>
       </section>
 
+      {/* Views */}
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Vues de la simulation">
+        {([['simulation', 'Simulation du mois'], ['comparer', 'Comparer & tester'], ['projection', 'Projection']] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${tab === id ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'comparer' && deferredDraft && (
+        <CompareTab runs={runs} current={deferredDraft} onOpen={openVariant} onSaveTest={saveTestAsScenario} />
+      )}
+      {tab === 'projection' && deferredDraft && <ProjectionTab current={deferredDraft} />}
+
+      {tab === 'simulation' && <>
       {/* What would make the month positive */}
       {!isEmpty && !goal && (
         <section className={card} aria-labelledby="levers-title">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 id="levers-title" className="text-base font-semibold text-slate-900">Pistes pour une trésorerie positive</h2>
             <p className="mt-0.5 text-sm text-slate-500">
-              Chaque piste, appliquée seule, suffit pour finir le mois avec plus d'argent qu'au départ sans jamais descendre sous {fmtMAD(draft.minReserve)}.
+              Chaque piste, appliquée seule, suffit pour finir le mois avec plus d'argent qu'au départ (les paiements reportés comptent comme dus) sans jamais descendre sous {fmtMAD(draft.minReserve)}.
               Vous pouvez aussi combiner de plus petits changements, puis comparer au point de départ.
             </p>
           </div>
@@ -467,6 +579,7 @@ export default function DispatchTresoreriePage() {
             <h2 id="statement" className="text-base font-semibold text-slate-900">Bilan de trésorerie du mois</h2>
             <p className="mt-0.5 text-sm text-slate-500">D'où vient l'argent et où il va : solde du 1er + rentrées − sorties = solde de fin de mois.</p>
           </div>
+          <div className="border-b border-slate-100 p-5"><WaterfallChart result={r} /></div>
           <CashStatement result={r} />
         </section>
       )}
@@ -557,6 +670,7 @@ export default function DispatchTresoreriePage() {
           </table>
         </div>
       </Fold>
+      </>}
     </div>
   );
 }

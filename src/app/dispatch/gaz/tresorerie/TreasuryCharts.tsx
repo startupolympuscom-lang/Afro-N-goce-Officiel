@@ -1,5 +1,5 @@
 import React from 'react';
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { SimResult } from '../../../../lib/tresorerieSim';
 import { SERIES, STATUS, fmtMAD } from './ui';
 
@@ -39,7 +39,13 @@ export function BalanceChart({ result, minReserve }: { result: SimResult; minRes
     </div>
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 4 }}>
+        <AreaChart data={data} margin={{ top: 22, right: 12, bottom: 0, left: 4 }}>
+          <defs>
+            <linearGradient id="balanceFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={SERIES.in} stopOpacity={0.18} />
+              <stop offset="100%" stopColor={SERIES.in} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
           <CartesianGrid vertical={false} stroke="#e1e0d9" />
           <XAxis dataKey="day" {...AXIS} interval="preserveStartEnd" minTickGap={14} />
           <YAxis {...AXIS} axisLine={false} tickFormatter={compact} width={48} />
@@ -64,11 +70,19 @@ export function BalanceChart({ result, minReserve }: { result: SimResult; minRes
               );
             }}
           />
-          <Line
+          <ReferenceDot
+            x={result.minBalanceDay}
+            y={result.minBalance}
+            r={0}
+            label={{ value: `Point bas : ${fmtMAD(result.minBalance)}`, position: 'top', fill: '#52514e', fontSize: 11 }}
+          />
+          <Area
             type="monotone"
             dataKey="balance"
             name="Solde"
             stroke={SERIES.in}
+            fill="url(#balanceFill)"
+            baseValue="dataMin"
             strokeWidth={2}
             isAnimationActive={false}
             dot={(props: { cx?: number; cy?: number; payload?: { d: SimResult['days'][number] }; index?: number }) => {
@@ -78,7 +92,7 @@ export function BalanceChart({ result, minReserve }: { result: SimResult; minRes
             }}
             activeDot={{ r: 5, stroke: '#ffffff', strokeWidth: 2 }}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
     </div>

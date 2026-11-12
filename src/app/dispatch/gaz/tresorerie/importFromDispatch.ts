@@ -117,7 +117,7 @@ export function importFromDispatch(base: SimScenario, data: DispatchData, today 
     data.commandes.filter((c) => c.status === 'non payé' && c.date.slice(0, 10) < ymd(monthStart))
       .forEach((c) => unpaid.set(c.supplierId || 'Fournisseur gaz', (unpaid.get(c.supplierId || 'Fournisseur gaz') ?? 0) + c.totalPrice));
     unpaid.forEach((total, supplier) => {
-      scenario.depenses.push(newDepense(n, { id: `imp-${nanoid(8)}`, label: 'Arriérés gaz (commandes non payées)', supplier, category: 'fournisseur_gaz', monthlyAmount: Math.round(total), days: [1], source: 'import' }));
+      scenario.depenses.push(newDepense(n, { id: `imp-${nanoid(8)}`, label: 'Arriérés gaz (commandes non payées)', supplier, category: 'fournisseur_gaz', monthlyAmount: Math.round(total), days: [1], oneOff: true, source: 'import' }));
       notes.push(`Arriérés ${supplier} : ${fmt(total)} de commandes non payées, ajoutés comme échéance à placer.`);
     });
   } else {
