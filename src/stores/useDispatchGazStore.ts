@@ -146,6 +146,7 @@ export interface GazCommande {
   totalPrice: number;
   status: 'payé' | 'non payé';
   supplierId: string;
+  company?: CompanyId;
 }
 
 export interface GazCommandePrice {
@@ -320,6 +321,7 @@ export interface ComptaDocument {
   fileData?: string;
   notes?: string;
   uploadedAt: string;
+  company?: CompanyId;
 }
 
 export interface FactureRequest {

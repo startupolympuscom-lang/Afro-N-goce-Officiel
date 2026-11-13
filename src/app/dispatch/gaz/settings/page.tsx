@@ -1,515 +1,326 @@
-import React, { useState } from 'react';
-import { useDispatchGazStore } from '../../../../stores/useDispatchGazStore';
-import { Plus, Trash2, AlertTriangle } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Plus, Trash2, Pencil, ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDispatchGazStore, type GazBrand } from '../../../../stores/useDispatchGazStore';
+import { Card, EmptyState, Modal, PageHeader, Tabs, buttonPrimary, buttonSecondary, inputClass } from '../../../../components/dispatch/DispatchUI';
 
-export default function DispatchSettingsPage() {
-  const { 
-    brands, addBrand, deleteBrand,
-    zones, addZone, deleteZone,
-    prices, setPrice,
-    commissions, setCommission,
-    gplConfig, updateGPLConfig,
-    resetData
-  } = useDispatchGazStore();
+type Tab = 'produits' | 'prix' | 'consigne' | 'donnees';
+const RESET_CODE = 'delta alpha hotel india mike';
+const sortCats = (cats: string[]) => [...cats].sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0) || a.localeCompare(b));
 
-  const handleConsignationChange = (brandId: string, category: string, value: string) => {
-    const price = parseFloat(value);
-    if (!isNaN(price)) {
-      const newPrices = { ...gplConfig.consignationPrices };
-      if (!newPrices[brandId]) {
-        newPrices[brandId] = {};
-      }
-      newPrices[brandId][category] = price;
-      updateGPLConfig({ consignationPrices: newPrices });
-    }
-  };
+/** Price-like input that writes to the store as soon as a valid number is typed (empty keeps the saved value). */
+function MoneyInput({ value, onSave, label, step = 1, missing }: { value: number | undefined; onSave: (v: number) => void; label: string; step?: number; missing?: boolean }) {
+  return (
+    <input
+      type="number" inputMode="decimal" min={0} step={step} aria-label={label}
+      defaultValue={value ?? ''}
+      key={value ?? 'empty'}
+      onBlur={(e) => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v !== value) onSave(v); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      placeholder="—"
+      className={`${inputClass} w-24 text-right tabular-nums ${missing ? 'border-amber-300! bg-amber-50!' : ''}`}
+    />
+  );
+}
 
-  const getConsignationPrice = (brandId: string, category: string) => {
-    return gplConfig?.consignationPrices?.[brandId]?.[category] ?? '';
-  };
-
-  const [newBrandName, setNewBrandName] = useState('');
-  const [newBrandCategories, setNewBrandCategories] = useState('');
-  const [newZoneName, setNewZoneName] = useState('');
-
-  // Security reset states
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [securityCodeInput, setSecurityCodeInput] = useState('');
-  const [confirmStepVisible, setConfirmStepVisible] = useState(false);
-
-  const handleImageUpload = (brandId: string, category: string, file: File) => {
+function resizeImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = () => reject(new Error('lecture'));
     reader.onload = (e) => {
       const img = new Image();
+      img.onerror = () => reject(new Error('image'));
       img.onload = () => {
+        const max = 150;
+        const ratio = Math.min(1, max / Math.max(img.width, img.height));
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 150;
-        const MAX_HEIGHT = 150;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height = Math.round(height * MAX_WIDTH / width);
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width = Math.round(width * MAX_HEIGHT / height);
-            height = MAX_HEIGHT;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
         const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const base64String = canvas.toDataURL('image/webp', 0.7);
-          
-          const currentBrands = useDispatchGazStore.getState().brands;
-          const brand = currentBrands.find(b => b.id === brandId);
-          if (brand) {
-            useDispatchGazStore.getState().updateBrand(brandId, {
-              productImages: {
-                ...(brand.productImages || {}),
-                [category]: base64String
-              }
-            });
-            toast.success(`Image ajoutée pour ${brand.name} - ${category}`);
-          }
-        } else {
-          toast.error("Erreur lors du recadrage de l'image");
-        }
-      };
-      img.onerror = () => {
-        toast.error("L'image est invalide ou corrompue");
+        if (!ctx) return reject(new Error('canvas'));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/webp', 0.7));
       };
       img.src = e.target?.result as string;
     };
-    reader.onerror = () => {
-      toast.error("Erreur lors de la lecture du fichier");
-    };
     reader.readAsDataURL(file);
-  };
+  });
+}
 
-  const handleAddBrand = (e: React.FormEvent) => {
+function BrandCard({ brand }: { brand: GazBrand }) {
+  const { updateBrand, deleteBrand } = useDispatchGazStore();
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [newProduct, setNewProduct] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadFor, setUploadFor] = useState<string | null>(null);
+
+  const addProduct = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newBrandName && newBrandCategories) {
-      addBrand({
-        id: Date.now().toString(),
-        name: newBrandName,
-        categories: newBrandCategories.split(',').map(c => c.trim()).filter(c => c)
-      });
-      setNewBrandName('');
-      setNewBrandCategories('');
+    const names = newProduct.split(',').map((c) => c.trim()).filter(Boolean).filter((c) => !brand.categories.includes(c));
+    if (!names.length) return;
+    updateBrand(brand.id, { categories: [...brand.categories, ...names] });
+    setNewProduct('');
+    toast.success(`${names.join(', ')} ajouté(s) à ${brand.name}.`);
+  };
+  const removeProduct = (cat: string) => {
+    if (!window.confirm(`Retirer ${brand.name} ${cat} des produits ? Les ventes et le stock déjà enregistrés sont conservés.`)) return;
+    const productImages = { ...(brand.productImages || {}) };
+    delete productImages[cat];
+    updateBrand(brand.id, { categories: brand.categories.filter((c) => c !== cat), productImages });
+  };
+  const onFile = async (file: File) => {
+    if (!uploadFor) return;
+    try {
+      const data = await resizeImage(file);
+      updateBrand(brand.id, { productImages: { ...(useDispatchGazStore.getState().brands.find((b) => b.id === brand.id)?.productImages || {}), [uploadFor]: data } });
+      toast.success(`Photo ajoutée pour ${brand.name} ${uploadFor}.`);
+    } catch {
+      toast.error("Cette image n'a pas pu être lue.");
     }
   };
-
-  const handleAddZone = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newZoneName) {
-      addZone({
-        id: Date.now().toString(),
-        name: newZoneName
-      });
-      setNewZoneName('');
-    }
-  };
-
-  const handlePriceChange = (brandId: string, category: string, zoneId: string, value: string) => {
-    const price = parseFloat(value);
-    if (!isNaN(price)) {
-      setPrice({
-        id: `${brandId}-${category}-${zoneId}`,
-        brandId,
-        category,
-        zoneId,
-        price
-      });
-    }
-  };
-
-  const getPrice = (brandId: string, category: string, zoneId: string) => {
-    const p = prices.find(p => p.brandId === brandId && p.category === category && p.zoneId === zoneId);
-    return p ? p.price : '';
-  };
-
-  const handleCommissionChange = (brandId: string, category: string, value: string) => {
-    const rate = parseFloat(value);
-    if (!isNaN(rate)) {
-      setCommission({
-        id: `${brandId}-${category}-comm`,
-        brandId,
-        category,
-        rate
-      });
-    }
-  };
-
-  const getCommission = (brandId: string, category: string) => {
-    const c = commissions.find(c => c.brandId === brandId && c.category === category);
-    return c ? c.rate : '';
-  };
-
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Paramètres GPL</h1>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Brands & Categories */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Marques et Catégories</h2>
-          
-          <form onSubmit={handleAddBrand} className="mb-6 flex flex-col sm:flex-row gap-3 sm:items-end">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Nom de la marque</label>
-              <input type="text" value={newBrandName} onChange={e => setNewBrandName(e.target.value)} placeholder="ex: Butagaz" className="w-full px-4 py-3 sm:py-2 border border-slate-300 rounded-xl sm:rounded-lg text-sm" />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Catégories (séparées par virgule)</label>
-              <input type="text" value={newBrandCategories} onChange={e => setNewBrandCategories(e.target.value)} placeholder="ex: 3Kg, 12Kg, 34Kg" className="w-full px-4 py-3 sm:py-2 border border-slate-300 rounded-xl sm:rounded-lg text-sm" />
-            </div>
-            <button type="submit" className="bg-blue-600 text-white p-3 sm:p-2 rounded-xl sm:rounded-lg hover:bg-blue-700 flex justify-center mt-2 sm:mt-0">
-              <Plus className="w-5 h-5 sm:w-5 sm:h-5" />
-              <span className="ml-2 font-bold sm:hidden">Ajouter Marque</span>
-            </button>
-          </form>
-
-          <div className="space-y-4">
-            {brands.map(brand => (
-              <div key={brand.id} className="flex flex-col p-4 bg-slate-50 rounded-xl border border-slate-100 gap-4">
-                <div className="flex items-center justify-between">
-                  <p className="font-bold text-slate-900 text-lg uppercase tracking-wide">{brand.name}</p>
-                  <button onClick={() => deleteBrand(brand.id)} className="text-red-500 p-2 hover:bg-red-100 rounded-lg transition-colors" title="Supprimer la marque">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-100">
-                  {brand.categories.map(cat => (
-                    <div key={cat} className="flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200">
-                      <p className="text-sm font-bold text-slate-700 mb-3">{cat}</p>
-                      {brand.productImages?.[cat] ? (
-                        <div className="relative group flex items-center justify-center">
-                          <img src={brand.productImages[cat]} alt={cat} className="w-16 h-16 object-contain" />
-                          <button 
-                            title="Changer l'image"
-                            className="absolute -top-2 -right-2 bg-slate-800 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                            onClick={() => document.getElementById(`img-upload-${brand.id}-${cat}`)?.click()}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById(`img-upload-${brand.id}-${cat}`)?.click()}
-                          className="w-16 h-16 bg-slate-50 flex items-center justify-center rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-colors text-slate-400 hover:text-blue-500"
-                        >
-                          <Plus className="w-6 h-6" />
-                        </button>
-                      )}
-                      <input 
-                        type="file" 
-                        id={`img-upload-${brand.id}-${cat}`}
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleImageUpload(brand.id, cat, file);
-                          }
-                          e.target.value = '';
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+    <Card
+      title={renaming === null ? brand.name : (
+        <form onSubmit={(e) => { e.preventDefault(); if (renaming.trim()) updateBrand(brand.id, { name: renaming.trim() }); setRenaming(null); }} className="flex items-center gap-2">
+          <input autoFocus value={renaming} onChange={(e) => setRenaming(e.target.value)} aria-label="Nom de la marque" className={`${inputClass} w-48`} />
+          <button type="submit" className={buttonPrimary}>OK</button>
+        </form>
+      )}
+      subtitle={`${brand.categories.length} produit(s)`}
+      actions={renaming === null && (
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => setRenaming(brand.name)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label={`Renommer ${brand.name}`} title="Renommer"><Pencil className="h-4 w-4" /></button>
+          <button type="button" onClick={() => { if (window.confirm(`Supprimer la marque ${brand.name} ? Elle ne sera plus proposée à la vente ni au chargement.`)) deleteBrand(brand.id); }}
+            className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600" aria-label={`Supprimer ${brand.name}`} title="Supprimer"><Trash2 className="h-4 w-4" /></button>
         </div>
-
-        {/* Zones */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Zones de Tarification</h2>
-          
-          <form onSubmit={handleAddZone} className="mb-6 flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Nom de la zone</label>
-              <input type="text" value={newZoneName} onChange={e => setNewZoneName(e.target.value)} placeholder="ex: Zone 0" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-            </div>
-            <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700">
-              <Plus className="w-5 h-5" />
+      )}
+    >
+      <ul className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
+        {sortCats(brand.categories).map((cat) => (
+          <li key={cat} className="group relative flex flex-col items-center gap-2 rounded-xl border border-slate-200 p-3">
+            <button type="button" onClick={() => { setUploadFor(cat); fileRef.current?.click(); }} title="Changer la photo" aria-label={`Photo de ${brand.name} ${cat}`}
+              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-slate-50 text-slate-400 ring-1 ring-slate-200 hover:ring-blue-400">
+              {brand.productImages?.[cat] ? <img src={brand.productImages[cat]} alt="" className="h-full w-full object-contain" /> : <ImagePlus className="h-5 w-5" />}
             </button>
-          </form>
+            <span className="text-sm font-semibold text-slate-800">{cat}</span>
+            <button type="button" onClick={() => removeProduct(cat)} aria-label={`Retirer ${cat}`} title="Retirer ce produit"
+              className="absolute right-1.5 top-1.5 rounded-md p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={addProduct} className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3">
+        <input value={newProduct} onChange={(e) => setNewProduct(e.target.value)} placeholder="Nouveau produit, ex : 6Kg" aria-label={`Nouveau produit ${brand.name}`} className={`${inputClass} w-56`} />
+        <button type="submit" className={buttonSecondary} disabled={!newProduct.trim()}><Plus className="h-4 w-4" /> Ajouter un produit</button>
+      </form>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
+    </Card>
+  );
+}
 
-          <div className="space-y-3">
-            {zones.map(zone => (
-              <div key={zone.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <p className="font-bold text-slate-900">{zone.name}</p>
-                <button onClick={() => deleteZone(zone.id)} className="text-red-500 p-1 hover:bg-red-50 rounded">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
+export default function DispatchSettingsPage() {
+  const { brands, addBrand, zones, addZone, updateZone, deleteZone, prices, setPrice, commissions, setCommission, gplConfig, updateGPLConfig, clients, resetData } = useDispatchGazStore();
+  const [tab, setTab] = useState<Tab>('produits');
+  const [brandName, setBrandName] = useState('');
+  const [brandProducts, setBrandProducts] = useState('3Kg, 12Kg, 34Kg');
+  const [zoneName, setZoneName] = useState('');
+  const [renamingZone, setRenamingZone] = useState<{ id: string; name: string } | null>(null);
+  const [reset, setReset] = useState<null | 'code' | 'confirm'>(null);
+  const [code, setCode] = useState('');
+
+  const priceOf = (brandId: string, cat: string, zoneId: string) => prices.find((p) => p.brandId === brandId && p.category === cat && p.zoneId === zoneId)?.price;
+  const savePrice = (brandId: string, category: string, zoneId: string, price: number) => setPrice({ id: `${brandId}-${category}-${zoneId}`, brandId, category, zoneId, price });
+  const missingPrices = brands.reduce((n, b) => n + b.categories.reduce((m, c) => m + zones.filter((z) => priceOf(b.id, c, z.id) === undefined).length, 0), 0);
+
+  const submitBrand = (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = brandName.trim();
+    const categories = brandProducts.split(',').map((c) => c.trim()).filter(Boolean);
+    if (!name || !categories.length) return;
+    addBrand({ id: Date.now().toString(), name, categories });
+    setBrandName('');
+    toast.success(`Marque ${name} ajoutée. Pensez à renseigner ses prix et sa consigne.`);
+  };
+  const submitZone = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!zoneName.trim()) return;
+    addZone({ id: Date.now().toString(), name: zoneName.trim() });
+    setZoneName('');
+  };
+  const removeZone = (id: string, name: string) => {
+    const used = clients.filter((c) => c.zoneId === id).length;
+    if (!window.confirm(used ? `${used} client(s) utilisent la zone ${name} : leurs ventes n'auront plus de prix. Supprimer quand même ?` : `Supprimer la zone ${name} ?`)) return;
+    deleteZone(id);
+  };
+  const copyFirstZone = (brandId: string, cat: string) => {
+    const first = zones[0] && priceOf(brandId, cat, zones[0].id);
+    if (first === undefined) { toast.error(`Renseignez d'abord le prix de ${zones[0]?.name ?? 'la première zone'}.`); return; }
+    zones.slice(1).forEach((z) => savePrice(brandId, cat, z.id, first));
+    toast.success('Prix copié sur toutes les zones.');
+  };
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
+      <PageHeader title="Paramètres GPL" subtitle="Marques, produits, prix de vente par zone, consigne et commissions. Chaque modification est enregistrée dès que vous quittez le champ." />
+      <Tabs<Tab> label="Sections des paramètres" value={tab} onChange={setTab} tabs={[
+        { id: 'produits', label: 'Marques et produits' },
+        { id: 'prix', label: 'Prix de vente', count: missingPrices },
+        { id: 'consigne', label: 'Consigne et commissions' },
+        { id: 'donnees', label: 'Réinitialisation' },
+      ]} />
+
+      {tab === 'produits' && (
+        <div className="space-y-5">
+          <Card title="Ajouter une marque" bodyClass="p-4">
+            <form onSubmit={submitBrand} className="flex flex-wrap items-end gap-3">
+              <label className="block text-xs font-medium text-slate-500">Nom<input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="ex : Afriquia Gaz" className={`${inputClass} mt-1 block w-56`} /></label>
+              <label className="block text-xs font-medium text-slate-500">Produits (séparés par des virgules)<input value={brandProducts} onChange={(e) => setBrandProducts(e.target.value)} className={`${inputClass} mt-1 block w-64`} /></label>
+              <button type="submit" className={buttonPrimary} disabled={!brandName.trim()}><Plus className="h-4 w-4" /> Ajouter la marque</button>
+            </form>
+          </Card>
+          {brands.length === 0 ? <Card><EmptyState>Aucune marque. Ajoutez-en une ci-dessus.</EmptyState></Card> : brands.map((b) => <BrandCard key={b.id} brand={b} />)}
         </div>
-      </div>
+      )}
 
-      {/* Pricing Matrix */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Grille Tarifaire (MAD)</h2>
-        
-        {brands.length > 0 && zones.length > 0 ? (
-          <table className="w-full text-left border-collapse min-w-max">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-3 font-medium text-slate-600">Marque</th>
-                <th className="p-3 font-medium text-slate-600">Catégorie</th>
-                {zones.map(zone => (
-                  <th key={zone.id} className="p-3 font-medium text-slate-600">{zone.name}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {brands.map(brand => (
-                brand.categories.map((cat, idx) => (
-                  <tr key={`${brand.id}-${cat}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    {idx === 0 && (
-                      <td className="p-3 font-bold text-slate-900" rowSpan={brand.categories.length}>
-                        {brand.name}
-                      </td>
-                    )}
-                    <td className="p-3 text-slate-700">{cat}</td>
-                    {zones.map(zone => (
-                      <td key={zone.id} className="p-3">
-                        <input 
-                          type="number" 
-                          value={getPrice(brand.id, cat, zone.id)}
-                          onChange={(e) => handlePriceChange(brand.id, cat, zone.id, e.target.value)}
-                          className="w-24 px-2 py-1 border border-slate-300 rounded text-sm"
-                          placeholder="Prix"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-slate-500 text-sm">Ajoutez au moins une marque et une zone pour définir les prix.</p>
-        )}
-      </div>
-
-      {/* Commission Matrix */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Commissions par Catégorie (MAD)</h2>
-        
-        {brands.length > 0 ? (
-          <table className="w-full text-left border-collapse min-w-max">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-3 font-medium text-slate-600">Marque</th>
-                <th className="p-3 font-medium text-slate-600">Catégorie</th>
-                <th className="p-3 font-medium text-slate-600">Commission (DHS)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {brands.map(brand => (
-                brand.categories.map((cat, idx) => (
-                  <tr key={`${brand.id}-${cat}-comm`} className="border-b border-slate-100 hover:bg-slate-50">
-                    {idx === 0 && (
-                      <td className="p-3 font-bold text-slate-900" rowSpan={brand.categories.length}>
-                        {brand.name}
-                      </td>
-                    )}
-                    <td className="p-3 text-slate-700">{cat}</td>
-                    <td className="p-3">
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={getCommission(brand.id, cat)}
-                        onChange={(e) => handleCommissionChange(brand.id, cat, e.target.value)}
-                        className="w-32 px-2 py-1 border border-slate-300 rounded text-sm"
-                        placeholder="Commission"
-                      />
-                    </td>
-                  </tr>
-                ))
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-slate-500 text-sm">Ajoutez au moins une marque pour définir les commissions.</p>
-        )}
-      </div>
-      {/* Consignation Prices Matrix */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Prix de Consignation des Bouteilles (MAD)</h2>
-        
-        {brands.length > 0 ? (
-          <table className="w-full text-left border-collapse min-w-max">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-3 font-medium text-slate-600">Marque</th>
-                <th className="p-3 font-medium text-slate-600">Catégorie</th>
-                <th className="p-3 font-medium text-slate-600">Prix Consigne (DHS)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {brands.map(brand => (
-                brand.categories.map((cat, idx) => (
-                  <tr key={`${brand.id}-${cat}-cons`} className="border-b border-slate-100 hover:bg-slate-50">
-                    {idx === 0 && (
-                      <td className="p-3 font-bold text-slate-900" rowSpan={brand.categories.length}>
-                        {brand.name}
-                      </td>
-                    )}
-                    <td className="p-3 text-slate-700">{cat}</td>
-                    <td className="p-3">
-                      <input 
-                        type="number" 
-                        value={getConsignationPrice(brand.id, cat)}
-                        onChange={(e) => handleConsignationChange(brand.id, cat, e.target.value)}
-                        className="w-32 px-2 py-1 border border-slate-300 rounded text-sm"
-                        placeholder="Prix Consigne"
-                      />
-                    </td>
-                  </tr>
-                ))
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-slate-500 text-sm">Ajoutez au moins une marque pour définir les prix de consignation.</p>
-        )}
-      </div>
-
-      {/* Danger Zone */}
-      <div className="bg-red-50 p-6 rounded-2xl border border-red-200 shadow-sm">
-        <h2 className="text-lg font-bold text-red-900 mb-4 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 animate-pulse" />
-          Zone Dangereuse : Réinitialisation
-        </h2>
-        <p className="text-red-700 text-sm mb-4 bg-white/55 p-4 rounded-xl border border-red-100/50">
-          Cette action permet de rendre de compte a rebour a 0, comme si ni achat ni vente n'a été fait dans afro dispatch. 
-          Elle effacera : les ventes, dépenses, pointages, localisations des camions, dispatch de stock (y compris comptoir), 
-          stock global (remis à 0), commandes, caisses et fiches de paies. 
-          <br /><br />
-          Les listes de clients, chauffeurs, convoyeurs, zones, marques, prix et commissions seront conservées.
-        </p>
-        <button 
-          onClick={() => {
-            setSecurityCodeInput('');
-            setConfirmStepVisible(false);
-            setShowResetModal(true);
-          }}
-          className="bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-red-200 uppercase text-xs tracking-wider"
-        >
-          Remettre à zèro les données
-        </button>
-      </div>
-
-      {/* Security reset flow pop up modal */}
-      {showResetModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Header banner */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white text-center relative">
-              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-2 text-white">
-                <AlertTriangle className="w-6 h-6 animate-bounce" />
-              </div>
-              <h3 className="text-lg font-black uppercase tracking-tight">Réinitialisation Sécurisée</h3>
-              <p className="text-red-100 text-xs mt-1">Vérification de sécurité requise</p>
-            </div>
-
-            {/* Step 1: Input Code */}
-            {!confirmStepVisible && (
-              <div className="p-6 space-y-4">
-                <p className="text-sm font-medium text-slate-600 leading-relaxed text-center">
-                  Pour déverrouiller la réinitialisation, veuillez saisir le code de sécurité suivant :
-                  <br />
-                  <span className="font-mono bg-slate-100 text-slate-900 border border-slate-200 px-2.5 py-1 rounded-[8px] text-xs font-black block mt-2 tracking-wide uppercase">
-                    delta alpha hotel India mike
+      {tab === 'prix' && (
+        <div className="space-y-5">
+          <Card title="Zones de prix" subtitle="Chaque client est rattaché à une zone ; le prix de vente dépend de la zone." bodyClass="p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {zones.map((z) => (
+                renamingZone?.id === z.id ? (
+                  <form key={z.id} onSubmit={(e) => { e.preventDefault(); if (renamingZone.name.trim()) updateZone(z.id, { name: renamingZone.name.trim() }); setRenamingZone(null); }} className="flex items-center gap-1">
+                    <input autoFocus value={renamingZone.name} onChange={(e) => setRenamingZone({ id: z.id, name: e.target.value })} aria-label="Nom de la zone" className={`${inputClass} w-40`} />
+                    <button type="submit" className={buttonPrimary}>OK</button>
+                  </form>
+                ) : (
+                  <span key={z.id} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 py-1 pl-3 pr-1 text-sm text-slate-800">
+                    {z.name}
+                    <span className="ml-1 text-xs text-slate-400">{clients.filter((c) => c.zoneId === z.id).length} cl.</span>
+                    <button type="button" onClick={() => setRenamingZone({ id: z.id, name: z.name })} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label={`Renommer ${z.name}`}><Pencil className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => removeZone(z.id, z.name)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Supprimer ${z.name}`}><Trash2 className="h-3.5 w-3.5" /></button>
                   </span>
-                </p>
-
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Saisir le Code</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Entrez le code ici..."
-                    value={securityCodeInput}
-                    onChange={(e) => setSecurityCodeInput(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white text-center font-bold outline-none ring-2 ring-transparent focus:ring-red-500/20 text-slate-900 uppercase tracking-tight transition-all"
-                  />
-                </div>
-
-                <div className="flex gap-2.5 pt-2">
-                  <button
-                    onClick={() => setShowResetModal(false)}
-                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all text-xs"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (securityCodeInput.trim().toLowerCase() === 'delta alpha hotel india mike') {
-                        setConfirmStepVisible(true);
-                      } else {
-                        toast.error("Code de sécurité incorrect. Veuillez réessayer.");
-                      }
-                    }}
-                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition-all shadow-lg shadow-red-900/10 text-xs"
-                  >
-                    Suivant
-                  </button>
-                </div>
+                )
+              ))}
+              <form onSubmit={submitZone} className="flex items-center gap-1">
+                <input value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="Nouvelle zone" aria-label="Nouvelle zone" className={`${inputClass} w-40`} />
+                <button type="submit" className={buttonSecondary} disabled={!zoneName.trim()}><Plus className="h-4 w-4" /> Ajouter</button>
+              </form>
+            </div>
+          </Card>
+          {missingPrices > 0 && <p className="rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-900">{missingPrices} prix manquant(s), en jaune ci-dessous : sans prix, un produit ne peut pas être vendu aux clients de cette zone.</p>}
+          {brands.length === 0 || zones.length === 0 ? <Card><EmptyState>Ajoutez au moins une marque et une zone pour saisir les prix.</EmptyState></Card> : brands.map((b) => (
+            <Card key={b.id} title={`${b.name} : prix de vente (MAD par bouteille)`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50/60 text-xs text-slate-500">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left font-semibold">Produit</th>
+                      {zones.map((z) => <th key={z.id} className="px-3 py-2.5 text-right font-semibold">{z.name}</th>)}
+                      <th className="px-3 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sortCats(b.categories).map((cat) => (
+                      <tr key={cat}>
+                        <td className="px-4 py-2 font-medium text-slate-900">{cat}</td>
+                        {zones.map((z) => {
+                          const v = priceOf(b.id, cat, z.id);
+                          return <td key={z.id} className="px-3 py-2 text-right"><MoneyInput value={v} missing={v === undefined} label={`Prix ${b.name} ${cat} ${z.name}`} onSave={(p) => savePrice(b.id, cat, z.id, p)} /></td>;
+                        })}
+                        <td className="px-3 py-2 text-right">
+                          {zones.length > 1 && <button type="button" onClick={() => copyFirstZone(b.id, cat)} className="whitespace-nowrap text-xs font-medium text-blue-600 hover:text-blue-700" title={`Copier le prix de ${zones[0].name} sur les autres zones`}>Copier partout</button>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-
-            {/* Step 2: Confirmation question (Êtes-vous sûr de vouloir réinitialiser) */}
-            {confirmStepVisible && (
-              <div className="p-6 space-y-4 text-center">
-                <p className="text-slate-800 font-extrabold text-base leading-snug uppercase tracking-tight">
-                  eye vous sure de vouloir réinitialiser ?
-                </p>
-                <p className="text-slate-500 text-xs leading-relaxed">
-                  Cette action est absolument définitive et irréversible. Les ventes de l'équipe, livraisons de stock et balances de caisses seront rétablies à zéro.
-                </p>
-
-                <div className="flex gap-2.5 pt-2">
-                  <button
-                    onClick={() => setConfirmStepVisible(false)}
-                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all text-xs"
-                  >
-                    Retour
-                  </button>
-                  <button
-                    onClick={() => {
-                      resetData();
-                      setShowResetModal(false);
-                      setConfirmStepVisible(false);
-                      setSecurityCodeInput('');
-                      toast.success('Données réinitialisées avec succès. Les compteurs sont à 0.');
-                    }}
-                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition-all shadow-lg shadow-red-900/10 text-xs uppercase tracking-wide"
-                  >
-                    Oui, Réinitialiser
-                  </button>
-                </div>
-              </div>
-            )}
-
-          </div>
+            </Card>
+          ))}
         </div>
+      )}
+
+      {tab === 'consigne' && (
+        <div className="space-y-5">
+          <p className="text-sm text-slate-600">
+            <strong className="text-slate-900">Consigne</strong> : prix payé par le client qui achète la bouteille (il ne rend pas de vide).{' '}
+            <strong className="text-slate-900">Commission</strong> : montant versé au chauffeur pour chaque bouteille vendue, repris dans les bulletins de paie.
+          </p>
+          {brands.length === 0 ? <Card><EmptyState>Ajoutez une marque pour définir la consigne et les commissions.</EmptyState></Card> : brands.map((b) => (
+            <Card key={b.id} title={b.name}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50/60 text-xs text-slate-500">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left font-semibold">Produit</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Consigne de la bouteille (MAD)</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Commission chauffeur (MAD / bouteille)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sortCats(b.categories).map((cat) => {
+                      const consigne = gplConfig?.consignationPrices?.[b.id]?.[cat];
+                      const commission = commissions.find((c) => c.brandId === b.id && c.category === cat)?.rate;
+                      return (
+                        <tr key={cat}>
+                          <td className="px-4 py-2 font-medium text-slate-900">{cat}</td>
+                          <td className="px-4 py-2 text-right">
+                            <MoneyInput value={consigne} missing={consigne === undefined} label={`Consigne ${b.name} ${cat}`}
+                              onSave={(v) => updateGPLConfig({ consignationPrices: { ...gplConfig.consignationPrices, [b.id]: { ...(gplConfig.consignationPrices?.[b.id] || {}), [cat]: v } } })} />
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <MoneyInput value={commission} step={0.05} missing={commission === undefined} label={`Commission ${b.name} ${cat}`}
+                              onSave={(v) => setCommission({ id: `${b.id}-${cat}-comm`, brandId: b.id, category: cat, rate: v })} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {tab === 'donnees' && (
+        <Card title="Remettre les compteurs à zéro" subtitle="À utiliser seulement pour repartir d'une page blanche (par exemple après une période de test).">
+          <div className="space-y-3 p-5 text-sm text-slate-700">
+            <p><strong className="text-slate-900">Effacé :</strong> ventes, dépenses, pointages, positions des camions, chargements chauffeurs et comptoir, stock (remis à 0), commandes, caisses et bulletins de paie.</p>
+            <p><strong className="text-slate-900">Conservé :</strong> clients, chauffeurs, convoyeurs, zones, marques, prix, consignes et commissions.</p>
+            <button type="button" onClick={() => { setCode(''); setReset('code'); }} className="inline-flex h-9 items-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">Réinitialiser les données…</button>
+          </div>
+        </Card>
+      )}
+
+      {reset && (
+        <Modal title="Réinitialisation des données" subtitle="Action définitive et irréversible" onClose={() => setReset(null)}
+          footer={reset === 'code' ? (
+            <>
+              <button type="button" className={buttonSecondary} onClick={() => setReset(null)}>Annuler</button>
+              <button type="button" className="inline-flex h-9 items-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700"
+                onClick={() => { if (code.trim().toLowerCase() === RESET_CODE) setReset('confirm'); else toast.error('Code de sécurité incorrect.'); }}>Suivant</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className={buttonSecondary} onClick={() => setReset('code')}>Retour</button>
+              <button type="button" className="inline-flex h-9 items-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700"
+                onClick={() => { resetData(); setReset(null); toast.success('Données réinitialisées : les compteurs sont à 0.'); }}>Oui, tout réinitialiser</button>
+            </>
+          )}>
+          <div className="space-y-3 p-5 text-sm text-slate-700">
+            {reset === 'code' ? (
+              <>
+                <p>Pour continuer, saisissez le code de sécurité : <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold uppercase text-slate-900">{RESET_CODE}</span></p>
+                <input autoFocus value={code} onChange={(e) => setCode(e.target.value)} aria-label="Code de sécurité" placeholder="Code de sécurité" className={`${inputClass} w-full`} />
+              </>
+            ) : (
+              <p className="font-medium text-slate-900">Êtes-vous sûr de vouloir réinitialiser ? Les ventes, chargements de stock et soldes de caisse seront remis à zéro.</p>
+            )}
+          </div>
+        </Modal>
       )}
     </div>
   );
